@@ -1,0 +1,197 @@
+Drogulus!
+=========
+
+Drogulus is an exercise in producing the simplest and smallest means of working
+with federated linked data. It's also a playground for distributed computation
+and an exercise in practical philosophy. It's heavily based upon ideas from
+Fluidinfo.
+
+To begin with it'll simply be a collection of documents and ideas I'll store in
+GIT only because I'd like to track how they change.
+
+It'll probably all come to nothing. ;-)
+
+Motivation
+==========
+
+Autonomy ~ literally, "autos" (self) "nomos" (rule or law) is a favourite word
+of mine.
+
+When someone or something is autonomous it is self-directing, free to act of its
+own accord and lacking imposition or direct control from external parties. It
+also suggests intelligence and awareness enough to be able to enjoy and make use
+of such freedom.
+
+To my mind, it is a desirable state to be in, to aspire to and to encourage.
+
+It's also the opposite of terms describing such undesirable states as tyranny,
+slavery, ignorance and apathy.
+
+The definition I use above is common in that it contains two different states:
+
+# Freedom to self-determination, and
+# Freedom from imposition or coercion.
+
+Perhaps the most famous exposition of these states is made by the philosopher
+Isiah Berlin in his essay "Two Concepts of Liberty" (Berlin uses the words
+freedom and liberty interchangeably). He calls them positive and negative
+liberty and introduces them by relating them to a question:
+
+    "...the negative sense, is involved in the answer to the question "What is
+    the area within which the subject - a person or a group of persons - is or
+    should be left to do or be what he is able to do or be, without interference
+    by other persons?" The second, ...the positive sense, is involved in the
+    answer to the question "What, or who, is the source of control or
+    interference that can determine someone to do, or be, this rather than
+    that?"
+
+Put simply, negative liberty is freedom from coercion or interference.
+
+Berlin qualifies this by saying that coercion implies deliberate interference
+from other persons when one could act otherwise and that the capacity to do or
+act in a particular way does not count as a lack of ones political liberty. As
+Berlin puts it, "If I say I am unable to jump more than ten feet in the air ...
+it would be eccentric to say that I am to that degree enslaved or coerced. You
+lack political liberty or freedom only if you are prevented from attaining the
+goal by human beings."
+
+Positive liberty is freedom to act in a particular way, the capacity for a
+person or a group to take control of their lives, making decisions which depend
+not on external forces but on their (or his or her) own choices and reasons.
+
+Berlin explains, "I wish to be the instrument of my own, not of other men's
+acts of will. I wish to be a subject, not an object; to be moved by reasons, by
+conscious purposes, which are my own, not by causes which affect me, as it were,
+from outside. I wish to be somebody, not nobody; a doer - deciding, not by
+external nature or by other men as if I were a thing, or an animal, or a slave
+incapable of playing a human role, that is, of conceiving goals and policies of
+my own and realising them."
+
+The two definitions are related in that they can be used to mutually frame each
+other:
+
+A person who is acting under or desiring positive liberty wants to be
+self-determining, free from interference and external imposition ("deciding,
+not being decided for, self directed and not acted upon by external nature or
+by other men...", as Berlin puts it) whilst another acting under or desiring
+negative liberty wants to make up their own mind without suffering from
+coercion or imposition, as Berlin says, negative liberty, "is simply the area
+within which a man can act unobstructed by others."
+
+But are these definitions of freedom/liberty the same as autonomy?
+
+No.
+
+What makes autonomy different is a will to act. Freedom/liberty is a
+necessary condition for autonomy but not the only condition. One might have
+freedom to do "this" or "that" but, due to habit, laziness, apathy or some other
+reason, may simply not do "this" or "that".
+
+In some sense, autonomy requires reflection and then a concious decision to act
+upon one's freedom as a result of such reflection.
+
+So we get to the nub of something I believe is essential: being autonomous is
+good and people should have the freedom, encouragement and means to act
+autonomously.
+
+I realise this is not an exhaustive exposition of autonomy and is wide open to
+philosophical hole poking.
+
+This is a README: an overview! As such I'm simply reporting my position. I'll
+defend and probably revise it as and when needed in more appropriate
+documentation.
+
+What has this got to do with software?
+
+I have three reasons for mentioning autonomy:
+
+# I want to put my philosophical cards on the table to show that I've built my
+outlook with care and clear movement of thought. I don't want to be labelled as
+simply spewing forth a free-software / opensource dogma because I'm "one of
+them" (hacker/developer types).
+
+# I want the design and implementation of Drogulus to reflect my emphasis on
+autonomy. Once again, I want to show clear philosophical reasons for certain
+technical and implementation details.
+
+# Drogulus is itself an exercise in autonomy.
+
+What is it..?
+=============
+
+In a nutshell, Drogulus is:
+
+* A federated and decentralised, openly writeable and easily searchable
+information store.
+* A distributed compution platform.
+
+Let's examine these terms:
+
+Being federated (the system consists of many independant but collaborating
+entities) and decentralised (none of these entities is more important than any
+of the others) ensures users are free from a central authority that might desire
+to control their use of the system. This is a decision that reflects Berlin's
+concept of negative liberty.
+
+Being openly writeable ensures no user is barred from the system. All users are
+free to contribute, change, enhance and expand the system. This reflects
+Berlin's concept of positive liberty.
+
+Being easily searchable enables users to explore the information stored via
+Drogulus without having to rely on others to provide such services. This
+reflects both positive and negative concepts of liberty: the freedom to search
+whilst being free from a broker for such searches (the facility is built in).
+
+Being a distributed computation platform enables users to do something useful
+with the information they find via Drogulus. To be clear here, by distributed
+computation I mean running programs on the shared resources that Drogulus
+provides. This is a direct result of the need to act in order to exercise
+autonomy.
+
+ToDo: Tidy/tighten all the above sections up. They're full of holes and could
+be put better / simpler / more succinctly. It'll do as a start / brain-dump just
+to get something down in writing.
+
+Etymology of Drogulus
+=====================
+
+I've always thought that "Drogulus" is a catchy name for a project. I first
+heard of the term whilst driving through the Lake District in the early hours of
+the morning during a trip on my honeymoon in 1997. BBC Radio 4 was
+re-broadcasting the debate I mention below.
+
+Here's the story of its origin:
+
+A drogulus is an entity whose presence is unverifiable, because it has no
+physical effects.
+
+The athiest philosopher A.J. Ayer coined it as a way of ridiculing the belief
+system of Jesuit philosopher Frederick Copleston.
+
+In 1949 Ayer and Copleston took part in a radio debate about the existence of
+God. The debate then went back and forth, until Ayer came up with the following
+as a way of illustrating the point that Copleston's metaphysics had no content
+because there was no way of testing the truth of metaphysical assertions. He
+said:
+
+    "I say, 'There's a "drogulus" over there,' and you say, 'What?' and I say,
+    'drogulus' and you say 'What's a drogulus?' Well, I say, 'I can't describe
+    what a drogulus is, because it's not the sort of thing you can see or
+    touch, it has no physical effects of any kind, but it's a disembodied
+    being.' And you say, 'Well how am I to tell if it's there or it's not
+    there?' and I say, 'There's no way of telling. Everything's just the same
+    if it's there or it's not there. But the fact is it's there. There's a
+    drogulus there standing just behind you, spiritually behind you.' Does that
+    makes sense?"
+
+Of course, the natural answer Ayer was waiting for was "No, of course it
+doesn't make sense." Therefore, the implication would be that metaphysics is
+like the "drogulus" ~ a being which cannot be seen and has no perceptible
+effects. If Ayer can get to that point, he can claim that any kind of belief
+in the Christian God or in metaphysical principles in general is really
+contrary to our logical and scientific understanding of the world.
+
+This appealed greatly to our sense of humour and we ended up talking about the
+debate for most of the rest of our journey.
+
+Happy days..! :-)
