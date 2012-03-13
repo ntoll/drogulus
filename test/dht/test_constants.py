@@ -58,3 +58,12 @@ class TestConstants(unittest.TestCase):
         """
         self.assertIsInstance(constants.REPLICATE_INTERVAL, int,
             "constants.REPLICATE_INTERVAL must be an integer.")
+
+    def test_REFRESH_INTERVAL(self):
+        """
+        The refresh interval defines how long to wait (in seconds) before a
+        node checks whether any buckets need refreshing or data needs
+        republishing.
+        """
+        self.assertIsInstance(constants.REFRESH_INTERVAL, int,
+            "constants.REFRESH_INTERVAL must be an integer.")
