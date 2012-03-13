@@ -2,7 +2,7 @@ Drogulus!
 =========
 
 Drogulus is an exercise in producing the most secure, simple and small means of
-working with federated linked data. It's also a playground for distributed
+working with federated data. It's also a playground for distributed
 computation and an exercise in practical philosophy. It's heavily based upon
 ideas from Fluidinfo (an openly writable data store), Kademlia (a distributed
 hash table), Lisp and public/private key cryptography. It is implemented in
