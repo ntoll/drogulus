@@ -1,1 +1,4 @@
 *.swp
+*.pyc
+*.bak
+docs/_build/*

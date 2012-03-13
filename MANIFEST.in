@@ -1,0 +1,6 @@
+include README.rst
+recursive-include bin *
+recursive-include tests *.py
+recursive-include docs *.py *.rst *.css *.png
+recursive-include src *.py *.html *.css *.png
+prune docs/build
