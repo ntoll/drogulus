@@ -29,8 +29,8 @@ tyranny, slavery, ignorance and apathy.
 
 My definition contains two different states relating to freedom:
 
-# Freedom to self-determination, and
-# Freedom from imposition or coercion.
+#. Freedom to self-determination, and
+#. Freedom from imposition or coercion.
 
 These are Isiah Berlin's famous "Two Concepts of Liberty" (Berlin uses the words
 "freedom" and "liberty" interchangeably). He calls them positive and negative
