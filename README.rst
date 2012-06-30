@@ -71,36 +71,36 @@ Drogulus is not a Solution
 Rather, it is a utopian alternative undertaken in the spirit of "what's
 the worst that could happen?":
 
-* Drogulus is a web of cooperating, decentralized nodes that federate
-data in a global key/value store (a distributed hash-table). Users who store data
-in Drogulus have no idea of the physical location of the machines holding their
-data. Because of this there are no walled gardens.
+Drogulus is a web of cooperating, decentralized nodes that federate
+data in a global key/value store (a distributed hash-table). Users who store
+data in Drogulus have no idea of the physical location of the machines holding
+their data. Because of this there are no walled gardens.
 
-* Every Drogulus node contains a small yet powerful version of a LISP like
+Every Drogulus node contains a small yet powerful version of a LISP like
 programming language used for searching and processing the data stored within
 the Drogulus. In fact, in its raw form, data is stored as S-expressions.
 
-* Drogulus does not depend on DNS. Under the hood, Drogulus nodes are *only*
+Drogulus does not depend on DNS. Under the hood, Drogulus nodes are *only*
 referenced by IP address and port number. Data is replicated around Drogulus
 should nodes be taken offline by nefarious or accidental reasons so content
 remains intact and available.
 
-* The identity of users and access to data is based upon public key
+The identity of users and access to data is based upon public key
 cryptography. At the lowest level data is protected by encryption and signing.
-Keys in Drogulus's distributed hash-table are partly derived from the public key
-of the user whose data is stored there. Data to be stored against a
+Keys in Drogulus's distributed hash-table are partly derived from the public
+key of the user whose data is stored there. Data to be stored against a
 key is appropriately signed to ensure that nodes can check the provenance of
 the key/value being stored.
 
-* In a global sense, the user is their public/private key pair.
+In a global sense, the user is their public/private key pair.
 
-* The network of nodes is ad hoc in nature and can grow / shrink with minimum
+The network of nodes is ad hoc in nature and can grow / shrink with minimum
 risk of data loss.
 
-* The implementation details of the distributed nature of Drogulus are hidden
+The implementation details of the distributed nature of Drogulus are hidden
 from the end user.
 
-* All interactions are asynchronous.
+All interactions are asynchronous.
 
 Motivation
 ++++++++++
