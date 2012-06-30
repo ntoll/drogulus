@@ -19,7 +19,7 @@ Drogulus currently only relies upon PyCrypto and zerorpc. Please see these
 project's websites for more information:
 
 * https://www.dlitz.net/software/pycrypto/
-* https://zerorpc.dotcloud.com/
+* https://zerorpc.dotcloud.com/ (you probably need libevent-dev installed).
 
 Alternatively, assuming you have the correct dependencies installed you should
 just be able to type::
