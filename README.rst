@@ -1,19 +1,111 @@
 Drogulus!
 =========
 
-Drogulus is an exercise in producing the most secure, simple and small means of
-working with federated data. It's also a playground for distributed
-computation and an exercise in practical philosophy. It's heavily based upon
-ideas from Fluidinfo (an openly writable data store), Kademlia (a distributed
-hash table), Lisp and public/private key cryptography. It is implemented in
-Python and requires very few external dependancies to run.
+Drogulus is a federated data store and computation platform designed for
+simplicity, security, openness and resilience. It's also an exercise in
+practical philosophy.
+
+It's heavily based upon ideas from Fluidinfo (an openly writable data store),
+Kademlia (a distributed hash table), Lisp, public/private key cryptography with
+a dash of Xanadu thrown in for inspiration. It is implemented in Python and
+requires very few external dependencies to run.
 
 It'll probably all come to nothing. ;-)
+
+Installation Requirements
++++++++++++++++++++++++++
+
+Drogulus currently only relies upon PyCrypto and zerorpc. Please see these
+project's websites for more information:
+
+* https://www.dlitz.net/software/pycrypto/
+* https://zerorpc.dotcloud.com/
+
+Alternatively, assuming you have the correct dependencies installed you should
+just be able to type::
+
+    $ pip install -r requirements.txt
+
+In any case, you should be able to drop into the Python shell and type the
+following without any errors::
+
+    >>> import zerorpc
+    >>> import Crypto
+
+What Problems does Drogulus Address?
+++++++++++++++++++++++++++++++++++++
+
+The World-Wide Web has become a ghetto of walled gardens built upon years of
+technological compromise. Furthermore, the domain name system has become
+beholden to the whims of governments and companies without recourse to due
+process. Finally, our data is analyzed by companies, sold via targeted
+advertising or handed over to governments.
+
+Problem #1: Users are no longer in control of their digital assets.
+
+The relatively simple hypertext system originally envisioned by Tim Berners-Lee
+has grown into a monster. It's a plethora of competing technology specified by
+committee, built using broken tools to run on quirky browsers that never can
+agree on consistency. The resilience of decentralization has been lost as large
+parts of the web go dark when certain hosting providers break down.
+
+Problem #2: hackers (used in the positive sense of the word) are obstructed by
+incumbent technology from tackling problems with elegant, useful and joyful
+solutions.
+
+In order to publish anything most users need third party services to curate
+their data on their behalf (enabling problem #1). How this data is organized is
+not decided by the user (whose data it is) but by the service provider in such
+a way that makes it difficult to change service provider. As if that wasn't
+enough, each service requires its own set of credentials making it
+hard to tell if the provenance of data on one service is the same as the data
+on yet another. Baroque technological solutions have been suggested as a
+solution but this is yet another manifestation of problem #2.
+
+Problem #3: At a fundamental level the web isn't openly writable nor does it
+make it easy to organize data or link sources of data.
+
+Drogulus is not a Solution
+++++++++++++++++++++++++++
+
+Rather, it is a utopian alternative undertaken in the spirit of "what's
+the worst that could happen?":
+
+* Drogulus is a web of cooperating, decentralized nodes that federate
+data in a global key/value store (a distributed hash-table). Users who store data
+in Drogulus have no idea of the physical location of the machines holding their
+data. Because of this there are no walled gardens.
+
+* Every Drogulus node contains a small yet powerful version of a LISP like
+programming language used for searching and processing the data stored within
+the Drogulus. In fact, in its raw form, data is stored as S-expressions.
+
+* Drogulus does not depend on DNS. Under the hood, Drogulus nodes are *only*
+referenced by IP address and port number. Data is replicated around Drogulus
+should nodes be taken offline by nefarious or accidental reasons so content
+remains intact and available.
+
+* The identity of users and access to data is based upon public key
+cryptography. At the lowest level data is protected by encryption and signing.
+Keys in Drogulus's distributed hash-table are partly derived from the public key
+of the user whose data is stored there. Data to be stored against a
+key is appropriately signed to ensure that nodes can check the provenance of
+the key/value being stored.
+
+* In a global sense, the user is their public/private key pair.
+
+* The network of nodes is ad hoc in nature and can grow / shrink with minimum
+risk of data loss.
+
+* The implementation details of the distributed nature of Drogulus are hidden
+from the end user.
+
+* All interactions are asynchronous.
 
 Motivation
 ++++++++++
 
-Autonomy ~ literally, "autos" (self) "nomos" (rule or law) is a favourite word
+Autonomy ~ literally, "autos" (self) "homos" (rule or law) is a favorite word
 of mine.
 
 For me, when someone or something is autonomous it is self-directing, free to
@@ -22,7 +114,7 @@ parties. It also suggests intelligence and awareness enough to be able to enjoy
 and make use of such freedom. Furthermore, such intelligence entails ethical and
 political considerations on the part of the someone or something. (I'm using the
 term "ethics" to mean how an individual makes moral choices and "politics" to
-mean how individuals organise themselves within groups).
+mean how individuals organize themselves within groups).
 
 Autonomy is also the opposite of terms describing such undesirable states as
 tyranny, slavery, ignorance and apathy.
@@ -61,7 +153,7 @@ conscious purposes, which are my own, not by causes which affect me, as it were,
 from outside. I wish to be somebody, not nobody; a doer - deciding, not by
 external nature or by other men as if I were a thing, or an animal, or a slave
 incapable of playing a human role, that is, of conceiving goals and policies of
-my own and realising them."
+my own and realizing them."
 
 But are these definitions of freedom/liberty the same as autonomy?
 
@@ -73,7 +165,7 @@ freedom to do "this" or "that" but, due to habit, laziness, apathy or some other
 reason, may simply not do "this" or "that".
 
 In some sense, autonomy requires reflection and then a conscious decision to act
-upon ones freedom (positive liberty). However, it's important to acknowledge
+upon one's freedom (positive liberty). However, it's important to acknowledge
 this doesn't imply rationality, good behaviour or a good outcome. There are
 further considerations beyond autonomy: the ethical and political implications
 of exercising autonomy.
@@ -110,20 +202,20 @@ political dimension yet the end result does insofar as it causes users to
 behave and interact in certain ways that cannot be changed by those
 participating.
 
-Drogulus is an exercise in autonomy. I choose to implement Drogulus in a way
-that reflects my emphasis on autonomy with clear philosophical reasons for
-certain technological and implementation details.
+Drogulus is an exercise in personal autonomy. I choose to implement Drogulus in
+a way that reflects my emphasis on autonomy with clear philosophical reasons
+for certain technological and implementation details.
 
 What is it..?
 +++++++++++++
 
-Put simply, Drogulus is a federated, decentralised, openly writable yet
+Put simply, Drogulus is a federated, decentralized, openly writable yet
 easily searchable information store and distributed computation platform that
 includes mechanisms for privacy, provenance and trust via public/private key
 technology.
 
 Being federated (the system consists of many independent but collaborating
-entities) and decentralised (no entity is more important than any of the others)
+entities) and decentralized (no entity is more important than any of the others)
 ensures users are free from a central authority that might desire to control
 their use of the system. This is a decision that reflects Berlin's concept of
 negative liberty.
