@@ -147,31 +147,48 @@ class TestKBucket(unittest.TestCase):
         """
         Ensures that a key within the appropriate range is identified as such.
         """
-        pass
+        rangeMin = 1
+        rangeMax = 9
+        bucket = KBucket(rangeMin, rangeMax)
+        self.assertTrue(bucket.keyInRange(2))
 
     def testKeyInRangeNoToLow(self):
         """
         Ensures a key just below the k-bucket's range is identified as out of
         range.
         """
-        pass
+        rangeMin = 5
+        rangeMax = 9
+        bucket = KBucket(rangeMin, rangeMax)
+        self.assertFalse(bucket.keyInRange(2))
 
     def testKeyInRangeNoToHigh(self):
         """
         Ensures a key just above the k-bucket's range is identified as out of
         range.
         """
-        pass
+        rangeMin = 1
+        rangeMax = 5
+        bucket = KBucket(rangeMin, rangeMax)
+        self.assertFalse(bucket.keyInRange(7))
 
     def testKeyInRangeHandlesString(self):
         """
-        Ensures the keyInRange method encodes a string representation of a key
+        Ensures the keyInRange method decodes a string representation of a key
         correctly, before testing if it's within range.
         """
-        pass
+        rangeMin = 1
+        rangeMax = 66
+        bucket = KBucket(rangeMin, rangeMax)
+        self.assertTrue(bucket.keyInRange('A'))
 
     def testLen(self):
         """
         Ensures the number of nodes in the k-bucket is returned by __len__.
         """
-        pass
+        rangeMin = 12345
+        rangeMax = 98765
+        bucket = KBucket(rangeMin, rangeMax)
+        contact = Contact("12345", "192.168.0.2", 8888, 123)
+        bucket.addContact(contact)
+        self.assertEqual(1, len(bucket))
