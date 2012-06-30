@@ -1,2 +1,2 @@
 pycrypto==2.5
-twisted==12.0.0
+zerorpc
