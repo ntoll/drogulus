@@ -23,6 +23,7 @@ class TestContact(unittest.TestCase):
         self.assertEqual(address, contact.address)
         self.assertEqual(port, contact.port)
         self.assertEqual(last_seen, contact.last_seen)
+        self.assertEqual(0, contact.failedRPCs)
 
     def testEq(self):
         """

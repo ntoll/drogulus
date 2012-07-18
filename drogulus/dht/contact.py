@@ -35,6 +35,10 @@ class Contact(object):
         self.address = address
         self.port = port
         self.last_seen = last_seen
+        # failedRPCs keeps track of the number of failed RPCs to this contact.
+        # If this number reaches a threshold then it is evicted from the
+        # kbucket and replaced with a contact that is more reliable.
+        self.failedRPCs = 0
 
     def __eq__(self, other):
         """

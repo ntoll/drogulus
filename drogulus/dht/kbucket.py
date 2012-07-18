@@ -87,7 +87,7 @@ class KBucket(object):
     def keyInRange(self, key):
         """
         Checks if a key is within the range covered by this k-bucket. Indicates
-        if a certain key should be places within this k-bucket.
+        if a certain key should be placed within this k-bucket.
         """
         if isinstance(key, str):
            key = long(key.encode('hex'), 16)
