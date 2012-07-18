@@ -15,22 +15,34 @@ It'll probably all come to nothing. ;-)
 Installation Requirements
 +++++++++++++++++++++++++
 
-Drogulus currently only relies upon PyCrypto and zerorpc. Please see these
-project's websites for more information:
+Drogulus currently only relies upon PyCrypto, Twisted and MessagePack. Please
+see these project's websites for more information:
 
 * https://www.dlitz.net/software/pycrypto/
-* https://zerorpc.dotcloud.com/ (you probably need libevent-dev installed).
+* http://twistedmatrix.com/
+* http://msgpack.org/
 
-Alternatively, assuming you have the correct dependencies installed you should
-just be able to type::
+To install the project either use a tool such as pip to download the latest
+version from PyPI::
+
+    $ pip install -U drogulus
+
+Or download the source code and run the following command::
+
+    $ python setup.py install
+
+Alternatively, assuming you have pip installed, you can install the
+requirements with the following command::
 
     $ pip install -r requirements.txt
 
-In any case, you should be able to drop into the Python shell and type the
-following without any errors::
+To check everything has installed correctly you should be able to drop into the
+Python shell and type the following without any errors::
 
-    >>> import zerorpc
     >>> import Crypto
+    >>> import twisted
+    >>> import msgpack
+    >>> import drogulus
 
 What Problems does Drogulus Address?
 ++++++++++++++++++++++++++++++++++++
@@ -39,42 +51,44 @@ The World-Wide Web has become a ghetto of walled gardens built upon years of
 technological compromise. Furthermore, the domain name system has become
 beholden to the whims of governments and companies without recourse to due
 process. Finally, our data is analyzed by companies, sold via targeted
-advertising or handed over to governments.
+advertising or handed over to governments without our consent.
 
 Problem #1: Users are no longer in control of their digital assets.
 
-The relatively simple hypertext system originally envisioned by Tim Berners-Lee
-has grown into a monster. It's a plethora of competing technology specified by
-committee, built using broken tools to run on quirky browsers that never can
-agree on consistency. The resilience of decentralization has been lost as large
-parts of the web go dark when certain hosting providers break down.
+In order to publish anything most users need third party services to curate
+their data on their behalf. How this data is organized is not decided by the
+user (whose data it is) but by the service provider in such a way that makes it
+difficult to change service provider. As if that wasn't enough, each service
+requires its own set of credentials making it hard to tell if the provenance of
+data on one service is the same as the data on yet another. Baroque
+technological solutions have been suggested but these are merely a
+manifestation of problem #2 (see below).
 
 Problem #2: hackers (used in the positive sense of the word) are obstructed by
 incumbent technology from tackling problems with elegant, useful and joyful
 solutions.
 
-In order to publish anything most users need third party services to curate
-their data on their behalf (enabling problem #1). How this data is organized is
-not decided by the user (whose data it is) but by the service provider in such
-a way that makes it difficult to change service provider. As if that wasn't
-enough, each service requires its own set of credentials making it
-hard to tell if the provenance of data on one service is the same as the data
-on yet another. Baroque technological solutions have been suggested as a
-solution but this is yet another manifestation of problem #2.
+The relatively simple hypertext system originally envisioned by Tim Berners-Lee
+has grown into a monster. It's a plethora of competing technology specified by
+committee, built using broken tools to run on quirky browsers that never behave
+consistently. The resilience of decentralization has been lost as large
+parts of the web go dark when certain hosting providers break down or popular
+websites fall over.
 
 Problem #3: At a fundamental level the web isn't openly writable nor does it
-make it easy to organize data or link sources of data.
+make it easy to organize data.
 
 Drogulus is not a Solution
 ++++++++++++++++++++++++++
 
-Rather, it is a utopian alternative undertaken in the spirit of "what's
+Rather, it is a utopian alternative undertaken in the spirit of asking "what's
 the worst that could happen?":
 
 Drogulus is a web of cooperating, decentralized nodes that federate
 data in a global key/value store (a distributed hash-table). Users who store
 data in Drogulus have no idea of the physical location of the machines holding
-their data. Because of this there are no walled gardens.
+their data. Because of this there are no walled gardens, there is only the
+Drogulus.
 
 Every Drogulus node contains a small yet powerful version of a LISP like
 programming language used for searching and processing the data stored within
@@ -92,7 +106,8 @@ key of the user whose data is stored there. Data to be stored against a
 key is appropriately signed to ensure that nodes can check the provenance of
 the key/value being stored.
 
-In a global sense, the user is their public/private key pair.
+In a global sense, the user is their public/private key pair and is the only
+form of identity they need.
 
 The network of nodes is ad hoc in nature and can grow / shrink with minimum
 risk of data loss.
@@ -172,8 +187,8 @@ of exercising autonomy.
 
 So we get to the nub of the essential matter in hand: I believe that autonomy is
 a desirable state to aspire to and to encourage. People should have the freedom,
-encouragement and means to act autonomously. Furthermore, without such a
-freedom to act we are machines devoid of ethical or political responsibility.
+encouragement and means to act autonomously. Furthermore, without such freedom
+to act we are machines devoid of ethical or political responsibility.
 
 What has this got to do with software?
 
