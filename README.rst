@@ -8,19 +8,12 @@ practical philosophy.
 It's heavily based upon ideas from Fluidinfo (an openly writable data store),
 Kademlia (a distributed hash table), Lisp, public/private key cryptography with
 a dash of Xanadu thrown in for inspiration. It is implemented in Python and
-requires very few external dependencies to run.
+requires very few external dependencies.
 
 It'll probably all come to nothing. ;-)
 
 Installation Requirements
 +++++++++++++++++++++++++
-
-Drogulus currently only relies upon PyCrypto, Twisted and MessagePack. Please
-see these project's websites for more information:
-
-* https://www.dlitz.net/software/pycrypto/
-* http://twistedmatrix.com/
-* http://msgpack.org/
 
 To install the project either use a tool such as pip to download the latest
 version from PyPI::
@@ -31,52 +24,66 @@ Or download the source code and run the following command::
 
     $ python setup.py install
 
-Alternatively, assuming you have pip installed, you can install the
-requirements with the following command::
+If required, you can install the requirements with the following command::
 
     $ pip install -r requirements.txt
 
-To check everything has installed correctly you should be able to drop into the
-Python shell and type the following without any errors::
+Drogulus currently only relies upon PyCrypto, Twisted and MessagePack. Please
+see these project's websites for more information:
 
-    >>> import Crypto
-    >>> import twisted
-    >>> import msgpack
-    >>> import drogulus
+* https://www.dlitz.net/software/pycrypto/
+* http://twistedmatrix.com/
+* http://msgpack.org/
 
 What Problems does Drogulus Address?
 ++++++++++++++++++++++++++++++++++++
 
+The Internet is a mess:
+
 The World-Wide Web has become a ghetto of walled gardens built upon years of
-technological compromise. Furthermore, the domain name system has become
-beholden to the whims of governments and companies without recourse to due
-process. Finally, our data is analyzed by companies, sold via targeted
-advertising or handed over to governments without our consent.
+technological compromise. DNS (used to link domain names with their host
+computer) is beholden to the whims of governments and companies without
+recourse to due process. More worryingly still, our data is analyzed by
+companies, sold via targeted advertising or handed over to governments without
+our consent.
 
 Problem #1: Users are no longer in control of their digital assets.
 
-In order to publish anything most users need third party services to curate
-their data on their behalf. How this data is organized is not decided by the
-user (whose data it is) but by the service provider in such a way that makes it
-difficult to change service provider. As if that wasn't enough, each service
-requires its own set of credentials making it hard to tell if the provenance of
-data on one service is the same as the data on yet another. Baroque
-technological solutions have been suggested but these are merely a
-manifestation of problem #2 (see below).
+In order to publish anything on the web most users need third party services
+(web sites) to curate data on their behalf. How this data is organized is
+usually not decided by the user whose data it is but by the service provider.
+Furthermore, how this data is stored and made available is often done in such a
+way that makes it difficult to change service provider. As if that wasn't
+enough, each service requires its own set of credentials to identify the user -
+making it hard to tell if the provenance of data on one service is the same as
+data on yet another. Baroque technological solutions have been proposed to
+solve the problem of multiple identities on different services but these are
+merely a manifestation of problem #2 (see below).
 
 Problem #2: hackers (used in the positive sense of the word) are obstructed by
 incumbent technology from tackling problems with elegant, useful and joyful
 solutions.
 
-The relatively simple hypertext system originally envisioned by Tim Berners-Lee
-has grown into a monster. It's a plethora of competing technology specified by
-committee, built using broken tools to run on quirky browsers that never behave
-consistently. The resilience of decentralization has been lost as large
-parts of the web go dark when certain hosting providers break down or popular
-websites fall over.
+The beautifuly simple hypertext system originally envisioned by Tim Berners-Lee
+has grown into a monster. It's a plethora of complex technologies specified by
+committee that run on quirky browsers which never behave consistently. The
+ubiquity of the web also means it has assumed the status of de-facto platform
+for solutions thoughtlessly implemented in a sub-optimal way in order to cope
+with the limitations of web based technology. Furthermore, the resilience of the
+web's decentralized nature has been undermined: large parts of the web go dark
+when certain hosting providers break down or if popular websites fall over.
 
-Problem #3: At a fundamental level the web isn't openly writable nor does it
-make it easy to organize data.
+Problem #3: At a fundamental level the web isn't openly writable or
+configurable.
+
+Creating, editing or organising content is not part of the web itself, but
+implemented at a higher level of abstraction (causing problem #1) in a way that
+abuses and complicates the original simple hypertext system (see problem #2).
+This technical situation has profound political and ethical implications
+concerning control, privacy and participation. Such potential disempowerment
+extends to DNS - a single point of control over linking domains to computers.
+As a result, naming places on the Internet requires permission and a single
+use name.
 
 Drogulus is not a Solution
 ++++++++++++++++++++++++++
@@ -239,10 +246,11 @@ Being openly writable ensures no user is barred from the system. All users are
 free to contribute, change, enhance and expand the system. This reflects
 Berlin's concept of positive liberty.
 
-Being easily searchable enables users to explore the information stored via
+Being a computation platform means users can explore the information stored via
 Drogulus without having to rely on others to provide such services. This
-reflects both positive and negative concepts of liberty: the freedom to search
-whilst being free from a broker for such searches (the facility is built in).
+reflects both positive and negative concepts of liberty: the freedom to process
+information whilst being free from a broker for such computation (the facility
+is built in).
 
 Being a distributed computation platform enables users to do something useful
 with the information they find via Drogulus. By distributed computation I mean
