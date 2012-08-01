@@ -121,10 +121,107 @@ class TestRoutingTable(unittest.TestCase):
         self.assertEqual(1, len(bucket4._contacts))
         self.assertEqual(contact4, bucket4._contacts[0])
 
-    def testAddContact(self):
+    def testAddContactWithParentNodeID(self):
+        """
+        If the newly discovered contact is, in fact, this node then it's not
+        added to the routing table.
+        """
+        parentNodeID = 123
+        r = RoutingTable(parentNodeID)
+        contact = Contact(123, "192.168.0.1", 9999, 0)
+        r.addContact(contact)
+        self.assertEqual(len(r._buckets[0]), 0)
+
+    def testAddContactSimple(self):
         """
         Ensures that a newly discovered node in the network is added to the
         correct kbucket in the routing table.
         """
         parentNodeID = 'abc'
         r = RoutingTable(parentNodeID)
+        contact1 = Contact(2, "192.168.0.1", 9999, 0)
+        contact2 = Contact(4, "192.168.0.2", 9999, 0)
+        r.addContact(contact1)
+        self.assertEqual(len(r._buckets[0]), 1)
+        r.addContact(contact2)
+        self.assertEqual(len(r._buckets[0]), 2)
+
+    def testAddContactWithBucketSplit(self):
+        """
+        Ensures that newly discovered nodes are added to the appropriate
+        kbucket given a bucket split.
+        """
+        parentNodeID = 'abc'
+        r = RoutingTable(parentNodeID)
+        for i in range(20):
+            contact = Contact(i, "192.168.0.%d" % i, 0)
+            r.addContact(contact)
+        # This id will be just over the max range for the bucket in position 0
+        large_id = 730750818665451459101842416358141509827966271489L
+        contact = Contact(large_id, "192.168.0.33", 0)
+        r.addContact(contact)
+        self.assertEqual(len(r._buckets), 2)
+        self.assertEqual(len(r._buckets[0]), 20)
+        self.assertEqual(len(r._buckets[1]), 1)
+
+    def testAddContactWithBucketFull(self):
+        """
+        Checks if a bucket is full and a new contact within the full bucket's
+        range is added then it gets put in the replacement cache.
+        """
+        parentNodeID = 'abc'
+        r = RoutingTable(parentNodeID)
+        # Fill up the bucket
+        for i in range(20):
+            contact = Contact(i, "192.168.0.%d" % i, 0)
+            r.addContact(contact)
+        # Create a new contact that will be added to the replacement cache.
+        contact = Contact(20, "192.168.0.20", 0)
+        r.addContact(contact)
+        self.assertEqual(len(r._buckets[0]), 20)
+        self.assertTrue(0 in r._replacementCache)
+        self.assertEqual(contact, r._replacementCache[0][0])
+
+    def testAddContactWithFullReplacementCache(self):
+        """
+        Ensures that if the replacement cache is full (length = k) then the
+        oldest contact within the cache is replaced with the new contact that
+        was just seen.
+        """
+        parentNodeID = 'abc'
+        r = RoutingTable(parentNodeID)
+        # Fill up the bucket and replacement cache
+        for i in range(40):
+            contact = Contact(i, "192.168.0.%d" % i, 0)
+            r.addContact(contact)
+        # Sanity check of the replacement cache.
+        self.assertEqual(len(r._replacementCache[0]), 20)
+        self.assertEqual(20, r._replacementCache[0][0].id)
+        # Create a new contact that will be added to the replacement cache.
+        new_contact = Contact(40, "192.168.0.20", 0)
+        r.addContact(new_contact)
+        self.assertEqual(len(r._replacementCache[0]), 20)
+        self.assertEqual(new_contact, r._replacementCache[0][19])
+        self.assertEqual(21, r._replacementCache[0][0].id)
+
+    def testAddContactWithExistingContactInReplacementCache(self):
+        """
+        Ensures that if the contact to be put in the replacement cache already
+        exists in the replacement cache then it is bumped to the most recent
+        position.
+        """
+        parentNodeID = 'abc'
+        r = RoutingTable(parentNodeID)
+        # Fill up the bucket and replacement cache
+        for i in range(40):
+            contact = Contact(i, "192.168.0.%d" % i, 0)
+            r.addContact(contact)
+        # Sanity check of the replacement cache.
+        self.assertEqual(len(r._replacementCache[0]), 20)
+        self.assertEqual(20, r._replacementCache[0][0].id)
+        # Create a new contact that will be added to the replacement cache.
+        new_contact = Contact(20, "192.168.0.20", 0)
+        r.addContact(new_contact)
+        self.assertEqual(len(r._replacementCache[0]), 20)
+        self.assertEqual(new_contact, r._replacementCache[0][19])
+        self.assertEqual(21, r._replacementCache[0][0].id)

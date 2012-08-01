@@ -43,6 +43,8 @@ class RoutingTable(object):
         # entire 160-bit ID space
         self._buckets = [kbucket.KBucket(rangeMin=0, rangeMax=2**160)]
         self._parentNodeID = parentNodeID
+        # Cache containing nodes eligible to replace stale k-bucket entries
+        self._replacementCache = {}
 
     def _kbucketIndex(self, key):
         """
@@ -111,7 +113,7 @@ class RoutingTable(object):
         bucketIndex = self._kbucketIndex(contact.id)
         try:
             self._buckets[bucketIndex].addContact(contact)
-        except kbucket.BucketFull:
+        except kbucket.KBucketFull:
             # The bucket is full; see if it can be split (by checking if its
             # range includes the host node's id)
             if self._buckets[bucketIndex].keyInRange(self._parentNodeID):
@@ -132,9 +134,9 @@ class RoutingTable(object):
                     self._replacementCache[bucketIndex] = []
                 if contact in self._replacementCache[bucketIndex]:
                     self._replacementCache[bucketIndex].remove(contact)
-                elif len(self._replacementCache) >= constants.K:
+                elif len(self._replacementCache[bucketIndex]) >= constants.K:
                     # Use k to limit the size of the contact replacement cache.
-                    self._replacementCache.pop(0)
+                    self._replacementCache[bucketIndex].pop(0)
                 self._replacementCache[bucketIndex].append(contact)
 
     def distance(self, keyOne, keyTwo):
@@ -167,12 +169,14 @@ class RoutingTable(object):
                  node is returning all of the contacts that it knows of.
         @rtype: list
         """
+
     def getContact(self, contactID):
         """ Returns the (known) contact with the specified node ID
 
         @raise ValueError: No contact with the specified contact ID is known
                            by this node
         """
+
     def getRefreshList(self, startIndex=0, force=False):
         """ Finds all k-buckets that need refreshing, starting at the
         k-bucket with the specified index, and returns IDs to be searched for
@@ -194,6 +198,7 @@ class RoutingTable(object):
                  in order to refresh the routing Table
         @rtype: list
         """
+
     def removeContact(self, contactID):
         """ Remove the contact with the specified node ID from the routing
         table
@@ -201,6 +206,7 @@ class RoutingTable(object):
         @param contactID: The node ID of the contact to remove
         @type contactID: str
         """
+
     def touchKBucket(self, key):
         """ Update the "last accessed" timestamp of the k-bucket which covers
         the range containing the specified key in the key/ID space
