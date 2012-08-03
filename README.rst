@@ -20,7 +20,7 @@ version from PyPI::
 
     $ pip install -U drogulus
 
-Or download the source code and run the following command::
+Or clone/download the source code and run the following command::
 
     $ python setup.py install
 
@@ -34,6 +34,10 @@ see these project's websites for more information:
 * https://www.dlitz.net/software/pycrypto/
 * http://twistedmatrix.com/
 * http://msgpack.org/
+
+To run the test suite ensure you have the requirements installed and type::
+
+    $ trial tests
 
 What Problems does Drogulus Address?
 ++++++++++++++++++++++++++++++++++++

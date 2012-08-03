@@ -3,3 +3,4 @@
 *.bak
 docs/_build/*
 build/*
+_trial_temp
