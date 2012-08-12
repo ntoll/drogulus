@@ -103,7 +103,8 @@ class TestKBucket(unittest.TestCase):
     def testGetContactWithBadID(self):
         """
         Ensures a ValueError exception is raised if one attempts to get a
-        contact from the k-bucket with an id that doesn't exist in the k-bucket.
+        contact from the k-bucket with an id that doesn't exist in the
+        k-bucket.
         """
         rangeMin = 12345
         rangeMax = 98765
@@ -112,6 +113,57 @@ class TestKBucket(unittest.TestCase):
         bucket.addContact(contact)
         with self.assertRaises(ValueError):
             bucket.getContact("54321")
+
+    def testGetContactsAll(self):
+        """
+        """
+        rangeMin = 12345
+        rangeMax = 98765
+        bucket = KBucket(rangeMin, rangeMax)
+        for i in range(K):
+            contact = Contact("%d" % i, "192.168.0.%d" % i, 9999, 123)
+            bucket.addContact(contact)
+        result = bucket.getContacts()
+        self.assertEqual(20, len(result))
+
+    def testGetContactsEmpty(self):
+        """
+        If the k-bucket is empty, the result of getContacts is an empty list.
+        """
+        rangeMin = 12345
+        rangeMax = 98765
+        bucket = KBucket(rangeMin, rangeMax)
+        result = bucket.getContacts()
+        self.assertEqual(0, len(result))
+
+    def testGetContactsCountTooBig(self):
+        """
+        If the "count" argument is bigger than the number of contacts in the
+        bucket then all the contacts are returned.
+        """
+        rangeMin = 12345
+        rangeMax = 98765
+        bucket = KBucket(rangeMin, rangeMax)
+        for i in range(10):
+            contact = Contact("%d" % i, "192.168.0.%d" % i, 9999, 123)
+            bucket.addContact(contact)
+        result = bucket.getContacts(count=20)
+        self.assertEqual(10, len(result))
+
+    def testGetContactsWithExclusion(self):
+        """
+        If a contact is passed as the excludeContact argument then it won't be
+        in the result list.
+        """
+        rangeMin = 12345
+        rangeMax = 98765
+        bucket = KBucket(rangeMin, rangeMax)
+        for i in range(K):
+            contact = Contact("%d" % i, "192.168.0.%d" % i, 9999, 123)
+            bucket.addContact(contact)
+        result = bucket.getContacts(count=20, excludeContact=contact)
+        self.assertEqual(19, len(result))
+        self.assertFalse(contact in result)
 
     def testRemoveContact(self):
         """

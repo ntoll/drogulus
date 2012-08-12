@@ -150,22 +150,59 @@ class RoutingTable(object):
         valKeyTwo = long(keyTwo.encode('hex'), 16)
         return valKeyOne ^ valKeyTwo
 
-    def findCloseNodes(self, key, count, rpcNodeID=None):
+    def findCloseNodes(self, key, rpcNodeID=None):
         """
-        Finds a "count" number of known nodes closest to the node/value with
+        Finds up to "K" number of known nodes closest to the node/value with
         the specified key. If _rpcNodeID is supplied the referenced node will
         be excluded from the returned contacts.
 
-        The result is a list of length "count" of node contacts of type
-        dht.contact.Contact. If will only return fewer contacts if they are all
-        of the contacts that it knows of.
+        The result is a list of "K" node contacts of type dht.contact.Contact.
+        Will only return fewer than "K" contacts if not enough contacts are
+        known.
         """
+        bucketIndex = self._kbucketIndex(key)
+        closestNodes = self._buckets[bucketIndex].getContacts(
+            constants.K, rpcNodeID)
+        # How for away to jump beyond the containing bucket of the given key.
+        bucketJump = 1
+        numberOfBuckets = len(self._buckets)
+        # Flags that indicate if it's possible to jump higher or lower through
+        # the buckets.
+        canGoLower = bucketIndex - bucketJump >= 0
+        canGoHigher = bucketIndex + bucketJump < numberOfBuckets
+        while len(closestNodes) < constants.K and (canGoLower or canGoHigher):
+            # Continue to fill the closestNodes list with contacts from the
+            # nearest unchecked neighbouring k-buckets. Have chosen to opt for
+            # readability rather than conciseness.
+            if canGoLower:
+                # Neighbours lower in the key index.
+                remainingSlots = constants.K - len(closestNodes)
+                jumpToNeighbour = bucketIndex - bucketJump
+                neighbour = self._buckets[jumpToNeighbour]
+                contacts = neighbour.getContacts(remainingSlots, rpcNodeID)
+                closestNodes.extend(contacts)
+                canGoLower = bucketIndex - (bucketJump + 1) >= 0
+            if canGoHigher:
+                # Neighbours higher in the key index.
+                remainingSlots = constants.K - len(closestNodes)
+                jumpToNeighbour = bucketIndex + bucketJump
+                neighbour = self._buckets[jumpToNeighbour]
+                contacts = neighbour.getContacts(remainingSlots, rpcNodeID)
+                closestNodes.extend(contacts)
+                canGoHigher = bucketIndex + (bucketJump + 1) < numberOfBuckets
+            bucketJump += 1
+        # Ensure we only return K contacts (in certain circumstances 21
+        # results are generated).
+        return closestNodes[:constants.K]
 
     def getContact(self, contactID):
         """
         Returns the (known) contact with the specified node ID. Will raise
-        a ValueError if no contact with eth specified ID is known.
+        a ValueError if no contact with the specified ID is known.
         """
+        bucketIndex = self._kbucketIndex(contactID)
+        contact = self._buckets[bucketIndex].getContact(contactID)
+        return contact
 
     def getRefreshList(self, startIndex=0, force=False):
         """
@@ -176,15 +213,55 @@ class RoutingTable(object):
         "force" parameter is True then all buckets with the specified range
         will be refreshed, regardless of the time they were last accessed.
         """
+        bucketIndex = startIndex
+        refreshIDs = []
+        for bucket in self._buckets[startIndex:]:
+            lastRefreshed = int(time.time()) - bucket.lastAccessed
+            if force or lastRefreshed >= constants.REFRESH_TIMEOUT:
+                searchID = self._randomKeyInBucketRange(bucketIndex)
+                refreshIDs.append(searchID)
+            bucketIndex += 1
+        return refreshIDs
 
     def removeContact(self, contactID):
         """
-        Remove the contact with the specified contactID string from the
-        routing table.
+        Attempt to remove the contact with the specified contactID string from
+        the routing table.
+
+        The operation will only succeed if the number of failed RPCs made
+        against the contact is >= constants.ALLOWED_RPC_FAILS.
+
+        If there are any contacts in the replacement cache for the affected
+        bucket then the most up-to-date contact in the replacement cache will
+        be used as a replacement.
         """
+        bucketIndex = self._kbucketIndex(contactID)
+
+        try:
+            contact = self._buckets[bucketIndex].getContact(contactID)
+        except ValueError:
+            # Fail silently since the contact isn't in the routing table
+            # anyway.
+            return
+
+        contact.failedRPCs += 1
+
+        if contact.failedRPCs >= constants.ALLOWED_RPC_FAILS:
+            self._buckets[bucketIndex].removeContact(contactID)
+            # If possible, replace the stale contact with the most recent
+            # contact stored in the replacement cache.
+            if self._replacementCache.has_key(bucketIndex):
+                if len(self._replacementCache[bucketIndex]) > 0:
+                    self._buckets[bucketIndex].addContact(
+                        self._replacementCache[bucketIndex].pop())
 
     def touchKBucket(self, key):
         """
-        Update the "last accessed" timestamp of the k-bucket which covers
+        Update the lastAccessed timestamp of the k-bucket which covers
         the range containing the specified key string in the key/ID space.
+
+        The lastAccessed field is used to ensure a k-bucket doesn't become
+        stale.
         """
+        bucketIndex = self._kbucketIndex(key)
+        self._buckets[bucketIndex].lastAccessed = int(time.time())

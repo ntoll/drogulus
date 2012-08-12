@@ -39,3 +39,7 @@ REPLICATE_INTERVAL = REFRESH_TIMEOUT
 # How long to wait before a node checks whether any buckets need refreshing or
 # data needs republishing (in seconds).
 REFRESH_INTERVAL = REFRESH_TIMEOUT / 6 # Every 10 minutes.
+
+# The number of failed remote procedure calls allowed for a contact. If this
+# is equalled or exceeded then the contact is removed from the routing table.
+ALLOWED_RPC_FAILS = 5

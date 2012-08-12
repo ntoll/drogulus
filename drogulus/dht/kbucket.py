@@ -45,12 +45,17 @@ class KBucket(object):
 
     def __init__(self, rangeMin, rangeMax):
         """
-        @param rangeMin: The lower bound of the k-bucket's 160-bit ID space.
-        @param rangeMax: The upper bound of the k-bucket's 160-bit ID space.
+        rangeMin: The lower bound of the k-bucket's 160-bit ID space.
+        rangeMax: The upper bound of the k-bucket's 160-bit ID space.
         """
         self.rangeMin = rangeMin
         self.rangeMax = rangeMax
+        # Holds the contacts for the k-bucket.
         self._contacts = []
+        # Indicates when the k-bucket was last accessed. Used to make sure the
+        # k-bucket doesn't become stale and out of date given changing
+        # conditions in the network of contacts.
+        self.lastAccessed = 0
 
     def addContact(self, contact):
         """
@@ -77,6 +82,43 @@ class KBucket(object):
         """
         index = self._contacts.index(id)
         return self._contacts[index]
+
+    def getContacts(self, count=0, excludeContact=None):
+        """
+        Returns a list of up to "count" number of contacts within the
+        k-bucket. If "count" is zero or less, then all contacts will be
+        returned. If there are less than "count" number of contacts in the
+        k-bucket, all contacts will be returned.
+
+        If "excludeContact" is passed (as either a Contact instance or id str)
+        then, if this is found within the lest of returned values, it will be
+        discarded before the result is returned.
+        """
+        # Check count argument
+        if count <= 0:
+            # Return all contacts
+            count = len(self._contacts)
+
+        # Get current length of contact list.
+        currentLen = len(self._contacts)
+
+        if not self._contacts:
+            # There are no contacts so return an empty list.
+            contactList = []
+        elif currentLen < count:
+            # Number of contacts is less than requested amount so return all
+            # contacts.
+            contactList = self._contacts[:currentLen]
+        else:
+            # Enough contacts in the list, so only return the amount
+            # requested.
+            contactList = self._contacts[:count]
+
+        if excludeContact in contactList:
+            # Remove the excluded contact.
+            contactList.remove(excludeContact)
+
+        return contactList
 
     def removeContact(self, id):
         """
