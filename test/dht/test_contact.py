@@ -14,8 +14,8 @@ class TestContact(unittest.TestCase):
         """
         Ensures an object is created as expected.
         """
-        id = "12345"
-        address = "192.168.0.1"
+        id = '12345'
+        address = '192.168.0.1'
         port = 9999
         last_seen = 123
         contact = Contact(id, address, port, last_seen)
@@ -30,19 +30,31 @@ class TestContact(unittest.TestCase):
         Makes sure equality works between a string representation of an ID and
         a contact object.
         """
-        id = "12345"
-        address = "192.168.0.1"
+        id = '12345'
+        address = '192.168.0.1'
         port = 9999
         last_seen = 123
         contact = Contact(id, address, port, last_seen)
         self.assertTrue(id == contact)
 
+    def testNe(self):
+        """
+        Makes sure non-equality works between a string representation of an ID
+        and a contact object.
+        """
+        id = '12345'
+        address = '192.168.0.1'
+        port = 9999
+        last_seen = 123
+        contact = Contact(id, address, port, last_seen)
+        self.assertTrue('54321' != contact)
+
     def testStr(self):
         """
         Ensures the string representation of a contact is something useful.
         """
-        id = "12345"
-        address = "192.168.0.1"
+        id = '12345'
+        address = '192.168.0.1'
         port = 9999
         last_seen = 123
         contact = Contact(id, address, port, last_seen)

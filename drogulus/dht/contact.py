@@ -52,6 +52,12 @@ class Contact(object):
         else:
             return False
 
+    def __ne__(self, other):
+        """
+        Override != to work with a string representation of the contact's id.
+        """
+        return not self == other
+
     def __str__(self):
         """
         Override the string representation of the object to be something
