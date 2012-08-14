@@ -13,3 +13,7 @@ a dash of Xanadu thrown in for inspiration. It is implemented in Python and
 requires very few external dependencies.
 
 It'll probably all come to nothing. ;-)
+
+Current status: the distributed hash table is almost finished. Crypto based
+work is in advanced stages of planning. Lisp implementation is an (uncommitted)
+toy which requires further work.
