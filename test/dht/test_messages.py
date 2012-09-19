@@ -42,7 +42,8 @@ class TestMessages(unittest.TestCase):
         """
         Expected behaviour of a store message.
         """
-        store = Store(1, 2, 'value', 12345, 'abcdefg', 'name', 'hash', 0.1)
+        store = Store(1, 2, 'value', 12345, 'abcdefg', 'name', 'meta', 'hash',
+            0.1)
         self.assertEqual(1, store.id)
         self.assertEqual(2, store.key)
         self.assertEqual('value', store.value)
@@ -83,7 +84,8 @@ class TestMessages(unittest.TestCase):
         """
         Expected behaviour of a value message.
         """
-        val = Value(1, 2, 'value', 12345, 'abcdefg', 'name', 'hash', 0.1)
+        val = Value(1, 2, 'value', 12345, 'abcdefg', 'name', 'meta', 'hash',
+            0.1)
         self.assertEqual(1, val.id)
         self.assertEqual(2, val.key)
         self.assertEqual('value', val.value)

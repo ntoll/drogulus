@@ -38,7 +38,7 @@ ERRORS = {
     # The request was too big for the node to handle.
     4: 'Request too big',
     # Unsupported version of the protocol.
-    5: 'Unsupported protocol version',
+    5: 'Unsupported protocol',
     # The request could not be cryptographically verified.
     6: 'Unverifiable provenance'
 }
@@ -86,7 +86,8 @@ value - the value to be stored in the DHT.
 time - a timestamp indicating when this k/v was *originally* generated.
 public_key - the public key of the person storing the value.
 name - the human-readable name of the key.
-hash - the cryptographic hash of the value, time and name fields.
+meta - a list of tuples containing key/value strings for user defined metadata.
+hash - the cryptographic hash of the value, time, name and meta fields.
 version - the protocol version the message conforms to.
 
 The provenance of the message is guaranteed through cryptography:
@@ -101,8 +102,8 @@ The 'key' value is a compound key. It is a SHA1 hash of the SHA1 hashes of the
 'public_key' and 'name' fields. The 'public_key' and 'name' fields are used to
 ensure that the compound 'key' field is correct.
 """
-Store = namedtuple('Store',
-    ['id', 'key', 'value', 'time', 'public_key', 'name', 'hash', 'version'])
+Store = namedtuple('Store', ['id', 'key', 'value', 'time', 'public_key',
+    'name', 'meta', 'hash', 'version'])
 
 
 """
@@ -151,8 +152,9 @@ value - the value found in the DHT.
 time - a timestamp indicating when this k/v was *originally* generated.
 public_key - the public key of the person who stored the value.
 name - the human-readable name of the key.
-hash - the cryptographic hash of the value, time and name fields.
+meta - a list of tuples containing key/value strings for user defined metadata.
+hash - the cryptographic hash of the value, time, name and meta fields.
 version - the protocol version the message conforms to.
 """
-Value = namedtuple('Value',
-    ['id', 'key', 'value', 'time', 'public_key', 'name', 'hash', 'version'])
+Value = namedtuple('Value', ['id', 'key', 'value', 'time', 'public_key',
+    'name', 'meta', 'hash', 'version'])
