@@ -17,6 +17,7 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+
 class Contact(object):
     """
     Represents another known node on the network.
@@ -65,9 +66,3 @@ class Contact(object):
         """
         return '<%s.%s object; IP address: %s, port: %d>' % (
             self.__module__, self.__class__.__name__, self.address, self.port)
-
-    def __getattr__(self, name):
-        """
-        Makes calling a method on a remote node simple.
-        """
-        pass

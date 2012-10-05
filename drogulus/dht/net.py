@@ -18,12 +18,8 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 import msgpack
-from twisted.internet import defer, protocol
+from twisted.internet import protocol, reactor, defer
 from twisted.protocols.basic import NetstringReceiver
-import twisted.internet.reactor
-
-import constants
-from contact import Contact
 
 
 class TimeoutError(Exception):
@@ -45,12 +41,19 @@ class DHTProtocol(NetstringReceiver):
     represent.
     """
 
+    def __init__(self, node=None):
+        """
+        The optional node argument is a reference to the object representing
+        the local node within the network.
+        """
+        self._node = node
+
     def connectionMade(self):
         """
         When a connection is made to another node ensure that the routing
         table is updated appropriately.
         """
-        pass
+        peer = self.transport.getPeer()
 
     def stringReceived(self, msg):
         """
@@ -66,4 +69,10 @@ class DHTFactory(protocol.Factory):
     """
     DHT Factory class that uses the DHTProtocol.
     """
-    protocol = DHTProtocol
+
+    def buildProtocol(self, node=None):
+        """
+        The optional node argument is a reference to the object representing
+        the local node within the network.
+        """
+        return DHTProtocol(node)
