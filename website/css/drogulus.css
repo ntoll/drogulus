@@ -9,6 +9,14 @@ body {
     font-weight: bold;
 }
 
+#logo {
+    display: block;
+    border: 1px solid #DDD;
+    position: fixed;
+    width: 140px;
+    height: 140px
+}
+
 nav {
     position: fixed;
 }
@@ -16,7 +24,7 @@ nav {
 nav ul {
     list-style: none outside;
     padding: 10px 0 0 0;
-    margin: 0;
+    margin: 148px 0 0 0;
 }
 
 nav ul li {
