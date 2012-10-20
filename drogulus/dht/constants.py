@@ -43,3 +43,22 @@ REFRESH_INTERVAL = REFRESH_TIMEOUT / 6 # Every 10 minutes.
 # The number of failed remote procedure calls allowed for a contact. If this
 # is equalled or exceeded then the contact is removed from the routing table.
 ALLOWED_RPC_FAILS = 5
+
+# Defines the errors that can be reported between nodes in the DHT.
+ERRORS = {
+    # The request simply didn't make any sense.
+    1: 'Bad request',
+    # The request was parsed but not recognised.
+    2: 'Unknown request',
+    # The request was parsed and recognised but the node encountered a problem
+    # when dealing with it.
+    3: 'Internal error',
+    # The request was too big for the node to handle.
+    4: 'Request too big',
+    # Unsupported version of the protocol.
+    5: 'Unsupported protocol',
+    # The request could not be cryptographically verified.
+    6: 'Unverifiable provenance',
+    # The key / value pair did not match together as expected.
+    7: 'Key mismatch'
+}

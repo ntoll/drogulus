@@ -67,3 +67,12 @@ class TestConstants(unittest.TestCase):
         """
         self.assertIsInstance(constants.REFRESH_INTERVAL, int,
             "constants.REFRESH_INTERVAL must be an integer.")
+
+    def test_ERRORS(self):
+        """
+        The ERRORS dictionary defines the error codes (keys) and associated
+        messages (values) that are used in error messages sent between nodes in
+        the DHT.
+        """
+        self.assertIsInstance(constants.ERRORS, dict,
+            "constants.ERRORS must be a dictionary.")

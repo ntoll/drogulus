@@ -17,7 +17,6 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
-import msgpack
 from twisted.internet import protocol, reactor, defer
 from twisted.protocols.basic import NetstringReceiver
 
@@ -54,15 +53,23 @@ class DHTProtocol(NetstringReceiver):
         table is updated appropriately.
         """
         peer = self.transport.getPeer()
+        # TODO: Update the routing table.
 
-    def stringReceived(self, msg):
+    def stringReceived(self, raw):
         """
         Handles incoming requests by unpacking them and instantiating the
         correct request class. If the message cannot be unpacked or is invalid
         an appropriate error is returned to the originating caller.
         """
         #self.transport.write(repr(msgpack.unpackb(msg)))
-        self.transport.write(msg)
+        self.transport.write(raw)
+
+    def sendMessage(self, message):
+        """
+        Given an instance of a message class, will send the resulting netstring
+        down the wire to the target node.
+        """
+        pass
 
 
 class DHTFactory(protocol.Factory):
