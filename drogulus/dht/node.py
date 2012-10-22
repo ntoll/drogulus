@@ -48,3 +48,23 @@ class Node(object):
         ID address and port.
         """
         pass
+
+    def ping(self):
+        """
+        """
+        pass
+
+    def store(self, key, value):
+        """
+        """
+        pass
+
+    def findNode(self, key):
+        """
+        """
+        pass
+
+    def findValue(self, key):
+        """
+        """
+        pass

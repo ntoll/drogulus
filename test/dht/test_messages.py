@@ -158,7 +158,7 @@ class TestMessagePackConversion(unittest.TestCase):
             self.meta, PRIVATE_KEY)
         self.version = '0.1'
         self.message = 'value'
-        self.nodes = (('127.0.0.1', 1908), ('0.0.0.0', 1908))
+        self.nodes = (('hash1', '127.0.0.1', 1908), ('hash2', '0.0.0.0', 1908))
         self.mock_message = Value(self.uuid, self.key, self.value,
             self.timestamp, self.public_key, self.name, self.meta, self.sig,
             self.version)

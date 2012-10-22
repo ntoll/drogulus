@@ -60,14 +60,20 @@ def validate_meta(val):
 def validate_node(val):
     """
     Returns a boolean to indicate if the passed in tuple conforms to a
-    specification of another node within the DHT.
+    specification of another node within the DHT. A valid node is a tuple with
+    three items:
+
+    * A string representation of the SHA1 id of the node.
+    * A string representation of the node's IP address.
+    * An integer representation of the node's port.
     """
     if isinstance(val, tuple):
-        if len(val) == 2:
-            valid_adr = validate_string(val[0])
-            port = val[1]
+        if len(val) == 3:
+            valid_id = validate_string(val[0])
+            valid_adr = validate_string(val[1])
+            port = val[2]
             if isinstance(port, int):
-                return valid_adr and (port >= 0 and port <= 49151)
+                return valid_id and valid_adr and (port >= 0 and port <= 49151)
     return False
 
 
