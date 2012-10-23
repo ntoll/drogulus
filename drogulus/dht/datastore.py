@@ -17,6 +17,7 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 import UserDict
+import time
 
 
 class DataStore(UserDict.DictMixin):
@@ -50,8 +51,7 @@ class DataStore(UserDict.DictMixin):
         """
         return NotImplemented
 
-    def setItem(self, key, value, lastPublished, originallyPublished,
-                originalPublisherID):
+    def setItem(self, key, value):
         """
         Set the value of the key/value pair identified by "key"; this should
         set the "last published" value for the key/value pair to the current
@@ -70,7 +70,7 @@ class DataStore(UserDict.DictMixin):
         Convenience wrapper to setItem. This accepts a tuple of the format:
         (value, lastPublished, originallyPublished, originalPublisherID).
         """
-        self.setItem(key, *value)
+        self.setItem(key, value)
 
     def __delitem__(self, key):
         """
@@ -86,11 +86,7 @@ class DictDataStore(DataStore):
     Dictionary format:
 
     {
-        <key>: (
-            <value>,
-            <lastPublished>,
-            <originallyPublished>,
-            <originalPublisherID>),
+        <compoundkey>: (<messages.Value instance>, lastPublishedTimestamp)
         etc...
     }
     """
@@ -114,22 +110,21 @@ class DictDataStore(DataStore):
         """
         Get the original publisher of the data's node ID.
         """
-        return self._dict[key][3]
+        return self._dict[key][0].public_key
 
     def originalPublishTime(self, key):
         """
         Get the time the key/value pair identified by key was originally
         published
         """
-        return self._dict[key][2]
+        return self._dict[key][0].timestamp
 
-    def setItem(self, key, value, lastPublished, originallyPublished,
-                originalPublisherID):
+    def setItem(self, key, value):
         """
         Set the value of the key/value pair identified by key.
         """
-        self._dict[key] = (value, lastPublished, originallyPublished,
-                           originalPublisherID)
+        lastPublished = time.time()
+        self._dict[key] = (value, lastPublished)
 
     def __getitem__(self, key):
         """
