@@ -17,7 +17,6 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 import UserDict
-import time
 
 
 class DataStore(UserDict.DictMixin):
@@ -52,7 +51,7 @@ class DataStore(UserDict.DictMixin):
         return NotImplemented
 
     def setItem(self, key, value, lastPublished, originallyPublished,
-        originalPublisherID):
+                originalPublisherID):
         """
         Set the value of the key/value pair identified by "key"; this should
         set the "last published" value for the key/value pair to the current
@@ -125,12 +124,12 @@ class DictDataStore(DataStore):
         return self._dict[key][2]
 
     def setItem(self, key, value, lastPublished, originallyPublished,
-        originalPublisherID):
+                originalPublisherID):
         """
         Set the value of the key/value pair identified by key.
         """
         self._dict[key] = (value, lastPublished, originallyPublished,
-            originalPublisherID)
+                           originalPublisherID)
 
     def __getitem__(self, key):
         """

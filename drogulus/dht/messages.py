@@ -91,7 +91,7 @@ The 'key' value is a compound key. It is a SHA1 hash of the SHA1 hashes of the
 ensure that the compound 'key' field is correct.
 """
 Store = namedtuple('Store', ['uuid', 'key', 'value', 'timestamp', 'public_key',
-    'name', 'meta', 'sig', 'version'])
+                             'name', 'meta', 'sig', 'version'])
 
 
 """
@@ -148,7 +148,7 @@ sig - the cryptographic signature for the value, timestamp, name and meta
 version - the protocol version the message conforms to.
 """
 Value = namedtuple('Value', ['uuid', 'key', 'value', 'timestamp', 'public_key',
-    'name', 'meta', 'sig', 'version'])
+                             'name', 'meta', 'sig', 'version'])
 
 
 def to_msgpack(message):
@@ -193,8 +193,8 @@ def from_msgpack(raw):
         return make_message(Value, data)
     else:
         # Unknown request.
-        raise ValueError(2, ERRORS[2],
-            {'context': '%s is not a valid message type.' % message})
+        raise ValueError(2, ERRORS[2], {'context':
+                         '%s is not a valid message type.' % message})
 
 
 def make_message(klass, data):

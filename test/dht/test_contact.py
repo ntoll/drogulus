@@ -58,6 +58,5 @@ class TestContact(unittest.TestCase):
         port = 9999
         last_seen = 123
         contact = Contact(id, address, port, last_seen)
-        expected = ('<drogulus.dht.contact.Contact object; ' +
-            'IP address: 192.168.0.1, port: 9999>')
+        expected = ("('12345', '192.168.0.1', 9999)")
         self.assertEqual(expected, str(contact))

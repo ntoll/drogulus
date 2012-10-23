@@ -16,7 +16,8 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
-import time, random
+import time
+import random
 import constants
 import kbucket
 
@@ -39,7 +40,7 @@ class RoutingTable(object):
         """
         # Create the initial (single) k-bucket covering the range of the
         # entire 160-bit ID space
-        self._buckets = [kbucket.KBucket(rangeMin=0, rangeMax=2**160)]
+        self._buckets = [kbucket.KBucket(rangeMin=0, rangeMax=2 ** 160)]
         self._parentNodeID = parentNodeID
         # Cache containing nodes eligible to replace stale k-bucket entries
         self._replacementCache = {}
@@ -64,14 +65,14 @@ class RoutingTable(object):
         Returns a random key in the specified k-bucket's range.
         """
         keyValue = random.randrange(self._buckets[bucketIndex].rangeMin,
-            self._buckets[bucketIndex].rangeMax)
+                                    self._buckets[bucketIndex].rangeMax)
         randomKey = hex(keyValue)[2:]
         if randomKey[-1] == 'L':
             randomKey = randomKey[:-1]
         if len(randomKey) % 2 != 0:
             randomKey = '0' + randomKey
         randomKey = randomKey.decode('hex')
-        randomKey = (20 - len(randomKey))*'\x00' + randomKey
+        randomKey = (20 - len(randomKey)) * '\x00' + randomKey
         return randomKey
 
     def _splitBucket(self, oldBucketIndex):
@@ -82,7 +83,7 @@ class RoutingTable(object):
         # Resize the range of the current (old) k-bucket.
         oldBucket = self._buckets[oldBucketIndex]
         splitPoint = oldBucket.rangeMax - (
-            oldBucket.rangeMax - oldBucket.rangeMin)/2
+            oldBucket.rangeMax - oldBucket.rangeMin) / 2
         # Create a new k-bucket to cover the range split off from the old
         # bucket.
         newBucket = kbucket.KBucket(splitPoint, oldBucket.rangeMax)
@@ -129,7 +130,7 @@ class RoutingTable(object):
                 # Put the new contact in our replacement cache for the
                 # corresponding k-bucket (or update it's position if it exists
                 # already).
-                if not self._replacementCache.has_key(bucketIndex):
+                if not bucketIndex in self._replacementCache:
                     self._replacementCache[bucketIndex] = []
                 if contact in self._replacementCache[bucketIndex]:
                     self._replacementCache[bucketIndex].remove(contact)
@@ -247,7 +248,7 @@ class RoutingTable(object):
             self._buckets[bucketIndex].removeContact(contactID)
             # If possible, replace the stale contact with the most recent
             # contact stored in the replacement cache.
-            if self._replacementCache.has_key(bucketIndex):
+            if bucketIndex in self._replacementCache:
                 if len(self._replacementCache[bucketIndex]) > 0:
                     self._buckets[bucketIndex].addContact(
                         self._replacementCache[bucketIndex].pop())

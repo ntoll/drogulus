@@ -59,10 +59,16 @@ class Contact(object):
         """
         return not self == other
 
+    def __repr__(self):
+        """
+        Returns a tuple containing the id, ip address and port number for this
+        contact.
+        """
+        return (self.id, self.address, self.port)
+
     def __str__(self):
         """
         Override the string representation of the object to be something
         useful.
         """
-        return '<%s.%s object; IP address: %s, port: %d>' % (
-            self.__module__, self.__class__.__name__, self.address, self.port)
+        return str(self.__repr__())

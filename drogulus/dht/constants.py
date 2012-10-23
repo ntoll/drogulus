@@ -31,14 +31,14 @@ RPC_TIMEOUT = 5
 ITERATIVE_LOOKUP_DELAY = RPC_TIMEOUT / 2
 
 # How long to wait before an unused k-bucket is refreshed (in seconds).
-REFRESH_TIMEOUT = 3600 # 1 hour
+REFRESH_TIMEOUT = 3600  # 1 hour
 
 # How long to wait before a node replicates any data it stores (in seconds).
 REPLICATE_INTERVAL = REFRESH_TIMEOUT
 
 # How long to wait before a node checks whether any buckets need refreshing or
 # data needs republishing (in seconds).
-REFRESH_INTERVAL = REFRESH_TIMEOUT / 6 # Every 10 minutes.
+REFRESH_INTERVAL = REFRESH_TIMEOUT / 6  # Every 10 minutes.
 
 # The number of failed remote procedure calls allowed for a contact. If this
 # is equalled or exceeded then the contact is removed from the routing table.

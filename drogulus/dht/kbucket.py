@@ -132,7 +132,7 @@ class KBucket(object):
         if a certain key should be placed within this k-bucket.
         """
         if isinstance(key, str):
-           key = long(key.encode('hex'), 16)
+            key = long(key.encode('hex'), 16)
         return self.rangeMin <= key < self.rangeMax
 
     def __len__(self):
