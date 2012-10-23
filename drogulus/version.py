@@ -18,8 +18,10 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+
 # MAJOR, MINOR, RELEASE, STATUS [alpha, beta, final], VERSION
 VERSION = (0, 0, 0, 'alpha', 0)
+
 
 def get_version():
     """
