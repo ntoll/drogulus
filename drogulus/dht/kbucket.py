@@ -16,8 +16,6 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
-
-
 from constants import K
 
 
@@ -98,10 +96,8 @@ class KBucket(object):
         if count <= 0:
             # Return all contacts
             count = len(self._contacts)
-
         # Get current length of contact list.
         currentLen = len(self._contacts)
-
         if not self._contacts:
             # There are no contacts so return an empty list.
             contactList = []
@@ -113,11 +109,9 @@ class KBucket(object):
             # Enough contacts in the list, so only return the amount
             # requested.
             contactList = self._contacts[:count]
-
         if excludeContact in contactList:
             # Remove the excluded contact.
             contactList.remove(excludeContact)
-
         return contactList
 
     def removeContact(self, id):

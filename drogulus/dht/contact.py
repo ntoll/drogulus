@@ -21,8 +21,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 class Contact(object):
     """
     Represents another known node on the network.
-
-    Will eventually contain an RPC mechanism for communicating with the node.
     """
 
     def __init__(self, id, address, port, last_seen=0):

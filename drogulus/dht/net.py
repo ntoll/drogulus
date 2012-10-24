@@ -17,7 +17,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
-from twisted.internet import protocol, reactor, defer
+from twisted.internet import protocol
 from twisted.protocols.basic import NetstringReceiver
 
 
@@ -64,13 +64,6 @@ class DHTProtocol(NetstringReceiver):
         #self.transport.write(repr(msgpack.unpackb(msg)))
         self.transport.write(raw)
 
-    def sendMessage(self, message):
-        """
-        Given an instance of a message class, will send the resulting netstring
-        down the wire to the target node.
-        """
-        pass
-
 
 class DHTFactory(protocol.Factory):
     """
@@ -82,4 +75,5 @@ class DHTFactory(protocol.Factory):
         The optional node argument is a reference to the object representing
         the local node within the network.
         """
+        # TODO: Should the node be optional..? Second thoughts not. Check!
         return DHTProtocol(node)

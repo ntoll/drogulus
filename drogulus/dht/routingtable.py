@@ -105,11 +105,9 @@ class RoutingTable(object):
         """
         if contact.id == self._parentNodeID:
             return
-
         # Initialize/reset the "failed RPC" counter since adding it to the
         # routing table is the result of a successful RPC.
         contact.failedRPCs = 0
-
         bucketIndex = self._kbucketIndex(contact.id)
         try:
             self._buckets[bucketIndex].addContact(contact)
@@ -122,11 +120,12 @@ class RoutingTable(object):
                 self.addContact(contact)
             else:
                 # We can't split the k-bucket
+                #
                 # NOTE: This implementation follows section 4.1 of the 13 page
                 # version of the Kademlia paper (optimized contact accounting
                 # without PINGs - results in much less network traffic, at the
                 # expense of some memory)
-
+                #
                 # Put the new contact in our replacement cache for the
                 # corresponding k-bucket (or update it's position if it exists
                 # already).
@@ -234,16 +233,13 @@ class RoutingTable(object):
         be used as a replacement.
         """
         bucketIndex = self._kbucketIndex(contactID)
-
         try:
             contact = self._buckets[bucketIndex].getContact(contactID)
         except ValueError:
             # Fail silently since the contact isn't in the routing table
             # anyway.
             return
-
         contact.failedRPCs += 1
-
         if contact.failedRPCs >= constants.ALLOWED_RPC_FAILS:
             self._buckets[bucketIndex].removeContact(contactID)
             # If possible, replace the stale contact with the most recent

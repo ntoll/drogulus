@@ -118,8 +118,7 @@ def construct_key(public_key, name=''):
     determine its value.
     """
     # Simple normalisation: no spaces or newlines around the public key
-    clean_public_key = public_key.strip()
-    key_hash = SHA.new(clean_public_key)
+    key_hash = SHA.new(public_key.strip())
     if name:
         # If the key has a meaningful name, create a compound key based upon
         # the SHA1 values of both the public_key and name.

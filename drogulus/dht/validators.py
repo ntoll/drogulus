@@ -65,7 +65,8 @@ def validate_node(val):
 
     * A string representation of the SHA1 id of the node.
     * A string representation of the node's IP address.
-    * An integer representation of the node's port.
+    * An integer representation of the node's port within a valid range of
+      port values.
     """
     if isinstance(val, tuple):
         if len(val) == 3:
