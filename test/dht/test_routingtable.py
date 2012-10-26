@@ -4,10 +4,11 @@ in the DHT) works as expected.
 """
 from drogulus.dht.routingtable import RoutingTable
 from drogulus.dht.contact import Contact
-from drogulus.dht.kbucket import KBucket, KBucketFull
+from drogulus.dht.kbucket import KBucket
 from drogulus.dht import constants
 import unittest
 import time
+
 
 class TestRoutingTable(unittest.TestCase):
     """
@@ -38,7 +39,7 @@ class TestRoutingTable(unittest.TestCase):
         self.assertEqual(expected_index, actual_index)
         # a more complex test with multiple kbuckets.
         r._splitBucket(0)
-        split_point = (2**160)/2
+        split_point = (2 ** 160) / 2
         lower_key = split_point - 1
         higher_key = split_point + 1
         expected_lower_index = 0
@@ -305,7 +306,7 @@ class TestRoutingTable(unittest.TestCase):
         result = r.getContact('a')
         self.assertEqual(contact1, result)
 
-    def testGetContact(self):
+    def testGetContactDoesNotExist(self):
         """
         Ensures that a ValueError is returned if the referenced contact does
         not exist in the routing table.

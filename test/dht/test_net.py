@@ -1,10 +1,10 @@
 """
 Ensures the low level networking functions of the DHT behave as expected.
 """
-import drogulus.dht.constants as constants
 from drogulus.dht.net import DHTFactory
 from twisted.trial import unittest
 from twisted.test import proto_helpers
+
 
 class TestDHTProtocol(unittest.TestCase):
     """

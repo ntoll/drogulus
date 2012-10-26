@@ -3,8 +3,9 @@ A set of sanity checks to ensure that function concerning message validation
 work correctly.
 """
 from drogulus.dht.validators import (validate_timestamp, validate_code,
-    validate_string, validate_meta, validate_node, validate_nodes,
-    validate_value, VALIDATORS)
+                                     validate_string, validate_meta,
+                                     validate_node, validate_nodes,
+                                     validate_value, VALIDATORS)
 import unittest
 import time
 
@@ -108,7 +109,7 @@ class TestValidators(unittest.TestCase):
         """
         The IP address should be a string.
         """
-        self.assertFalse(validate_node(('hash', [127,0,0,1], 1908)))
+        self.assertFalse(validate_node(('hash', [127, 0, 0, 1], 1908)))
 
     def test_validate_node_bad_port(self):
         """
@@ -146,7 +147,7 @@ class TestValidators(unittest.TestCase):
         A tuple of nodes is only valid is the nodes contained therein are also
         valid.
         """
-        self.assertFalse(validate_nodes(((123, [127,0,0,1], 1908))))
+        self.assertFalse(validate_nodes(((123, [127, 0, 0, 1], 1908))))
 
     def test_validate_value(self):
         """

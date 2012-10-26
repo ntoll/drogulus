@@ -5,6 +5,7 @@ correctly.
 from drogulus.dht.contact import Contact
 import unittest
 
+
 class TestContact(unittest.TestCase):
     """
     Ensures the Contact class works as expected.

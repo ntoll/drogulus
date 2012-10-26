@@ -6,6 +6,7 @@ from drogulus.dht.contact import Contact
 from drogulus.dht.constants import K
 import unittest
 
+
 class TestKBucket(unittest.TestCase):
     """
     Ensures the KBucket class works as expected.
@@ -20,12 +21,12 @@ class TestKBucket(unittest.TestCase):
         bucket = KBucket(rangeMin, rangeMax)
         # Min/Max are set correctly
         self.assertEqual(rangeMin, bucket.rangeMin,
-            "KBucket rangeMin not set correctly.")
+                         "KBucket rangeMin not set correctly.")
         self.assertEqual(rangeMax, bucket.rangeMax,
-            "KBucket rangeMax not initialised correctly.")
+                         "KBucket rangeMax not initialised correctly.")
         # The contacts list exists and is empty
         self.assertEqual([], bucket._contacts,
-            "KBucket contact list not initialised correctly.")
+                         "KBucket contact list not initialised correctly.")
 
     def testAddNewContact(self):
         """
@@ -40,13 +41,13 @@ class TestKBucket(unittest.TestCase):
         contact1 = Contact("1", "192.168.0.1", 9999, 123)
         bucket.addContact(contact1)
         self.assertEqual(1, len(bucket._contacts),
-            "Single contact not added to k-bucket.")
+                         "Single contact not added to k-bucket.")
         contact2 = Contact("2", "192.168.0.2", 8888, 123)
         bucket.addContact(contact2)
         self.assertEqual(2, len(bucket._contacts),
-            "K-bucket's contact list not the expected length.")
+                         "K-bucket's contact list not the expected length.")
         self.assertEqual(contact2, bucket._contacts[-1:][0],
-            "K-bucket's most recent (last) contact wrong.")
+                         "K-bucket's most recent (last) contact wrong.")
 
     def testAddExistingContact(self):
         """
@@ -65,10 +66,10 @@ class TestKBucket(unittest.TestCase):
         bucket.addContact(contact1)
         # There should still only be two contacts in the bucket.
         self.assertEqual(2, len(bucket._contacts),
-            "Too many contacts in the k-bucket.")
+                         "Too many contacts in the k-bucket.")
         # The end contact should be the most recently added contact.
         self.assertEqual(contact1, bucket._contacts[-1:][0],
-            "The expected most recent contact is wrong.")
+                         "The expected most recent contact is wrong.")
 
     def testAddContactToFullBucket(self):
         """
@@ -98,7 +99,7 @@ class TestKBucket(unittest.TestCase):
             bucket.addContact(contact)
         for i in range(K):
             self.assertTrue(bucket.getContact("%d" % i),
-                "Could not get contact with id %d" % i)
+                            "Could not get contact with id %d" % i)
 
     def testGetContactWithBadID(self):
         """
@@ -180,7 +181,7 @@ class TestKBucket(unittest.TestCase):
             id = "%d" % i
             bucket.removeContact(id)
             self.assertFalse(id in bucket._contacts,
-                "Could not remove contact with id %d" % i)
+                             "Could not remove contact with id %d" % i)
 
     def testRemoveContactWithBadID(self):
         """

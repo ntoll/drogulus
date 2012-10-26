@@ -2,11 +2,11 @@
 A set of sanity checks to ensure that the messages are defined as expected.
 """
 from drogulus.dht.messages import (Error, Ping, Pong, Store, FindNode, Nodes,
-    FindValue, Value, to_msgpack, from_msgpack, make_message)
+                                   FindValue, Value, to_msgpack, from_msgpack,
+                                   make_message)
 from drogulus.dht.constants import ERRORS
 from drogulus.dht.crypto import construct_key, generate_signature
 import unittest
-import hashlib
 import msgpack
 import time
 from uuid import uuid4
@@ -79,7 +79,7 @@ class TestMessages(unittest.TestCase):
         Expected behaviour of a store message.
         """
         store = Store(self.uuid, 'abc123', 'value', 1350544046.084875,
-            'abcdefg', 'name', {'meta': 'value'}, 'sig', '0.1')
+                      'abcdefg', 'name', {'meta': 'value'}, 'sig', '0.1')
         self.assertEqual(self.uuid, store.uuid)
         self.assertEqual('abc123', store.key)
         self.assertEqual('value', store.value)
@@ -122,7 +122,7 @@ class TestMessages(unittest.TestCase):
         Expected behaviour of a value message.
         """
         val = Value(self.uuid, 'abc123', 'value', 1350544046.084875,
-            'abcdefg', 'name', {'meta': 'value'}, 'sig', '0.1')
+                    'abcdefg', 'name', {'meta': 'value'}, 'sig', '0.1')
         self.assertEqual(self.uuid, val.uuid)
         self.assertEqual('abc123', val.key)
         self.assertEqual('value', val.value)
@@ -155,13 +155,13 @@ class TestMessagePackConversion(unittest.TestCase):
             'description': 'a test value'
         }
         self.sig = generate_signature(self.value, self.timestamp, self.name,
-            self.meta, PRIVATE_KEY)
+                                      self.meta, PRIVATE_KEY)
         self.version = '0.1'
         self.message = 'value'
         self.nodes = (('hash1', '127.0.0.1', 1908), ('hash2', '0.0.0.0', 1908))
         self.mock_message = Value(self.uuid, self.key, self.value,
-            self.timestamp, self.public_key, self.name, self.meta, self.sig,
-            self.version)
+                                  self.timestamp, self.public_key, self.name,
+                                  self.meta, self.sig, self.version)
 
     def test_to_msgpack(self):
         """
@@ -170,7 +170,7 @@ class TestMessagePackConversion(unittest.TestCase):
         result = to_msgpack(self.mock_message)
         unpacked = msgpack.unpackb(result)
         for k in ['uuid', 'key', 'value', 'timestamp', 'public_key', 'name',
-            'meta', 'sig', 'version', 'message']:
+                  'meta', 'sig', 'version', 'message']:
             self.assertIn(k, unpacked.keys())
             self.assertEqual(unpacked[k], getattr(self, k))
 
@@ -327,12 +327,12 @@ class TestMessagePackConversion(unittest.TestCase):
             'version': self.version
         })
         with self.assertRaises(ValueError) as cm:
-            result = from_msgpack(mock_message)
+            from_msgpack(mock_message)
         ex = cm.exception
         self.assertEqual(2, ex.args[0])
         self.assertEqual(ERRORS[2], ex.args[1])
         self.assertEqual('pang is not a valid message type.',
-            ex.args[2]['context'])
+                         ex.args[2]['context'])
 
 
 class TestMakeMessage(unittest.TestCase):
@@ -357,7 +357,7 @@ class TestMakeMessage(unittest.TestCase):
         the correct exception is raised.
         """
         with self.assertRaises(ValueError) as cm:
-            result = make_message(Ping, {'uuid': 1, 'version': 2})
+            make_message(Ping, {'uuid': 1, 'version': 2})
         ex = cm.exception
         self.assertEqual(2, ex.args[0])
         self.assertEqual(ERRORS[2], ex.args[1])
@@ -370,7 +370,7 @@ class TestMakeMessage(unittest.TestCase):
         The correct fields must all exist in the provided data dictionary.
         """
         with self.assertRaises(ValueError) as cm:
-            result = make_message(Ping, {'foo': 1, 'bar': 2})
+            make_message(Ping, {'foo': 1, 'bar': 2})
         ex = cm.exception
         self.assertEqual(2, ex.args[0])
         self.assertEqual(ERRORS[2], ex.args[1])

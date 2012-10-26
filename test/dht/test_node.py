@@ -5,6 +5,7 @@ expected
 from drogulus.dht.node import Node
 import unittest
 
+
 class TestNode(unittest.TestCase):
     """
     Ensures the Node class works as expected.

@@ -4,6 +4,7 @@ Ensures the DHT implementation has the required constants defined
 import drogulus.dht.constants as constants
 import unittest
 
+
 class TestConstants(unittest.TestCase):
     """
     Ensures the drogulus.dht.constants module contains the required / expected
@@ -15,7 +16,7 @@ class TestConstants(unittest.TestCase):
         The alpha number represents the degree of parallelism in network calls.
         """
         self.assertIsInstance(constants.ALPHA, int,
-            "constants.ALPHA must be an integer.")
+                              "constants.ALPHA must be an integer.")
 
     def test_K(self):
         """
@@ -24,7 +25,7 @@ class TestConstants(unittest.TestCase):
         number.
         """
         self.assertIsInstance(constants.K, int,
-            "constants.K must be an integer.")
+                              "constants.K must be an integer.")
         self.assertEqual(0, constants.K % 2)
 
     def test_RPC_TIMEOUT(self):
@@ -33,7 +34,7 @@ class TestConstants(unittest.TestCase):
         seconds.
         """
         self.assertIsInstance(constants.RPC_TIMEOUT, int,
-            "constants.RPC_TIMEOUT must be an integer.")
+                              "constants.RPC_TIMEOUT must be an integer.")
 
     def test_ITERATIVE_LOOKUP_DELAY(self):
         """
@@ -41,7 +42,8 @@ class TestConstants(unittest.TestCase):
         iterations of iterative node lookups for loose parallelism.
         """
         self.assertIsInstance(constants.ITERATIVE_LOOKUP_DELAY, int,
-            "constants.ITERATIVE_LOOKUP_DELAY must be an integer.")
+                              "constants.ITERATIVE_LOOKUP_DELAY must be an " +
+                              "integer.")
 
     def test_REFRESH_TIMEOUT(self):
         """
@@ -49,7 +51,7 @@ class TestConstants(unittest.TestCase):
         unused k-bucket is refreshed.
         """
         self.assertIsInstance(constants.REFRESH_TIMEOUT, int,
-            "constants.REFRESH_TIMEOUT must be an integer.")
+                              "constants.REFRESH_TIMEOUT must be an integer.")
 
     def test_REPLICATE_INTERVAL(self):
         """
@@ -57,7 +59,8 @@ class TestConstants(unittest.TestCase):
         node replicates (republishes / refreshes) any data it stores.
         """
         self.assertIsInstance(constants.REPLICATE_INTERVAL, int,
-            "constants.REPLICATE_INTERVAL must be an integer.")
+                              "constants.REPLICATE_INTERVAL must be an " +
+                              "integer.")
 
     def test_REFRESH_INTERVAL(self):
         """
@@ -66,7 +69,7 @@ class TestConstants(unittest.TestCase):
         republishing.
         """
         self.assertIsInstance(constants.REFRESH_INTERVAL, int,
-            "constants.REFRESH_INTERVAL must be an integer.")
+                              "constants.REFRESH_INTERVAL must be an integer.")
 
     def test_ERRORS(self):
         """
@@ -75,4 +78,4 @@ class TestConstants(unittest.TestCase):
         the DHT.
         """
         self.assertIsInstance(constants.ERRORS, dict,
-            "constants.ERRORS must be a dictionary.")
+                              "constants.ERRORS must be a dictionary.")

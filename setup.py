@@ -6,7 +6,7 @@ setup(
     name='drogulus',
     version=get_version(),
     description='A federated, decentralised, openly writable information' +
-        ' store and computation platform.',
+                ' store and computation platform.',
     long_description=open('README.rst').read(),
     author='Nicholas H.Tollervey',
     author_email='ntoll@ntoll.org',
