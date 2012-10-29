@@ -41,7 +41,7 @@ class TestDataStore(unittest.TestCase):
     in to the class). Basically, a bunch of trivial sanity tests.
     """
 
-    def testKeys(self):
+    def test_keys(self):
         """
         Check the DataStore base class has a keys method.
         """
@@ -49,29 +49,29 @@ class TestDataStore(unittest.TestCase):
         ds = DataStore()
         self.assertEqual(NotImplemented, ds.keys())
 
-    def testLastPublished(self):
+    def test_last_published(self):
         """
-        Check the DataStore base class has a lastPublished method.
+        Check the DataStore base class has a last_published method.
         """
-        self.assertTrue(hasattr(DataStore, 'lastPublished'))
+        self.assertTrue(hasattr(DataStore, 'last_published'))
         ds = DataStore()
-        self.assertEqual(NotImplemented, ds.lastPublished(123))
+        self.assertEqual(NotImplemented, ds.last_published(123))
 
-    def testOriginalPublisher(self):
+    def test_original_publisher_id(self):
         """
-        Check the DataStore base class has an originalPublisherID method.
+        Check the DataStore base class has an original_publisher_id method.
         """
-        self.assertTrue(hasattr(DataStore, 'originalPublisherID'))
+        self.assertTrue(hasattr(DataStore, 'original_publisher_id'))
         ds = DataStore()
-        self.assertEqual(NotImplemented, ds.originalPublisherID(123))
+        self.assertEqual(NotImplemented, ds.original_publisher_id(123))
 
-    def testSetItem(self):
+    def test_set_item(self):
         """
-        Check the DataStore base class has an originalPublisher method.
+        Check the DataStore base class has a set_item method.
         """
-        self.assertTrue(hasattr(DataStore, 'setItem'))
+        self.assertTrue(hasattr(DataStore, 'set_item'))
         ds = DataStore()
-        self.assertEqual(NotImplemented, ds.setItem(123, 'value'))
+        self.assertEqual(NotImplemented, ds.set_item(123, 'value'))
 
     def test__getitem__(self):
         """
@@ -129,7 +129,7 @@ class TestDictDataStore(unittest.TestCase):
         self.assertTrue(hasattr(store, '_dict'))
         self.assertEqual({}, store._dict)
 
-    def testKeys(self):
+    def test_keys(self):
         """
         Ensure the keys method works as expected.
         """
@@ -138,39 +138,39 @@ class TestDictDataStore(unittest.TestCase):
         store['foo'] = self.mock_value
         self.assertTrue('foo' in store.keys())
 
-    def testLastPublished(self):
+    def test_last_published(self):
         """
-        Ensures the correct value is returned from lastPublished for a given
+        Ensures the correct value is returned from last_published for a given
         key.
         """
         store = DictDataStore()
         store['foo'] = self.mock_value
-        self.assertTrue(store.lastPublished('foo'))
+        self.assertTrue(store.last_published('foo'))
 
-    def testOriginalPublisherID(self):
+    def test_original_publisher_id(self):
         """
-        Ensures the correct value is returned from originalPublisherID for a
+        Ensures the correct value is returned from original_publisher_id for a
         given key.
         """
         store = DictDataStore()
         store['foo'] = self.mock_value
-        self.assertEqual(self.public_key, store.originalPublisherID('foo'))
+        self.assertEqual(self.public_key, store.original_publisher_id('foo'))
 
-    def testOriginalPublishTime(self):
+    def test_original_publish_time(self):
         """
-        Ensures the correct value is returned from originalPublishTime for a
+        Ensures the correct value is returned from original_publish_time for a
         given key.
         """
         store = DictDataStore()
         store['foo'] = self.mock_value
-        self.assertEqual(self.timestamp, store.originalPublishTime('foo'))
+        self.assertEqual(self.timestamp, store.original_publish_time('foo'))
 
-    def testSetItem(self):
+    def test_set_item(self):
         """
-        Ensures that the setItem method works as expected.
+        Ensures that the set_item method works as expected.
         """
         store = DictDataStore()
-        store.setItem('foo', self.mock_value)
+        store.set_item('foo', self.mock_value)
         self.assertEqual(1, len(store.keys()))
         self.assertEqual('foo', store.keys()[0])
         self.assertEqual(self.mock_value, store['foo'])
@@ -180,7 +180,7 @@ class TestDictDataStore(unittest.TestCase):
         Ensures that the __getitem__ method works as expected.
         """
         store = DictDataStore()
-        store.setItem('foo', self.mock_value)
+        store.set_item('foo', self.mock_value)
         self.assertEqual(self.mock_value, store['foo'])
 
     def test__delitem__(self):
@@ -188,7 +188,7 @@ class TestDictDataStore(unittest.TestCase):
         Ensures that the __delitem__ method works as expected.
         """
         store = DictDataStore()
-        store.setItem('foo', self.mock_value)
+        store.set_item('foo', self.mock_value)
         self.assertEqual(1, len(store.keys()))
         del store['foo']
         self.assertEqual(0, len(store.keys()))

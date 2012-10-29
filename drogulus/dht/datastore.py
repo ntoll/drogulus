@@ -1,21 +1,22 @@
 """
 Contains class definitions that define the local data store for the node.
-
-Copyright (C) 2012 Nicholas H.Tollervey.
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU Affero General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Affero General Public License for more details.
-
-You should have received a copy of the GNU Affero General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
+
+# Copyright (C) 2012 Nicholas H.Tollervey.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 import UserDict
 import time
 
@@ -31,27 +32,27 @@ class DataStore(UserDict.DictMixin):
         """
         return NotImplemented
 
-    def lastPublished(self, key):
+    def last_published(self, key):
         """
         Get the time that a key/value pair identified by the key were last
         published.
         """
         return NotImplemented
 
-    def originalPublisherID(self, key):
+    def original_publisher_id(self, key):
         """
         Get the node ID of the original publisher of the key/value pair
         identified by "key".
         """
         return NotImplemented
 
-    def originalPublishTime(self, key):
+    def original_publish_time(self, key):
         """
         Get the time that key was originally published.
         """
         return NotImplemented
 
-    def setItem(self, key, value):
+    def set_item(self, key, value):
         """
         Set the value of the key/value pair identified by "key"; this should
         set the "last published" value for the key/value pair to the current
@@ -70,7 +71,7 @@ class DataStore(UserDict.DictMixin):
         Convenience wrapper to setItem. This accepts a tuple of the format:
         (value, lastPublished, originallyPublished, originalPublisherID).
         """
-        self.setItem(key, value)
+        self.set_item(key, value)
 
     def __delitem__(self, key):
         """
@@ -82,13 +83,6 @@ class DataStore(UserDict.DictMixin):
 class DictDataStore(DataStore):
     """
     A datastore using Python's in-memory dictionary.
-
-    Dictionary format:
-
-    {
-        <compoundkey>: (<messages.Value instance>, lastPublishedTimestamp)
-        etc...
-    }
     """
 
     def __init__(self):
@@ -100,26 +94,26 @@ class DictDataStore(DataStore):
         """
         return self._dict.keys()
 
-    def lastPublished(self, key):
+    def last_published(self, key):
         """
         Get the time the key/value pair identified by key was last published.
         """
         return self._dict[key][1]
 
-    def originalPublisherID(self, key):
+    def original_publisher_id(self, key):
         """
         Get the original publisher of the data's node ID.
         """
         return self._dict[key][0].public_key
 
-    def originalPublishTime(self, key):
+    def original_publish_time(self, key):
         """
         Get the time the key/value pair identified by key was originally
         published
         """
         return self._dict[key][0].timestamp
 
-    def setItem(self, key, value):
+    def set_item(self, key, value):
         """
         Set the value of the key/value pair identified by key.
         """

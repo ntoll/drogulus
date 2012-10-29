@@ -1,21 +1,21 @@
 """
 Defines a contact (another node) on the network.
-
-Copyright (C) 2012 Nicholas H.Tollervey.
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU Affero General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Affero General Public License for more details.
-
-You should have received a copy of the GNU Affero General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
+
+# Copyright (C) 2012 Nicholas H.Tollervey.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
 class Contact(object):
@@ -25,19 +25,18 @@ class Contact(object):
 
     def __init__(self, id, address, port, last_seen=0):
         """
-        @param id - the contact's id within the DHT.
-        @param address - the contact's IP address.
-        @param port - the contact's port.
-        @last_seen - the last time there was a connection with the contact.
+        Initialises the contact object with its unique id within the DHT, IP
+        address, port and a timestamp when the last connection was made with
+        the contact (defaults to 0).
         """
         self.id = id
         self.address = address
         self.port = port
         self.last_seen = last_seen
-        # failedRPCs keeps track of the number of failed RPCs to this contact.
+        # failed_RPCs keeps track of the number of failed RPCs to this contact.
         # If this number reaches a threshold then it is evicted from the
         # kbucket and replaced with a contact that is more reliable.
-        self.failedRPCs = 0
+        self.failed_RPCs = 0
 
     def __eq__(self, other):
         """
