@@ -32,7 +32,7 @@ def validate_timestamp(val):
 
 def validate_code(val):
     """
-    Ensures that an error code is valid.
+    Returns a boolean indication that an error code is valid.
     """
     return val in ERRORS.keys()
 
