@@ -37,11 +37,14 @@ class Node(object):
     """
 
     def __init__(self, id=None):
+        """
+        Initialises the object representing the node with the given id.
+        """
         self.id = id
         self._routing_table = RoutingTable(id)
         self._data_store = DictDataStore
 
-    def joinNetwork(self, seedNodes=None):
+    def join(self, seedNodes=None):
         """
         Causes the Node to join the DHT network. This should be called before
         any other DHT operations. The seedNodes argument contains a list of
@@ -60,12 +63,12 @@ class Node(object):
         """
         pass
 
-    def findNode(self, key):
+    def find_node(self, key):
         """
         """
         pass
 
-    def findValue(self, key):
+    def find_value(self, key):
         """
         """
         pass
