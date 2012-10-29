@@ -12,7 +12,7 @@ following command::
 
     $ make html
 
-The resulting HTML can be found in the `_build/html` directory.
+The resulting HTML can be found in the ``_build/html`` directory.
 
 PDF copies of academic papers used / referenced within the Drogulus project
-can be found in the `papers` directory.
+can be found in the ``papers`` directory.
