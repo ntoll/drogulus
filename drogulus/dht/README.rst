@@ -1,5 +1,5 @@
-The ``dht`` Module
-==================
+``drogulus.dht``
+================
 
 Contains a simple implementation of the Kademlia distributed hash table (inspired by, but containing no code from, the Entangled implementation of Kademlia).
 

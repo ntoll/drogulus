@@ -1,16 +1,17 @@
-Drogulus Documentation!
-=======================
+.. include:: ../README.rst
 
-Contents:
+Table of Contents
+=================
 
 .. toctree::
-   :maxdepth: 2
+    :maxdepth: 3
 
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
-
-.. include:: ../README.rst
+    start
+    what
+    why
+    how
+    install
+    drogulisp
+    api/index
+    license
+    authors
