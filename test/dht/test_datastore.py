@@ -106,6 +106,7 @@ class TestDictDataStore(unittest.TestCase):
         self.uuid = str(uuid4())
         self.value = 1.234
         self.timestamp = time.time()
+        self.expires = self.timestamp + 1000
         self.public_key = PUBLIC_KEY
         self.name = 'a_human_readable_key_name'
         self.key = construct_key(self.public_key, self.name)
@@ -113,13 +114,13 @@ class TestDictDataStore(unittest.TestCase):
             'mime': 'numeric',
             'description': 'a test value'
         }
-        self.sig = generate_signature(self.value, self.timestamp, self.name,
-                                      self.meta, PRIVATE_KEY)
+        self.sig = generate_signature(self.value, self.timestamp, self.expires,
+                                      self.name, self.meta, PRIVATE_KEY)
         self.version = '0.1'
         self.message = 'value'
         self.mock_value = Value(self.uuid, self.key, self.value,
-                                self.timestamp, self.public_key, self.name,
-                                self.meta, self.sig, self.version)
+                                self.timestamp, self.expires, self.public_key,
+                                self.name, self.meta, self.sig, self.version)
 
     def test__init__(self):
         """

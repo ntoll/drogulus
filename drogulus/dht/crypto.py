@@ -24,33 +24,35 @@ from Crypto.Signature import PKCS1_v1_5
 import msgpack
 
 
-def generate_signature(value, timestamp, name, meta, private_key):
+def generate_signature(value, timestamp, expires, name, meta, private_key):
     """
-    Given the value, timestamp, name and meta values of an outgoing value
-    carrying message will use the private key to generate a cryptographic hash
-    to the message to be used to sign / validate the message.
+    Given the value, timestamp, expires, name and meta values of an outgoing
+    value carrying message will use the private key to generate a cryptographic
+    hash to the message to be used to sign / validate the message.
 
     The hash is created with the private key of the person storing the
     key/value pair. It is, in turn, based upon the SHA1 hash of the SHA1 hashes
-    of the 'value', 'timestamp', 'name' and 'meta' fields.
+    of the 'value', 'timestamp', 'expires', 'name' and 'meta' fields.
 
     This mechanism ensures that the public_key used in the compound key is
     valid (i.e. it creates the correct SHA1 hash) and also ensures that the
-    'value', 'timestamp', 'name' and 'meta' fields have not been tampered with.
+    'value', 'timestamp', 'expires', 'name' and 'meta' fields have not been
+    tampered with.
     """
-    compound_hash = construct_hash(value, timestamp, name, meta)
+    compound_hash = construct_hash(value, timestamp, expires, name, meta)
     key = RSA.importKey(private_key)
     signer = PKCS1_v1_5.new(key)
     return signer.sign(compound_hash)
 
 
-def validate_signature(value, timestamp, name, meta, signature, public_key):
+def validate_signature(value, timestamp, expires, name, meta, signature,
+                       public_key):
     """
     Uses the public key to validate the cryptographic signature based upon
-    a hash of the value, timestamp, name and meta values of a value carrying
-    message.
+    a hash of the value, timestamp, expires, name and meta values of a value
+    carrying message.
     """
-    generated_hash = construct_hash(value, timestamp, name, meta)
+    generated_hash = construct_hash(value, timestamp, expires, name, meta)
     try:
         public_key = RSA.importKey(public_key.strip())
     except ValueError:
@@ -78,8 +80,9 @@ def validate_key_value(key, message):
     the SHA1 hashes of the 'public_key' and 'name' fields. This ensures the
     correct key is used to locate the data in the DHT.
     """
-    if not validate_signature(message.value, message.timestamp, message.name,
-                              message.meta, message.sig, message.public_key):
+    if not validate_signature(message.value, message.timestamp,
+                              message.expires,message.name, message.meta,
+                              message.sig, message.public_key):
         # Invalid signature so bail with the appropriate error number
         return (False, 6)
     # If the signature is correct then the public key must be valid. Ensure
@@ -92,16 +95,16 @@ def validate_key_value(key, message):
     return (True, None)
 
 
-def construct_hash(value, timestamp, name, meta):
+def construct_hash(value, timestamp, expires, name, meta):
     """
     The hash is a SHA1 hash of the SHA1 hashes of the msgpack encoded 'value',
-    'timetamp, 'name' and 'meta' fields (in that order).
+    'timetamp, 'expires', 'name' and 'meta' fields (in that order).
 
-    It ensures that the 'value', 'timestamp', 'name' and 'meta' fields have not
-    been tampered with.
+    It ensures that the 'value', 'timestamp', 'expires', 'name' and 'meta'
+    fields have not been tampered with.
     """
     hashes = []
-    for item in (value, timestamp, name, meta):
+    for item in (value, timestamp, expires, name, meta):
         packed = msgpack.packb(item)
         hashed = SHA.new(packed).hexdigest()
         hashes.append(hashed)

@@ -20,6 +20,7 @@ Contains a definition of the low-level networking protocol used by the DHT
 
 from twisted.internet import protocol
 from twisted.protocols.basic import NetstringReceiver
+from messages import to_msgpack, from_msgpack
 
 
 class TimeoutError(Exception):
@@ -41,13 +42,6 @@ class DHTProtocol(NetstringReceiver):
     represent.
     """
 
-    def __init__(self, node=None):
-        """
-        The optional node argument is a reference to the object representing
-        the local node within the network.
-        """
-        self._node = node
-
     def connectionMade(self):
         """
         When a connection is made to another node ensure that the routing
@@ -62,8 +56,23 @@ class DHTProtocol(NetstringReceiver):
         correct request class. If the message cannot be unpacked or is invalid
         an appropriate error is returned to the originating caller.
         """
-        #self.transport.write(repr(msgpack.unpackb(msg)))
         self.transport.write(raw)
+        return
+        try:
+            message = from_msgpack(raw)
+        except ValueError, ex:
+            # Handle problems translating the msgpack -> named_tuple
+            pass
+        except Exception, ex:
+            # Catch all for anything unexpected
+            pass
+        self.factory.node.message_received(message)
+
+    def sendMessage(self, msg):
+        """
+        Sends the referenced message to the connected peer on the network.
+        """
+        self.sendString(to_msgpack(msg))
 
 
 class DHTFactory(protocol.Factory):
@@ -71,10 +80,11 @@ class DHTFactory(protocol.Factory):
     DHT Factory class that uses the DHTProtocol.
     """
 
-    def buildProtocol(self, node=None):
+    protocol = DHTProtocol
+
+    def __init__(self, node):
         """
-        The optional node argument is a reference to the object representing
-        the local node within the network.
+        Instantiates the factory with a node object representing the local
+        node within the network.
         """
-        # TODO: Should the node be optional..? Second thoughts not. Check!
-        return DHTProtocol(node)
+        self.node = node

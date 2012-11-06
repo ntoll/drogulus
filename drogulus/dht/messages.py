@@ -68,8 +68,8 @@ class Pong(namedtuple('Pong', ['uuid', 'version'])):
 
 
 class Store(namedtuple('Store', ['uuid', 'key', 'value', 'timestamp',
-                                 'public_key', 'name', 'meta', 'sig',
-                                 'version'])):
+                                 'expires', 'public_key', 'name', 'meta',
+                                 'sig', 'version'])):
     """
     A "store" message instructs another node on the network to store the given
     key/value pair.
@@ -79,9 +79,14 @@ class Store(namedtuple('Store', ['uuid', 'key', 'value', 'timestamp',
             DHT.
     * value - the value to be stored in the DHT.
     * timestamp - a timestamp indicating when this k/v was *originally*
-                  generated as a floating point number representing the time in
+                  generated as an integer representing the time in
                   seconds since the Epoch (so called POSIX time, see
                   https://en.wikipedia.org/wiki/Unix_time).
+    * expires - a timestamp indicating a point in time after which this k/v
+                can be removed (expired) from the DHT. Expressed as an integer
+                representing the time in seconds since the Epoch (so called
+                POSIX time). If the value is less than or equal to 0 (zero)
+                then the k/v should never expire.
     * public_key - the public key of the person storing the value.
     * name - the human-readable name of the key.
     * meta - a list of tuples containing key/value strings for user defined
@@ -144,8 +149,8 @@ class FindValue(namedtuple('FindValue', ['uuid', 'key', 'version'])):
 
 
 class Value(namedtuple('Value', ['uuid', 'key', 'value', 'timestamp',
-                                 'public_key', 'name', 'meta', 'sig',
-                                 'version'])):
+                                 'expires', 'public_key', 'name', 'meta',
+                                 'sig', 'version'])):
     """
     A response to a FindValue request. Contains all the information known by
     the responder about the key/value pair. Such complete information can be
@@ -160,6 +165,11 @@ class Value(namedtuple('Value', ['uuid', 'key', 'value', 'timestamp',
                   generated as a floating point number representing the time in
                   seconds since the Epoch (so called POSIX time, see
                   https://en.wikipedia.org/wiki/Unix_time).
+    * expires - a timestamp indicating a point in time after which this k/v
+                can be removed (expired) from the DHT. Expressed as an integer
+                representing the time in seconds since the Epoch (so called
+                POSIX time). If the value is less than or equal to 0 (zero)
+                then the k/v should never expire.
     * public_key - the public key of the person who stored the value.
     * name - the human-readable name of the key.
     * meta - a list of tuples containing key/value strings for user defined

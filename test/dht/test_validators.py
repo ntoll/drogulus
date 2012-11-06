@@ -161,7 +161,7 @@ class TestValidators(unittest.TestCase):
         Ensures that the VALIDATORS dict maps the field names to validator
         functions correctly.
         """
-        self.assertEqual(13, len(VALIDATORS))
+        self.assertEqual(14, len(VALIDATORS))
         self.assertEqual(VALIDATORS['uuid'], validate_string)
         self.assertEqual(VALIDATORS['code'], validate_code)
         self.assertEqual(VALIDATORS['title'], validate_string)
@@ -170,6 +170,7 @@ class TestValidators(unittest.TestCase):
         self.assertEqual(VALIDATORS['key'], validate_string)
         self.assertEqual(VALIDATORS['value'], validate_value)
         self.assertEqual(VALIDATORS['timestamp'], validate_timestamp)
+        self.assertEqual(VALIDATORS['expires'], validate_timestamp)
         self.assertEqual(VALIDATORS['public_key'], validate_string)
         self.assertEqual(VALIDATORS['name'], validate_string)
         self.assertEqual(VALIDATORS['meta'], validate_meta)

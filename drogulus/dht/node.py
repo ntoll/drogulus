@@ -53,6 +53,12 @@ class Node(object):
         """
         pass
 
+    def message_received(self, message):
+        """
+        Handles incoming messages.
+        """
+        pass
+
     def ping(self):
         """
         """

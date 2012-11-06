@@ -2,8 +2,11 @@
 Ensures the low level networking functions of the DHT behave as expected.
 """
 from drogulus.dht.net import DHTFactory
+from drogulus.dht.node import Node
 from twisted.trial import unittest
 from twisted.test import proto_helpers
+import hashlib
+import time
 
 
 class TestDHTProtocol(unittest.TestCase):
@@ -17,8 +20,12 @@ class TestDHTProtocol(unittest.TestCase):
 
         http://twistedmatrix.com/documents/current/core/howto/trial.html
         """
-        factory = DHTFactory()
-        self.protocol = factory.buildProtocol(('127.0.0.1', 0))
+        hasher = hashlib.sha1()
+        hasher.update(str(time.time()))
+        self.node_id = hasher.hexdigest()
+        self.node = Node(self.node_id)
+        self.factory = DHTFactory(self.node)
+        self.protocol = self.factory.buildProtocol(('127.0.0.1', 0))
         self.transport = proto_helpers.StringTransport()
         self.protocol.makeConnection(self.transport)
 

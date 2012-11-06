@@ -79,11 +79,12 @@ class TestMessages(unittest.TestCase):
         Expected behaviour of a store message.
         """
         store = Store(self.uuid, 'abc123', 'value', 1350544046.084875,
-                      'abcdefg', 'name', {'meta': 'value'}, 'sig', '0.1')
+                      0.0, 'abcdefg', 'name', {'meta': 'value'}, 'sig', '0.1')
         self.assertEqual(self.uuid, store.uuid)
         self.assertEqual('abc123', store.key)
         self.assertEqual('value', store.value)
         self.assertEqual(1350544046.084875, store.timestamp)
+        self.assertEqual(0.0, store.expires)
         self.assertEqual('abcdefg', store.public_key)
         self.assertEqual('name', store.name)
         self.assertEqual({'meta': 'value'}, store.meta)
@@ -121,12 +122,13 @@ class TestMessages(unittest.TestCase):
         """
         Expected behaviour of a value message.
         """
-        val = Value(self.uuid, 'abc123', 'value', 1350544046.084875,
+        val = Value(self.uuid, 'abc123', 'value', 1350544046.084875, 0.0,
                     'abcdefg', 'name', {'meta': 'value'}, 'sig', '0.1')
         self.assertEqual(self.uuid, val.uuid)
         self.assertEqual('abc123', val.key)
         self.assertEqual('value', val.value)
         self.assertEqual(1350544046.084875, val.timestamp)
+        self.assertEqual(0.0, val.expires)
         self.assertEqual('abcdefg', val.public_key)
         self.assertEqual('name', val.name)
         self.assertEqual({'meta': 'value'}, val.meta)
@@ -147,6 +149,7 @@ class TestMessagePackConversion(unittest.TestCase):
         self.uuid = str(uuid4())
         self.value = 1.234
         self.timestamp = time.time()
+        self.expires = self.timestamp + 1000
         self.public_key = PUBLIC_KEY
         self.name = 'a_human_readable_key_name'
         self.key = construct_key(self.public_key, self.name)
@@ -154,14 +157,15 @@ class TestMessagePackConversion(unittest.TestCase):
             'mime': 'numeric',
             'description': 'a test value'
         }
-        self.sig = generate_signature(self.value, self.timestamp, self.name,
-                                      self.meta, PRIVATE_KEY)
+        self.sig = generate_signature(self.value, self.timestamp, self.expires,
+                                      self.name, self.meta, PRIVATE_KEY)
         self.version = '0.1'
         self.message = 'value'
         self.nodes = (('hash1', '127.0.0.1', 1908), ('hash2', '0.0.0.0', 1908))
         self.mock_message = Value(self.uuid, self.key, self.value,
-                                  self.timestamp, self.public_key, self.name,
-                                  self.meta, self.sig, self.version)
+                                  self.timestamp, self.expires,
+                                  self.public_key, self.name, self.meta,
+                                  self.sig, self.version)
 
     def test_to_msgpack(self):
         """
@@ -232,6 +236,7 @@ class TestMessagePackConversion(unittest.TestCase):
             'key': self.key,
             'value': self.value,
             'timestamp': self.timestamp,
+            'expires': self.expires,
             'public_key': self.public_key,
             'name': self.name,
             'meta': self.meta,
@@ -244,6 +249,7 @@ class TestMessagePackConversion(unittest.TestCase):
         self.assertEqual(result.key, self.key)
         self.assertEqual(result.value, self.value)
         self.assertEqual(result.timestamp, self.timestamp)
+        self.assertEqual(result.expires, self.expires)
         self.assertEqual(result.public_key, self.public_key)
         self.assertEqual(result.name, self.name)
         self.assertEqual(result.meta, self.meta)

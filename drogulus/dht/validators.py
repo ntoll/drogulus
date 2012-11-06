@@ -114,6 +114,7 @@ VALIDATORS = {
     'key': validate_string,
     'value': validate_value,
     'timestamp': validate_timestamp,
+    'expires': validate_timestamp,
     'public_key': validate_string,
     'name': validate_string,
     'meta': validate_meta,
