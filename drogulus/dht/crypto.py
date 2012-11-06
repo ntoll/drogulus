@@ -81,7 +81,7 @@ def validate_key_value(key, message):
     correct key is used to locate the data in the DHT.
     """
     if not validate_signature(message.value, message.timestamp,
-                              message.expires,message.name, message.meta,
+                              message.expires, message.name, message.meta,
                               message.sig, message.public_key):
         # Invalid signature so bail with the appropriate error number
         return (False, 6)
