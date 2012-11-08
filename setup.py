@@ -11,7 +11,7 @@ setup(
     author='Nicholas H.Tollervey',
     author_email='ntoll@ntoll.org',
     url='http://packages.python.org/drogulus',
-    package_dir = {'':'drogulus'},
+    package_dir={'': 'drogulus'},
     packages=find_packages('drogulus'),
     scripts=['bin/drogd'],
     license='GNU AGPLv3',
