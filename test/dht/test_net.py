@@ -8,6 +8,7 @@ from drogulus.dht.node import Node
 from drogulus.dht.messages import Pong, to_msgpack, from_msgpack
 from twisted.trial import unittest
 from twisted.test import proto_helpers
+from mock import MagicMock
 from uuid import uuid4
 import hashlib
 import time
@@ -82,6 +83,23 @@ class TestDHTProtocol(unittest.TestCase):
         uuidMatch = ('[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-' +
                      '[a-f0-9]{12}')
         self.assertTrue(re.match(uuidMatch, err.uuid))
+
+    def test_string_received_good_message(self):
+        """
+        Ensures the correct method on the local node object is called with the
+        expected arguments.
+        """
+        # Mock
+        self.node.message_received = MagicMock(return_value=True)
+        # Create a simple Ping message
+        uuid = str(uuid4())
+        version = get_version()
+        msg = Pong(uuid, version)
+        # Receive it...
+        raw = to_msgpack(msg)
+        self.protocol.stringReceived(raw)
+        # Check it results in a call to the node's message_received method.
+        self.node.message_received.assert_called_once_with(msg, self.protocol)
 
     def test_send_message(self):
         """

@@ -45,14 +45,6 @@ class DHTProtocol(NetstringReceiver):
     details are hidden).
     """
 
-    def connectionMade(self):
-        """
-        When a connection is made to another node ensure that the routing
-        table is updated appropriately.
-        """
-        peer = self.transport.getPeer()
-        # TODO: Update the routing table.
-
     def stringReceived(self, raw):
         """
         Handles incoming requests by unpacking them and instantiating the
@@ -62,6 +54,8 @@ class DHTProtocol(NetstringReceiver):
         """
         try:
             message = from_msgpack(raw)
+            # TODO: Update the routing table.
+            # peer = self.transport.getPeer()
             self.factory.node.message_received(message, self)
         except Exception, ex:
             # Catch all for anything unexpected
