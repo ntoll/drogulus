@@ -26,9 +26,11 @@ in the way that they are.
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from collections import namedtuple
+from uuid import uuid4
 import msgpack
 from constants import ERRORS
 from validators import VALIDATORS
+from drogulus.version import get_version
 
 
 class Error(namedtuple('Error',
@@ -225,6 +227,25 @@ def from_msgpack(raw):
         # Unknown request.
         raise ValueError(2, ERRORS[2], {'context':
                          '%s is not a valid message type.' % message})
+
+
+def except_to_error(exception):
+    """
+    Given a Python exception will return an appropriate Error message instance.
+    """
+    version = get_version()
+    if isinstance(exception, Exception) and len(exception.args) == 4:
+        # Exception includes all the information we need.
+        uuid = exception.args[3]
+        code = exception.args[0]
+        title = exception.args[1]
+        details = exception.args[2]
+    else:
+        uuid = str(uuid4())
+        code = 3
+        title = ERRORS[code]
+        details = {}
+    return Error(uuid, code, title, details, version)
 
 
 def make_message(klass, data):

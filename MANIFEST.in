@@ -1,6 +1,4 @@
 include README.rst
+include AUTHORS
 recursive-include bin *
-recursive-include tests *.py
-recursive-include docs *.py *.rst *.css *.png
-recursive-include drogulus *.py *.html *.css *.png
-prune docs/build
+recursive-include drogulus *.py

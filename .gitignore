@@ -4,3 +4,5 @@
 docs/_build/*
 build/*
 _trial_temp
+drogulus.egg-info/*
+drogulus/drogulus.egg-info/*

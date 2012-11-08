@@ -1,12 +1,15 @@
 """
 Ensures the low level networking functions of the DHT behave as expected.
 """
+from drogulus.dht.constants import ERRORS
 from drogulus.dht.net import DHTFactory
 from drogulus.dht.node import Node
+from drogulus.dht.messages import to_msgpack, from_msgpack
 from twisted.trial import unittest
 from twisted.test import proto_helpers
 import hashlib
 import time
+import re
 
 
 class TestDHTProtocol(unittest.TestCase):
@@ -46,10 +49,34 @@ class TestDHTProtocol(unittest.TestCase):
         """
         pass
 
-    def test_foo(self):
+    def _to_netstring(self, raw):
         """
-        Sanity test to check I've wired things up correctly.
+        Converts a raw msgpacked value into a netstring.
+        """
+        return '%d:%s,' % (len(raw), raw)
 
-        TODO: Delete this and replace with *proper* tests.
+    def _from_netstring(self, raw):
         """
-        return self._testIn('1:a,', 'a')
+        Strips netstring related length and trailing comma from raw string.
+        """
+        # extract length:content
+        length, content = raw.split(':', 1)
+        # remove trailing comma
+        return content[:-1]
+
+    def test_string_received_except_to_error(self):
+        """
+        Sanity test to check error handling works as expected.
+        """
+        # Send bad message
+        self.protocol.dataReceived('1:a,')
+        # Check we receive the expected error in return
+        raw_response = self.transport.value()
+        msgpack_response = self._from_netstring(raw_response)
+        err = from_msgpack(msgpack_response)
+        self.assertEqual(3, err.code)
+        self.assertEqual(ERRORS[3], err.title)
+        self.assertEqual({}, err.details)
+        uuidMatch = ('[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-' +
+                     '[a-f0-9]{12}')
+        self.assertTrue(re.match(uuidMatch, err.uuid))

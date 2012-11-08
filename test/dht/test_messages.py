@@ -3,12 +3,13 @@ A set of sanity checks to ensure that the messages are defined as expected.
 """
 from drogulus.dht.messages import (Error, Ping, Pong, Store, FindNode, Nodes,
                                    FindValue, Value, to_msgpack, from_msgpack,
-                                   make_message)
+                                   except_to_error, make_message)
 from drogulus.dht.constants import ERRORS
 from drogulus.dht.crypto import construct_key, generate_signature
 import unittest
 import msgpack
 import time
+import re
 from uuid import uuid4
 
 
@@ -339,6 +340,56 @@ class TestMessagePackConversion(unittest.TestCase):
         self.assertEqual(ERRORS[2], ex.args[1])
         self.assertEqual('pang is not a valid message type.',
                          ex.args[2]['context'])
+
+
+class TestExceptToError(unittest.TestCase):
+    """
+    Ensures the except_to_error function returns the expected Error message
+    instance.
+    """
+
+    def test_except_to_error_with_exception_args(self):
+        """
+        Ensure an exception created by drogulus (that includes meta-data in
+        the form of exception args) is correctly transformed into an Error
+        message instance.
+        """
+        uuid = str(uuid4())
+        details = {'context': 'A message'}
+        ex = ValueError(1, ERRORS[1], details, uuid)
+        result = except_to_error(ex)
+        self.assertEqual(uuid, result.uuid)
+        self.assertEqual(1, result.code)
+        self.assertEqual(ERRORS[1], result.title)
+        self.assertEqual(details, result.details)
+
+    def test_except_to_error_with_regular_exception(self):
+        """
+        Ensure that a generic Python exception is correctly transformed in to
+        an Error message instance.
+        """
+        ex = ValueError('A generic exception')
+        result = except_to_error(ex)
+        self.assertEqual(3, result.code)
+        self.assertEqual(ERRORS[3], result.title)
+        self.assertEqual({}, result.details)
+        uuidMatch = ('[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-' +
+                     '[a-f0-9]{12}')
+        self.assertTrue(re.match(uuidMatch, result.uuid))
+
+    def test_except_to_error_with_junk(self):
+        """
+        Given that this is a function that cannot fail it must be able to cope
+        with input that is not an Exception. A sanity check for some defensive
+        programming.
+        """
+        result = except_to_error('foo')
+        self.assertEqual(3, result.code)
+        self.assertEqual(ERRORS[3], result.title)
+        self.assertEqual({}, result.details)
+        uuidMatch = ('[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-' +
+                     '[a-f0-9]{12}')
+        self.assertTrue(re.match(uuidMatch, result.uuid))
 
 
 class TestMakeMessage(unittest.TestCase):

@@ -20,7 +20,7 @@ Contains a definition of the low-level networking protocol used by the DHT
 
 from twisted.internet import protocol
 from twisted.protocols.basic import NetstringReceiver
-from messages import to_msgpack, from_msgpack
+from messages import to_msgpack, from_msgpack, except_to_error
 
 
 class TimeoutError(Exception):
@@ -53,20 +53,16 @@ class DHTProtocol(NetstringReceiver):
     def stringReceived(self, raw):
         """
         Handles incoming requests by unpacking them and instantiating the
-        correct request class. If the message cannot be unpacked or is invalid
-        an appropriate error is returned to the originating caller.
+        correct request class before passing them to the Node instance for
+        further processing. If the message cannot be unpacked or is invalid
+        an appropriate error message is returned to the originating caller.
         """
-        self.transport.write(raw)
-        return
         try:
             message = from_msgpack(raw)
-        except ValueError, ex:
-            # Handle problems translating the msgpack -> named_tuple
-            pass
+            self.factory.node.message_received(message)
         except Exception, ex:
             # Catch all for anything unexpected
-            pass
-        self.factory.node.message_received(message)
+            self.sendMessage(except_to_error(ex))
 
     def sendMessage(self, msg):
         """
