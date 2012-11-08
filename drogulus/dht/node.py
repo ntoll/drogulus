@@ -53,7 +53,7 @@ class Node(object):
         """
         pass
 
-    def message_received(self, message):
+    def message_received(self, message, protocol):
         """
         Handles incoming messages.
         """

@@ -34,12 +34,15 @@ class DHTProtocol(NetstringReceiver):
     """
     The low level networking protocol.
 
-    A msgpack (http://msgpack.org/) encoded payload is wrapped in a netstring
-    (http://cr.yp.to/proto/netstrings.txt).
+    Msgpack (http://msgpack.org/) encoded payloads are transported as
+    netstrings (http://cr.yp.to/proto/netstrings.txt).
 
     The payload is simply a dictionary of attributes. Please see the classes
     representing each type of request/response type for what these attributes
     represent.
+
+    To the external world messages come in, messages go out (and implementation
+    details are hidden).
     """
 
     def connectionMade(self):
@@ -59,7 +62,7 @@ class DHTProtocol(NetstringReceiver):
         """
         try:
             message = from_msgpack(raw)
-            self.factory.node.message_received(message)
+            self.factory.node.message_received(message, self)
         except Exception, ex:
             # Catch all for anything unexpected
             self.sendMessage(except_to_error(ex))

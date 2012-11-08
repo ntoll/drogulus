@@ -1,12 +1,14 @@
 """
 Ensures the low level networking functions of the DHT behave as expected.
 """
+from drogulus.version import get_version
 from drogulus.dht.constants import ERRORS
 from drogulus.dht.net import DHTFactory
 from drogulus.dht.node import Node
-from drogulus.dht.messages import to_msgpack, from_msgpack
+from drogulus.dht.messages import Pong, to_msgpack, from_msgpack
 from twisted.trial import unittest
 from twisted.test import proto_helpers
+from uuid import uuid4
 import hashlib
 import time
 import re
@@ -80,3 +82,19 @@ class TestDHTProtocol(unittest.TestCase):
         uuidMatch = ('[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-' +
                      '[a-f0-9]{12}')
         self.assertTrue(re.match(uuidMatch, err.uuid))
+
+    def test_send_message(self):
+        """
+        Ensure the message passed into the protocol is turned into a netstring
+        version of a msgpacked message.
+        """
+        # Create a simple Ping message
+        uuid = str(uuid4())
+        version = get_version()
+        msg = Pong(uuid, version)
+        # Send it down the wire...
+        self.protocol.sendMessage(msg)
+        # Check it's as expected.
+        expected = self._to_netstring(to_msgpack(msg))
+        actual = self.transport.value()
+        self.assertEqual(expected, actual)
