@@ -61,6 +61,20 @@ class TestRoutingTable(unittest.TestCase):
         actual = int(r._random_key_in_bucket_range(0).encode('hex'), 16)
         self.assertEqual(expected, actual)
 
+    def test_random_key_in_bucket_range_long(self):
+        """
+        Ensures that random_key_in_bucket_range works with large numbers.
+        """
+        minimum = 978675645342314253647586978
+        maximum = 978675645342314253647586979
+        parent_node_id = 'abc'
+        r = RoutingTable(parent_node_id)
+        bucket = KBucket(minimum, maximum)
+        r._buckets[0] = bucket
+        expected = minimum
+        actual = int(r._random_key_in_bucket_range(0).encode('hex'), 16)
+        self.assertEqual(expected, actual)
+
     def test_split_bucket(self):
         """
         Ensures that the correct bucket is split in two and that the contacts
@@ -369,6 +383,22 @@ class TestRoutingTable(unittest.TestCase):
         self.assertEqual(len(r._buckets[0]), 2)
 
         r.remove_contact('b')
+        self.assertEqual(len(r._buckets[0]), 1)
+        self.assertEqual(contact1, r._buckets[0]._contacts[0])
+
+    def test_remove_contact_with_unknown_contact(self):
+        """
+        Ensures that attempting to remove a non-existent contact results in a
+        ValueError exception.
+        """
+        parent_node_id = 'abc'
+        r = RoutingTable(parent_node_id)
+        contact1 = Contact('a', '192.168.0.1', 9999, 0)
+        r.add_contact(contact1)
+        # Sanity check
+        self.assertEqual(len(r._buckets[0]), 1)
+        result = r.remove_contact('b')
+        self.assertEqual(None, result)
         self.assertEqual(len(r._buckets[0]), 1)
         self.assertEqual(contact1, r._buckets[0]._contacts[0])
 

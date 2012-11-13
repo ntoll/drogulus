@@ -21,10 +21,13 @@ from twisted.internet import reactor, defer
 import twisted.internet.threads
 
 import constants
+from messages import (Ping, Pong, Store, FindNode, Nodes, FindValue, Value,
+                      except_to_error)
 from routingtable import RoutingTable
 from datastore import DictDataStore
 from net import TimeoutError, DHTProtocol
 from contact import Contact
+from drogulus.version import get_version
 
 
 class Node(object):
@@ -43,6 +46,7 @@ class Node(object):
         self.id = id
         self._routing_table = RoutingTable(id)
         self._data_store = DictDataStore
+        self.version = get_version()
 
     def join(self, seedNodes=None):
         """
@@ -57,24 +61,29 @@ class Node(object):
         """
         Handles incoming messages.
         """
+        # TODO: Update the routing table.
+        # peer = protocol.transport.getPeer()
+        if isinstance(message, Ping):
+            self.handle_ping(message, protocol)
+
+    def handle_ping(self, message, protocol):
+        """
+        Handles an incoming Ping message
+        """
+        pong = Pong(message.uuid, self.version)
+        protocol.transport.sendMessage(pong)
+
+    def handle_store(self, key, value):
+        """
+        """
         pass
 
-    def ping(self):
+    def handle_find_node(self, key):
         """
         """
         pass
 
-    def store(self, key, value):
-        """
-        """
-        pass
-
-    def find_node(self, key):
-        """
-        """
-        pass
-
-    def find_value(self, key):
+    def handle_find_value(self, key):
         """
         """
         pass

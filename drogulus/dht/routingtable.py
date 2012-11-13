@@ -59,19 +59,24 @@ class RoutingTable(object):
                 return i
             else:
                 i += 1
-        return i
 
     def _random_key_in_bucket_range(self, bucket_index):
         """
         Returns a random key in the specified k-bucket's range.
         """
+        # Get a random integer within the required range.
         keyValue = random.randrange(self._buckets[bucket_index].range_min,
                                     self._buckets[bucket_index].range_max)
+        # Turn it into hex string (remembering to drop the '0x' at the start).
         randomKey = hex(keyValue)[2:]
+        # If the integer is 'long' knock off the 'L'.
         if randomKey[-1] == 'L':
             randomKey = randomKey[:-1]
+        # If required, correct length by appending 'padding' zeros.
         if len(randomKey) % 2 != 0:
             randomKey = '0' + randomKey
+        # Ensure the length of the hex representation is correct by, again,
+        # appending 'padding' zeros.
         randomKey = randomKey.decode('hex')
         randomKey = (20 - len(randomKey)) * '\x00' + randomKey
         return randomKey

@@ -77,7 +77,7 @@ class DataStore(UserDict.DictMixin):
         """
         Delete the specified key and associated value.
         """
-        return NotImplemented
+        raise KeyError()
 
 
 class DictDataStore(DataStore):

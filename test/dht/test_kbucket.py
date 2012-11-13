@@ -186,7 +186,7 @@ class TestKBucket(unittest.TestCase):
             self.assertFalse(id in bucket._contacts,
                              "Could not remove contact with id %d" % i)
 
-    def testi_remove_contact_with_bad_id(self):
+    def test_remove_contact_with_bad_id(self):
         """
         Ensures a ValueError exception is raised if one attempts to remove a
         non-existent contact from a k-bucket.

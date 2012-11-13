@@ -116,3 +116,43 @@ class TestDHTProtocol(unittest.TestCase):
         expected = self._to_netstring(to_msgpack(msg))
         actual = self.transport.value()
         self.assertEqual(expected, actual)
+
+    def test_send_message_no_lose_connection(self):
+        """
+        Ensures that a the default for sending a message does NOT result in
+        the connection being lost.
+        """
+        # Mock
+        self.transport.loseConnection = MagicMock()
+        # Create a simple Ping message
+        uuid = str(uuid4())
+        version = get_version()
+        msg = Pong(uuid, version)
+        # Send it down the wire...
+        self.protocol.sendMessage(msg)
+        # Check it's as expected.
+        expected = self._to_netstring(to_msgpack(msg))
+        actual = self.transport.value()
+        self.assertEqual(expected, actual)
+        # Ensure the loseConnection method was also called.
+        self.assertEqual(0, len(self.transport.loseConnection.mock_calls))
+
+    def test_send_message_with_lose_connection(self):
+        """
+        This check ensures the loseConnection method has been called on the
+        protocol's transport when the appropriate flag has been passed in.
+        """
+        # Mock
+        self.transport.loseConnection = MagicMock()
+        # Create a simple Ping message
+        uuid = str(uuid4())
+        version = get_version()
+        msg = Pong(uuid, version)
+        # Send it down the wire with the loseConnection flag set to True
+        self.protocol.sendMessage(msg, True)
+        # Check it's as expected.
+        expected = self._to_netstring(to_msgpack(msg))
+        actual = self.transport.value()
+        self.assertEqual(expected, actual)
+        # Ensure the loseConnection method was also called.
+        self.transport.loseConnection.assert_called_once_with()

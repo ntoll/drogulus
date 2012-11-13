@@ -65,6 +65,14 @@ class TestDataStore(unittest.TestCase):
         ds = DataStore()
         self.assertEqual(NotImplemented, ds.original_publisher_id(123))
 
+    def test_original_publish_time(self):
+        """
+        Check the DataStore base class has an original_publish_time method.
+        """
+        self.assertTrue(hasattr(DataStore, 'original_publish_time'))
+        ds = DataStore()
+        self.assertEqual(NotImplemented, ds.original_publish_time(123))
+
     def test_set_item(self):
         """
         Check the DataStore base class has a set_item method.
@@ -92,6 +100,9 @@ class TestDataStore(unittest.TestCase):
         Check the DataStore base class has a __delitem__ method.
         """
         self.assertTrue(hasattr(DataStore, '__delitem__'))
+        ds = DataStore()
+        with self.assertRaises(KeyError):
+            del ds['item']
 
 
 class TestDictDataStore(unittest.TestCase):

@@ -200,11 +200,7 @@ def from_msgpack(raw):
     data in the raw string. Encapsulates a variety of cleaning and checking of
     the raw message from the (potentially dangerous) external network.
     """
-    try:
-        data = msgpack.unpackb(raw)
-    except Exception, ex:
-        # Exception of first resort - msgpack can't deserialise the data.
-        raise ValueError(1, ERRORS[1], {'exception': ex.message})
+    data = msgpack.unpackb(raw)
     message = data['message']
     # Explicit is better than implicit (Zen of Python).
     if message == 'error':

@@ -54,18 +54,20 @@ class DHTProtocol(NetstringReceiver):
         """
         try:
             message = from_msgpack(raw)
-            # TODO: Update the routing table.
-            # peer = self.transport.getPeer()
             self.factory.node.message_received(message, self)
         except Exception, ex:
             # Catch all for anything unexpected
             self.sendMessage(except_to_error(ex))
 
-    def sendMessage(self, msg):
+    def sendMessage(self, msg, loseConnection=False):
         """
-        Sends the referenced message to the connected peer on the network.
+        Sends the referenced message to the connected peer on the network. If
+        loseConnection is set to true the connection will be dropped once the
+        message has been sent.
         """
         self.sendString(to_msgpack(msg))
+        if loseConnection:
+            self.transport.loseConnection()
 
 
 class DHTFactory(protocol.Factory):
