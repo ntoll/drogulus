@@ -3,6 +3,7 @@ Ensures details of contacts (other nodes on the network) are represented
 correctly.
 """
 from drogulus.dht.contact import Contact
+from drogulus.version import get_version
 import unittest
 
 
@@ -18,11 +19,13 @@ class TestContact(unittest.TestCase):
         id = '12345'
         address = '192.168.0.1'
         port = 9999
+        version = get_version()
         last_seen = 123
-        contact = Contact(id, address, port, last_seen)
+        contact = Contact(id, address, port, version, last_seen)
         self.assertEqual(id, contact.id)
         self.assertEqual(address, contact.address)
         self.assertEqual(port, contact.port)
+        self.assertEqual(version, contact.version)
         self.assertEqual(last_seen, contact.last_seen)
         self.assertEqual(0, contact.failed_RPCs)
 

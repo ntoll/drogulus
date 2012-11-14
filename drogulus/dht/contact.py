@@ -23,15 +23,17 @@ class Contact(object):
     Represents another known node on the network.
     """
 
-    def __init__(self, id, address, port, last_seen=0):
+    def __init__(self, id, address, port, version, last_seen=0):
         """
         Initialises the contact object with its unique id within the DHT, IP
-        address, port and a timestamp when the last connection was made with
-        the contact (defaults to 0).
+        address, port, the Drogulus version the contact is running and a
+        timestamp when the last connection was made with the contact (defaults
+        to 0).
         """
         self.id = id
         self.address = address
         self.port = port
+        self.version = version
         self.last_seen = last_seen
         # failed_RPCs keeps track of the number of failed RPCs to this contact.
         # If this number reaches a threshold then it is evicted from the

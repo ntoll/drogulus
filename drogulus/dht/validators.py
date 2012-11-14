@@ -107,6 +107,7 @@ may contain.
 """
 VALIDATORS = {
     'uuid': validate_string,
+    'node': validate_string,
     'code': validate_code,
     'title': validate_string,
     'details': validate_meta,

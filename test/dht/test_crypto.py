@@ -140,7 +140,7 @@ class TestMessageCryptoFunctions(unittest.TestCase):
         """
         Ensures the verify_message function returns True for a valid message.
         """
-        val = Value(1, self.key, self.value, self.timestamp, self.expires,
+        val = Value(1, 1, self.key, self.value, self.timestamp, self.expires,
                     PUBLIC_KEY, self.name, self.meta, self.signature,
                     self.version)
         expected = (True, None)
@@ -152,7 +152,7 @@ class TestMessageCryptoFunctions(unittest.TestCase):
         Ensures the verify_message function returns False if the message's
         value field has been altered.
         """
-        val = Value(1, self.key, 'bad_value', self.timestamp, self.expires,
+        val = Value(1, 1, self.key, 'bad_value', self.timestamp, self.expires,
                     PUBLIC_KEY, self.name, self.meta, self.signature,
                     self.version)
         expected = (False, 6)
@@ -164,9 +164,9 @@ class TestMessageCryptoFunctions(unittest.TestCase):
         Ensures the verify_message function returns False if the message's
         timestamp field has been altered.
         """
-        val = Value(1, self.key, self.value, 1350544046.084876, self.expires,
-                    PUBLIC_KEY, self.name, self.meta, self.signature,
-                    self.version)
+        val = Value(1, 1, self.key, self.value, 1350544046.084876,
+                    self.expires, PUBLIC_KEY, self.name, self.meta,
+                    self.signature, self.version)
         expected = (False, 6)
         actual = validate_key_value(self.key, val)
         self.assertEqual(expected, actual)
@@ -176,7 +176,7 @@ class TestMessageCryptoFunctions(unittest.TestCase):
         Ensures the verify_message function returns False if the message's
         expires field has been altered.
         """
-        val = Value(1, self.key, self.value, self.timestamp, 0.0,
+        val = Value(1, 1, self.key, self.value, self.timestamp, 0.0,
                     PUBLIC_KEY, self.name, self.meta, self.signature,
                     self.version)
         expected = (False, 6)
@@ -188,7 +188,7 @@ class TestMessageCryptoFunctions(unittest.TestCase):
         Ensures the verify_message function returns False if the message's
         name field has been altered.
         """
-        val = Value(1, self.key, self.value, self.timestamp, self.expires,
+        val = Value(1, 1, self.key, self.value, self.timestamp, self.expires,
                     PUBLIC_KEY, 'bad_name', self.meta, self.signature,
                     self.version)
         expected = (False, 6)
@@ -200,7 +200,7 @@ class TestMessageCryptoFunctions(unittest.TestCase):
         Ensures the verify_message function returns False if the message's
         meta field has been altered.
         """
-        val = Value(1, self.key, self.value, self.timestamp, self.expires,
+        val = Value(1, 1, self.key, self.value, self.timestamp, self.expires,
                     PUBLIC_KEY, self.name, {'bad_meta': 'value'},
                     self.signature, self.version)
         expected = (False, 6)
@@ -212,7 +212,7 @@ class TestMessageCryptoFunctions(unittest.TestCase):
         Ensure the correct result is returned if the message is invalid
         because of a bad public key.
         """
-        val = Value(1, self.key, self.value, self.timestamp, self.expires,
+        val = Value(1, 1, self.key, self.value, self.timestamp, self.expires,
                     ALT_PUBLIC_KEY, self.name, self.meta, self.signature,
                     self.version)
         expected = (False, 6)
@@ -231,7 +231,7 @@ class TestMessageCryptoFunctions(unittest.TestCase):
                          '\x94\xcd\xbd\xb24ujq\xa9Nw\xd0\xad\xa7\xde_\x9cpxj' +
                          '\xdd\x8a\xe8\xfd\xaf\xcbRn\xb7C\xb1q\x13c\xc9' +
                          '\x89@w\xac\xc4\xf8\x87\x9ct\x1a\xa6')
-        val = Value(1, self.key, self.value, self.timestamp, self.expires,
+        val = Value(1, 1, self.key, self.value, self.timestamp, self.expires,
                     PUBLIC_KEY, self.name, self.meta, bad_signature,
                     self.version)
         expected = (False, 6)
@@ -244,7 +244,7 @@ class TestMessageCryptoFunctions(unittest.TestCase):
         because of an incorrect 'key' value with wrong public key
         """
         key = construct_key(ALT_PUBLIC_KEY, 'name')
-        val = Value(1, key, self.value, self.timestamp, self.expires,
+        val = Value(1, 1, key, self.value, self.timestamp, self.expires,
                     PUBLIC_KEY, self.name, self.meta, self.signature,
                     self.version)
         expected = (False, 7)
@@ -257,7 +257,7 @@ class TestMessageCryptoFunctions(unittest.TestCase):
         because of an incorrect 'key' value with wrong name.
         """
         key = construct_key(PUBLIC_KEY, 'wrong_name')
-        val = Value(1, key, self.value, self.timestamp, self.expires,
+        val = Value(1, 1, key, self.value, self.timestamp, self.expires,
                     PUBLIC_KEY, self.name, self.meta, self.signature,
                     self.version)
         expected = (False, 7)

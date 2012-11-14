@@ -3,13 +3,12 @@ A set of sanity checks to ensure that the messages are defined as expected.
 """
 from drogulus.dht.messages import (Error, Ping, Pong, Store, FindNode, Nodes,
                                    FindValue, Value, to_msgpack, from_msgpack,
-                                   except_to_error, make_message)
+                                   make_message)
 from drogulus.dht.constants import ERRORS
 from drogulus.dht.crypto import construct_key, generate_signature
 import unittest
 import msgpack
 import time
-import re
 from uuid import uuid4
 
 
@@ -47,13 +46,16 @@ class TestMessages(unittest.TestCase):
 
     def setUp(self):
         self.uuid = str(uuid4())
+        self.node = '9876543210abcd'.decode('hex')
 
     def test_error(self):
         """
         Expected behaviour of an error message.
         """
-        error = Error(self.uuid, 2, 'This is an error', {'foo': 'bar'}, '0.1')
+        error = Error(self.uuid, self.node, 2, 'This is an error',
+                      {'foo': 'bar'}, '0.1')
         self.assertEqual(self.uuid, error.uuid)
+        self.assertEqual(self.node, error.node)
         self.assertEqual(2, error.code)
         self.assertEqual('This is an error', error.title)
         self.assertEqual({'foo': 'bar'}, error.details)
@@ -63,25 +65,29 @@ class TestMessages(unittest.TestCase):
         """
         Expected behaviour of a ping message.
         """
-        ping = Ping(self.uuid, '0.1')
+        ping = Ping(self.uuid, self.node, '0.1')
         self.assertEqual(self.uuid, ping.uuid)
+        self.assertEqual(self.node, ping.node)
         self.assertEqual('0.1', ping.version)
 
     def test_pong(self):
         """
         Expected behaviour of a pong message.
         """
-        pong = Pong(self.uuid, '0.1')
+        pong = Pong(self.uuid, self.node, '0.1')
         self.assertEqual(self.uuid, pong.uuid)
+        self.assertEqual(self.node, pong.node)
         self.assertEqual('0.1', pong.version)
 
     def test_store(self):
         """
         Expected behaviour of a store message.
         """
-        store = Store(self.uuid, 'abc123', 'value', 1350544046.084875,
-                      0.0, 'abcdefg', 'name', {'meta': 'value'}, 'sig', '0.1')
+        store = Store(self.uuid, self.node, 'abc123', 'value',
+                      1350544046.084875, 0.0, 'abcdefg', 'name',
+                      {'meta': 'value'}, 'sig', '0.1')
         self.assertEqual(self.uuid, store.uuid)
+        self.assertEqual(self.node, store.node)
         self.assertEqual('abc123', store.key)
         self.assertEqual('value', store.value)
         self.assertEqual(1350544046.084875, store.timestamp)
@@ -96,8 +102,9 @@ class TestMessages(unittest.TestCase):
         """
         Expected behaviour of a findnode message.
         """
-        fn = FindNode(self.uuid, 'key', '0.1')
+        fn = FindNode(self.uuid, self.node, 'key', '0.1')
         self.assertEqual(self.uuid, fn.uuid)
+        self.assertEqual(self.node, fn.node)
         self.assertEqual('key', fn.key)
         self.assertEqual('0.1', fn.version)
 
@@ -105,17 +112,20 @@ class TestMessages(unittest.TestCase):
         """
         Expected behaviour of a nodes message.
         """
-        nodes = Nodes(self.uuid, (('127.0.0.1', 1908)), '0.1')
+        nodes = Nodes(self.uuid, self.node, ((self.node, '127.0.0.1', 1908)),
+                      '0.1')
         self.assertEqual(self.uuid, nodes.uuid)
-        self.assertEqual((('127.0.0.1', 1908)), nodes.nodes)
+        self.assertEqual(self.node, nodes.node)
+        self.assertEqual(((self.node, '127.0.0.1', 1908)), nodes.nodes)
         self.assertEqual('0.1', nodes.version)
 
     def test_find_value(self):
         """
         Expected behaviour of a findvalue message.
         """
-        fv = FindValue(self.uuid, 'key', '0.1')
+        fv = FindValue(self.uuid, self.node, 'key', '0.1')
         self.assertEqual(self.uuid, fv.uuid)
+        self.assertEqual(self.node, fv.node)
         self.assertEqual('key', fv.key)
         self.assertEqual('0.1', fv.version)
 
@@ -123,9 +133,10 @@ class TestMessages(unittest.TestCase):
         """
         Expected behaviour of a value message.
         """
-        val = Value(self.uuid, 'abc123', 'value', 1350544046.084875, 0.0,
-                    'abcdefg', 'name', {'meta': 'value'}, 'sig', '0.1')
+        val = Value(self.uuid, self.node, 'abc123', 'value', 1350544046.084875,
+                    0.0, 'abcdefg', 'name', {'meta': 'value'}, 'sig', '0.1')
         self.assertEqual(self.uuid, val.uuid)
+        self.assertEqual(self.node, val.node)
         self.assertEqual('abc123', val.key)
         self.assertEqual('value', val.value)
         self.assertEqual(1350544046.084875, val.timestamp)
@@ -148,6 +159,7 @@ class TestMessagePackConversion(unittest.TestCase):
         Gives us some messages to play with.
         """
         self.uuid = str(uuid4())
+        self.node = '9876543210abcd'.decode('hex')
         self.value = 1.234
         self.timestamp = time.time()
         self.expires = self.timestamp + 1000
@@ -163,7 +175,7 @@ class TestMessagePackConversion(unittest.TestCase):
         self.version = '0.1'
         self.message = 'value'
         self.nodes = (('hash1', '127.0.0.1', 1908), ('hash2', '0.0.0.0', 1908))
-        self.mock_message = Value(self.uuid, self.key, self.value,
+        self.mock_message = Value(self.uuid, self.node, self.key, self.value,
                                   self.timestamp, self.expires,
                                   self.public_key, self.name, self.meta,
                                   self.sig, self.version)
@@ -186,6 +198,7 @@ class TestMessagePackConversion(unittest.TestCase):
         mock_message = msgpack.packb({
             'message': 'error',
             'uuid': self.uuid,
+            'node': self.node,
             'code': 1,
             'title': ERRORS[1],
             'details': {'key': 'value'},
@@ -194,6 +207,7 @@ class TestMessagePackConversion(unittest.TestCase):
         result = from_msgpack(mock_message)
         self.assertIsInstance(result, Error)
         self.assertEqual(result.uuid, self.uuid)
+        self.assertEqual(result.node, self.node)
         self.assertEqual(result.code, 1)
         self.assertEqual(result.title, ERRORS[1])
         self.assertEqual(result.details, {'key': 'value'})
@@ -206,11 +220,13 @@ class TestMessagePackConversion(unittest.TestCase):
         mock_message = msgpack.packb({
             'message': 'ping',
             'uuid': self.uuid,
+            'node': self.node,
             'version': self.version
         })
         result = from_msgpack(mock_message)
         self.assertIsInstance(result, Ping)
         self.assertEqual(result.uuid, self.uuid)
+        self.assertEqual(result.node, self.node)
         self.assertEqual(result.version, self.version)
 
     def test_from_msgpack_pong(self):
@@ -220,10 +236,12 @@ class TestMessagePackConversion(unittest.TestCase):
         mock_message = msgpack.packb({
             'message': 'pong',
             'uuid': self.uuid,
+            'node': self.node,
             'version': self.version
         })
         result = from_msgpack(mock_message)
         self.assertIsInstance(result, Pong)
+        self.assertEqual(result.node, self.node)
         self.assertEqual(result.uuid, self.uuid)
         self.assertEqual(result.version, self.version)
 
@@ -234,6 +252,7 @@ class TestMessagePackConversion(unittest.TestCase):
         mock_message = msgpack.packb({
             'message': 'store',
             'uuid': self.uuid,
+            'node': self.node,
             'key': self.key,
             'value': self.value,
             'timestamp': self.timestamp,
@@ -247,6 +266,7 @@ class TestMessagePackConversion(unittest.TestCase):
         result = from_msgpack(mock_message)
         self.assertIsInstance(result, Store)
         self.assertEqual(result.uuid, self.uuid)
+        self.assertEqual(result.node, self.node)
         self.assertEqual(result.key, self.key)
         self.assertEqual(result.value, self.value)
         self.assertEqual(result.timestamp, self.timestamp)
@@ -264,12 +284,14 @@ class TestMessagePackConversion(unittest.TestCase):
         mock_message = msgpack.packb({
             'message': 'findnode',
             'uuid': self.uuid,
+            'node': self.node,
             'key': self.key,
             'version': self.version
         })
         result = from_msgpack(mock_message)
         self.assertIsInstance(result, FindNode)
         self.assertEqual(result.uuid, self.uuid)
+        self.assertEqual(result.node, self.node)
         self.assertEqual(result.key, self.key)
         self.assertEqual(result.version, self.version)
 
@@ -280,12 +302,14 @@ class TestMessagePackConversion(unittest.TestCase):
         mock_message = msgpack.packb({
             'message': 'nodes',
             'uuid': self.uuid,
+            'node': self.node,
             'nodes': self.nodes,
             'version': self.version
         })
         result = from_msgpack(mock_message)
         self.assertIsInstance(result, Nodes)
         self.assertEqual(result.uuid, self.uuid)
+        self.assertEqual(result.node, self.node)
         self.assertEqual(result.nodes, self.nodes)
         self.assertEqual(result.version, self.version)
 
@@ -296,12 +320,14 @@ class TestMessagePackConversion(unittest.TestCase):
         mock_message = msgpack.packb({
             'message': 'findvalue',
             'uuid': self.uuid,
+            'node': self.node,
             'key': self.key,
             'version': self.version
         })
         result = from_msgpack(mock_message)
         self.assertIsInstance(result, FindValue)
         self.assertEqual(result.uuid, self.uuid)
+        self.assertEqual(result.node, self.node)
         self.assertEqual(result.key, self.key)
         self.assertEqual(result.version, self.version)
 
@@ -313,6 +339,7 @@ class TestMessagePackConversion(unittest.TestCase):
         result = from_msgpack(mock_message)
         self.assertIsInstance(result, Value)
         self.assertEqual(result.uuid, self.uuid)
+        self.assertEqual(result.node, self.node)
         self.assertEqual(result.key, self.key)
         self.assertEqual(result.value, self.value)
         self.assertEqual(result.timestamp, self.timestamp)
@@ -331,6 +358,7 @@ class TestMessagePackConversion(unittest.TestCase):
         mock_message = msgpack.packb({
             'message': 'pang',
             'uuid': self.uuid,
+            'node': self.node,
             'version': self.version
         })
         with self.assertRaises(ValueError) as cm:
@@ -340,56 +368,6 @@ class TestMessagePackConversion(unittest.TestCase):
         self.assertEqual(ERRORS[2], ex.args[1])
         self.assertEqual('pang is not a valid message type.',
                          ex.args[2]['context'])
-
-
-class TestExceptToError(unittest.TestCase):
-    """
-    Ensures the except_to_error function returns the expected Error message
-    instance.
-    """
-
-    def test_except_to_error_with_exception_args(self):
-        """
-        Ensure an exception created by drogulus (that includes meta-data in
-        the form of exception args) is correctly transformed into an Error
-        message instance.
-        """
-        uuid = str(uuid4())
-        details = {'context': 'A message'}
-        ex = ValueError(1, ERRORS[1], details, uuid)
-        result = except_to_error(ex)
-        self.assertEqual(uuid, result.uuid)
-        self.assertEqual(1, result.code)
-        self.assertEqual(ERRORS[1], result.title)
-        self.assertEqual(details, result.details)
-
-    def test_except_to_error_with_regular_exception(self):
-        """
-        Ensure that a generic Python exception is correctly transformed in to
-        an Error message instance.
-        """
-        ex = ValueError('A generic exception')
-        result = except_to_error(ex)
-        self.assertEqual(3, result.code)
-        self.assertEqual(ERRORS[3], result.title)
-        self.assertEqual({}, result.details)
-        uuidMatch = ('[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-' +
-                     '[a-f0-9]{12}')
-        self.assertTrue(re.match(uuidMatch, result.uuid))
-
-    def test_except_to_error_with_junk(self):
-        """
-        Given that this is a function that cannot fail it must be able to cope
-        with input that is not an Exception. A sanity check for some defensive
-        programming.
-        """
-        result = except_to_error('foo')
-        self.assertEqual(3, result.code)
-        self.assertEqual(ERRORS[3], result.title)
-        self.assertEqual({}, result.details)
-        uuidMatch = ('[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-' +
-                     '[a-f0-9]{12}')
-        self.assertTrue(re.match(uuidMatch, result.uuid))
 
 
 class TestMakeMessage(unittest.TestCase):
@@ -403,9 +381,12 @@ class TestMakeMessage(unittest.TestCase):
         data provided.
         """
         uuid = str(uuid4())
-        result = make_message(Ping, {'uuid': uuid, 'version': '0.1'})
+        node = '9876543210abcd'.decode('hex')
+        result = make_message(Ping, {'uuid': uuid, 'node': node,
+                                     'version': '0.1'})
         self.assertIsInstance(result, Ping)
         self.assertEqual(uuid, result.uuid)
+        self.assertEqual(node, result.node)
         self.assertEqual('0.1', result.version)
 
     def test_make_message_bad_values(self):
@@ -414,12 +395,13 @@ class TestMakeMessage(unittest.TestCase):
         the correct exception is raised.
         """
         with self.assertRaises(ValueError) as cm:
-            make_message(Ping, {'uuid': 1, 'version': 2})
+            make_message(Ping, {'uuid': 1, 'node': 2, 'version': 3})
         ex = cm.exception
         self.assertEqual(2, ex.args[0])
         self.assertEqual(ERRORS[2], ex.args[1])
         details = ex.args[2]
         self.assertEqual('Invalid value.', details['uuid'])
+        self.assertEqual('Invalid value.', details['node'])
         self.assertEqual('Invalid value.', details['version'])
 
     def test_make_message_missing_fields(self):
@@ -433,4 +415,5 @@ class TestMakeMessage(unittest.TestCase):
         self.assertEqual(ERRORS[2], ex.args[1])
         details = ex.args[2]
         self.assertEqual('Missing field.', details['uuid'])
+        self.assertEqual('Missing field.', details['node'])
         self.assertEqual('Missing field.', details['version'])

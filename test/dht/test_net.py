@@ -94,7 +94,7 @@ class TestDHTProtocol(unittest.TestCase):
         # Create a simple Ping message
         uuid = str(uuid4())
         version = get_version()
-        msg = Pong(uuid, version)
+        msg = Pong(uuid, self.node_id, version)
         # Receive it...
         raw = to_msgpack(msg)
         self.protocol.stringReceived(raw)
@@ -109,7 +109,7 @@ class TestDHTProtocol(unittest.TestCase):
         # Create a simple Ping message
         uuid = str(uuid4())
         version = get_version()
-        msg = Pong(uuid, version)
+        msg = Pong(uuid, self.node_id, version)
         # Send it down the wire...
         self.protocol.sendMessage(msg)
         # Check it's as expected.
@@ -127,7 +127,7 @@ class TestDHTProtocol(unittest.TestCase):
         # Create a simple Ping message
         uuid = str(uuid4())
         version = get_version()
-        msg = Pong(uuid, version)
+        msg = Pong(uuid, self.node_id, version)
         # Send it down the wire...
         self.protocol.sendMessage(msg)
         # Check it's as expected.
@@ -147,7 +147,7 @@ class TestDHTProtocol(unittest.TestCase):
         # Create a simple Ping message
         uuid = str(uuid4())
         version = get_version()
-        msg = Pong(uuid, version)
+        msg = Pong(uuid, self.node_id, version)
         # Send it down the wire with the loseConnection flag set to True
         self.protocol.sendMessage(msg, True)
         # Check it's as expected.

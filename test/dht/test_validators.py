@@ -91,17 +91,17 @@ class TestValidators(unittest.TestCase):
         """
         A tuple containing an IP address string and port integer passes.
         """
-        self.assertTrue(validate_node(('hash', '127.0.0.1', 1908)))
+        self.assertTrue(validate_node(('id', '127.0.0.1', 1908)))
 
     def test_validate_node_wrong_type(self):
         """
         The node should be expressed within a tuple.
         """
-        self.assertFalse(validate_node(['hash', '127.0.0.1', 1908]))
+        self.assertFalse(validate_node(['id', '127.0.0.1', 1908]))
 
     def test_validate_node_bad_sha1(self):
         """
-        The sha1 hash should be a string.
+        The node's id should be a string.
         """
         self.assertFalse(validate_node((123, '127.0.0.1', 1908)))
 
@@ -109,38 +109,38 @@ class TestValidators(unittest.TestCase):
         """
         The IP address should be a string.
         """
-        self.assertFalse(validate_node(('hash', [127, 0, 0, 1], 1908)))
+        self.assertFalse(validate_node(('id', [127, 0, 0, 1], 1908)))
 
     def test_validate_node_bad_port(self):
         """
         """
-        self.assertFalse(validate_node(('hash', '127.0.0.1', '1908')))
+        self.assertFalse(validate_node(('id', '127.0.0.1', '1908')))
 
     def test_validate_node_invalid_port_too_low(self):
         """
         The port should be a positive integer
         """
-        self.assertTrue(validate_node(('hash', '127.0.0.1', 0)))
-        self.assertFalse(validate_node(('hash', '127.0.0.1', -1)))
+        self.assertTrue(validate_node(('id', '127.0.0.1', 0)))
+        self.assertFalse(validate_node(('id', '127.0.0.1', -1)))
 
     def test_validate_node_invalid_port_too_high(self):
         """
         The port should be <= 49151.
         """
-        self.assertTrue(validate_node(('hash', '127.0.0.1', 49151)))
-        self.assertFalse(validate_node(('hash', '127.0.0.1', 49152)))
+        self.assertTrue(validate_node(('id', '127.0.0.1', 49151)))
+        self.assertFalse(validate_node(('id', '127.0.0.1', 49152)))
 
     def test_validate_nodes(self):
         """
         A tuple of zero or more nodes is valid.
         """
-        self.assertTrue(validate_nodes((('hash', '127.0.0.1', 1908),)))
+        self.assertTrue(validate_nodes((('id', '127.0.0.1', 1908),)))
 
     def test_validate_nodes_wrong_type(self):
         """
         Nodes can only be expressed in tuples.
         """
-        self.assertFalse(validate_nodes([('hash', '127.0.0.1', 1908)]))
+        self.assertFalse(validate_nodes([('id', '127.0.0.1', 1908)]))
 
     def test_validate_nodes_bad_node(self):
         """
@@ -161,8 +161,9 @@ class TestValidators(unittest.TestCase):
         Ensures that the VALIDATORS dict maps the field names to validator
         functions correctly.
         """
-        self.assertEqual(14, len(VALIDATORS))
+        self.assertEqual(15, len(VALIDATORS))
         self.assertEqual(VALIDATORS['uuid'], validate_string)
+        self.assertEqual(VALIDATORS['node'], validate_string)
         self.assertEqual(VALIDATORS['code'], validate_code)
         self.assertEqual(VALIDATORS['title'], validate_string)
         self.assertEqual(VALIDATORS['details'], validate_meta)

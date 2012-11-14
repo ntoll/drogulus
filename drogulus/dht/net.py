@@ -20,7 +20,7 @@ Contains a definition of the low-level networking protocol used by the DHT
 
 from twisted.internet import protocol
 from twisted.protocols.basic import NetstringReceiver
-from messages import to_msgpack, from_msgpack, except_to_error
+from messages import to_msgpack, from_msgpack
 
 
 class TimeoutError(Exception):
@@ -57,7 +57,7 @@ class DHTProtocol(NetstringReceiver):
             self.factory.node.message_received(message, self)
         except Exception, ex:
             # Catch all for anything unexpected
-            self.sendMessage(except_to_error(ex))
+            self.sendMessage(self.factory.node.except_to_error(ex))
 
     def sendMessage(self, msg, loseConnection=False):
         """

@@ -19,14 +19,16 @@ Contains code that defines the local node in the DHT network.
 
 from twisted.internet import reactor, defer
 import twisted.internet.threads
+from uuid import uuid4
 
 import constants
-from messages import (Ping, Pong, Store, FindNode, Nodes, FindValue, Value,
-                      except_to_error)
+from messages import (Error, Ping, Pong, Store, FindNode, Nodes, FindValue,
+                      Value)
 from routingtable import RoutingTable
 from datastore import DictDataStore
 from net import TimeoutError, DHTProtocol
 from contact import Contact
+from constants import ERRORS
 from drogulus.version import get_version
 
 
@@ -47,6 +49,26 @@ class Node(object):
         self._routing_table = RoutingTable(id)
         self._data_store = DictDataStore
         self.version = get_version()
+
+    def except_to_error(self, exception):
+        """
+        Given a Python exception will return an appropriate Error message
+        instance.
+        """
+        node = self.id
+        version = get_version()
+        if isinstance(exception, Exception) and len(exception.args) == 4:
+            # Exception includes all the information we need.
+            uuid = exception.args[3]
+            code = exception.args[0]
+            title = exception.args[1]
+            details = exception.args[2]
+        else:
+            uuid = str(uuid4())
+            code = 3
+            title = ERRORS[code]
+            details = {}
+        return Error(uuid, node, code, title, details, version)
 
     def join(self, seedNodes=None):
         """
@@ -70,7 +92,7 @@ class Node(object):
         """
         Handles an incoming Ping message
         """
-        pong = Pong(message.uuid, self.version)
+        pong = Pong(message.uuid, self.id, self.version)
         protocol.transport.sendMessage(pong)
 
     def handle_store(self, key, value):

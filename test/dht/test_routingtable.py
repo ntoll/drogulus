@@ -6,6 +6,7 @@ from drogulus.dht.routingtable import RoutingTable
 from drogulus.dht.contact import Contact
 from drogulus.dht.kbucket import KBucket
 from drogulus.dht import constants
+from drogulus.version import get_version
 import unittest
 import time
 
@@ -14,6 +15,12 @@ class TestRoutingTable(unittest.TestCase):
     """
     Ensures the RoutingTable class works as expected.
     """
+
+    def setUp(self):
+        """
+        Common vars.
+        """
+        self.version = get_version()
 
     def test_init(self):
         """
@@ -167,11 +174,11 @@ class TestRoutingTable(unittest.TestCase):
         parent_node_id = 'abc'
         r = RoutingTable(parent_node_id)
         for i in range(20):
-            contact = Contact(i, '192.168.0.%d' % i, 0)
+            contact = Contact(i, '192.168.0.%d' % i, self.version, 0)
             r.add_contact(contact)
         # This id will be just over the max range for the bucket in position 0
         large_id = 730750818665451459101842416358141509827966271489L
-        contact = Contact(large_id, '192.168.0.33', 0)
+        contact = Contact(large_id, '192.168.0.33', self.version, 0)
         r.add_contact(contact)
         self.assertEqual(len(r._buckets), 2)
         self.assertEqual(len(r._buckets[0]), 20)
@@ -186,10 +193,10 @@ class TestRoutingTable(unittest.TestCase):
         r = RoutingTable(parent_node_id)
         # Fill up the bucket
         for i in range(20):
-            contact = Contact(i, '192.168.0.%d' % i, 0)
+            contact = Contact(i, '192.168.0.%d' % i, self.version, 0)
             r.add_contact(contact)
         # Create a new contact that will be added to the replacement cache.
-        contact = Contact(20, '192.168.0.20', 0)
+        contact = Contact(20, '192.168.0.20', self.version, 0)
         r.add_contact(contact)
         self.assertEqual(len(r._buckets[0]), 20)
         self.assertTrue(0 in r._replacement_cache)
@@ -205,13 +212,13 @@ class TestRoutingTable(unittest.TestCase):
         r = RoutingTable(parent_node_id)
         # Fill up the bucket and replacement cache
         for i in range(40):
-            contact = Contact(i, "192.168.0.%d" % i, 0)
+            contact = Contact(i, "192.168.0.%d" % i, self.version, 0)
             r.add_contact(contact)
         # Sanity check of the replacement cache.
         self.assertEqual(len(r._replacement_cache[0]), 20)
         self.assertEqual(20, r._replacement_cache[0][0].id)
         # Create a new contact that will be added to the replacement cache.
-        new_contact = Contact(40, "192.168.0.20", 0)
+        new_contact = Contact(40, "192.168.0.20", self.version, 0)
         r.add_contact(new_contact)
         self.assertEqual(len(r._replacement_cache[0]), 20)
         self.assertEqual(new_contact, r._replacement_cache[0][19])
@@ -227,13 +234,13 @@ class TestRoutingTable(unittest.TestCase):
         r = RoutingTable(parent_node_id)
         # Fill up the bucket and replacement cache
         for i in range(40):
-            contact = Contact(i, '192.168.0.%d' % i, 0)
+            contact = Contact(i, '192.168.0.%d' % i, self.version, 0)
             r.add_contact(contact)
         # Sanity check of the replacement cache.
         self.assertEqual(len(r._replacement_cache[0]), 20)
         self.assertEqual(20, r._replacement_cache[0][0].id)
         # Create a new contact that will be added to the replacement cache.
-        new_contact = Contact(20, '192.168.0.20', 0)
+        new_contact = Contact(20, '192.168.0.20', self.version, 0)
         r.add_contact(new_contact)
         self.assertEqual(len(r._replacement_cache[0]), 20)
         self.assertEqual(new_contact, r._replacement_cache[0][19])
@@ -259,7 +266,7 @@ class TestRoutingTable(unittest.TestCase):
         r = RoutingTable(parent_node_id)
         # Fill up the bucket and replacement cache
         for i in range(40):
-            contact = Contact(i, "192.168.0.%d" % i, 0)
+            contact = Contact(i, "192.168.0.%d" % i, self.version, 0)
             r.add_contact(contact)
         result = r.find_close_nodes(1)
         self.assertEqual(20, len(result))
@@ -272,7 +279,7 @@ class TestRoutingTable(unittest.TestCase):
         r = RoutingTable(parent_node_id)
         # Fill up the bucket and replacement cache
         for i in range(10):
-            contact = Contact(i, "192.168.0.%d" % i, 0)
+            contact = Contact(i, "192.168.0.%d" % i, self.version, 0)
             r.add_contact(contact)
         result = r.find_close_nodes(1)
         self.assertEqual(10, len(result))
@@ -286,7 +293,7 @@ class TestRoutingTable(unittest.TestCase):
         r = RoutingTable(parent_node_id)
         # Fill up the bucket and replacement cache
         for i in range(160):
-            contact = Contact(2 ** i, "192.168.0.%d" % i, 0)
+            contact = Contact(2 ** i, "192.168.0.%d" % i, self.version, 0)
             r.add_contact(contact)
         result = r.find_close_nodes(2 ** 80)
         self.assertEqual(20, len(result))
@@ -300,7 +307,7 @@ class TestRoutingTable(unittest.TestCase):
         r = RoutingTable(parent_node_id)
         # Fill up the bucket and replacement cache
         for i in range(20):
-            contact = Contact(str(i), "192.168.0.%d" % i, 0)
+            contact = Contact(str(i), "192.168.0.%d" % i, self.version, 0)
             r.add_contact(contact)
         result = r.find_close_nodes("1", rpc_node_id=contact)
         self.assertEqual(19, len(result))
@@ -311,7 +318,7 @@ class TestRoutingTable(unittest.TestCase):
         """
         parent_node_id = 'abc'
         r = RoutingTable(parent_node_id)
-        contact1 = Contact('a', '192.168.0.1', 9999, 0)
+        contact1 = Contact('a', '192.168.0.1', 9999, self.version, 0)
         r.add_contact(contact1)
         result = r.get_contact('a')
         self.assertEqual(contact1, result)
@@ -323,7 +330,7 @@ class TestRoutingTable(unittest.TestCase):
         """
         parent_node_id = 'abc'
         r = RoutingTable(parent_node_id)
-        contact1 = Contact('a', '192.168.0.1', 9999, 0)
+        contact1 = Contact('a', '192.168.0.1', 9999, self.version, 0)
         r.add_contact(contact1)
         self.assertRaises(ValueError, r.get_contact, 'b')
 
@@ -373,8 +380,8 @@ class TestRoutingTable(unittest.TestCase):
         """
         parent_node_id = 'abc'
         r = RoutingTable(parent_node_id)
-        contact1 = Contact('a', '192.168.0.1', 9999, 0)
-        contact2 = Contact('b', '192.168.0.2', 9999, 0)
+        contact1 = Contact('a', '192.168.0.1', 9999, self.version, 0)
+        contact2 = Contact('b', '192.168.0.2', 9999, self.version, 0)
         r.add_contact(contact1)
         # Contact 2 will have the wrong number of failedRPCs
         r.add_contact(contact2)
@@ -393,7 +400,7 @@ class TestRoutingTable(unittest.TestCase):
         """
         parent_node_id = 'abc'
         r = RoutingTable(parent_node_id)
-        contact1 = Contact('a', '192.168.0.1', 9999, 0)
+        contact1 = Contact('a', '192.168.0.1', 9999, self.version, 0)
         r.add_contact(contact1)
         # Sanity check
         self.assertEqual(len(r._buckets[0]), 1)
@@ -409,14 +416,14 @@ class TestRoutingTable(unittest.TestCase):
         """
         parent_node_id = 'abc'
         r = RoutingTable(parent_node_id)
-        contact1 = Contact('a', '192.168.0.1', 9999, 0)
-        contact2 = Contact('b', '192.168.0.2', 9999, 0)
+        contact1 = Contact('a', '192.168.0.1', 9999, self.version, 0)
+        contact2 = Contact('b', '192.168.0.2', 9999, self.version, 0)
         r.add_contact(contact1)
         # Contact 2 will have the wrong number of failedRPCs
         r.add_contact(contact2)
         contact2.failed_RPCs = constants.ALLOWED_RPC_FAILS
         # Add something into the cache.
-        contact3 = Contact('c', '192.168.0.3', 9999, 0)
+        contact3 = Contact('c', '192.168.0.3', 9999, self.version, 0)
         r._replacement_cache[0] = [contact3, ]
         # Sanity check
         self.assertEqual(len(r._buckets[0]), 2)
@@ -435,8 +442,8 @@ class TestRoutingTable(unittest.TestCase):
         """
         parent_node_id = 'abc'
         r = RoutingTable(parent_node_id)
-        contact1 = Contact('a', '192.168.0.1', 9999, 0)
-        contact2 = Contact('b', '192.168.0.2', 9999, 0)
+        contact1 = Contact('a', '192.168.0.1', 9999, self.version, 0)
+        contact2 = Contact('b', '192.168.0.2', 9999, self.version, 0)
         r.add_contact(contact1)
         r.add_contact(contact2)
         # Sanity check
