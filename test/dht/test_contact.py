@@ -37,8 +37,9 @@ class TestContact(unittest.TestCase):
         id = '12345'
         address = '192.168.0.1'
         port = 9999
+        version = get_version()
         last_seen = 123
-        contact = Contact(id, address, port, last_seen)
+        contact = Contact(id, address, port, version, last_seen)
         self.assertTrue(id == contact)
 
     def testNe(self):
@@ -49,8 +50,9 @@ class TestContact(unittest.TestCase):
         id = '12345'
         address = '192.168.0.1'
         port = 9999
+        version = get_version()
         last_seen = 123
-        contact = Contact(id, address, port, last_seen)
+        contact = Contact(id, address, port, version, last_seen)
         self.assertTrue('54321' != contact)
 
     def testStr(self):
@@ -60,7 +62,8 @@ class TestContact(unittest.TestCase):
         id = '12345'
         address = '192.168.0.1'
         port = 9999
+        version = get_version()
         last_seen = 123
-        contact = Contact(id, address, port, last_seen)
-        expected = ("('12345', '192.168.0.1', 9999)")
+        contact = Contact(id, address, port, version, last_seen)
+        expected = "('12345', '192.168.0.1', 9999, '%s')" % version
         self.assertEqual(expected, str(contact))

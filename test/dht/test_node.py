@@ -4,6 +4,7 @@ expected
 """
 from drogulus.dht.node import Node
 from drogulus.dht.constants import ERRORS
+from drogulus.dht.contact import Contact
 from drogulus.version import get_version
 from drogulus.dht.net import DHTFactory
 from drogulus.dht.messages import Ping, Pong
@@ -92,6 +93,28 @@ class TestNode(unittest.TestCase):
                      '[a-f0-9]{12}')
         self.assertTrue(re.match(uuidMatch, result.uuid))
 
+    def test_message_received_calls_routing_table(self):
+        """
+        Ensures an inbound message updates the routing table.
+        """
+        self.node._routing_table.add_contact = MagicMock()
+        # Create a simple Ping message.
+        uuid = str(uuid4())
+        version = get_version()
+        msg = Ping(uuid, self.node_id, version)
+        # Receive it...
+        self.node.message_received(msg, self.protocol)
+        # Check it results in a call to the node's message_received method.
+        peer = self.protocol.transport.getPeer()
+        self.assertEqual(1, self.node._routing_table.add_contact.call_count)
+        arg1 = self.node._routing_table.add_contact.call_args[0][0]
+        self.assertTrue(isinstance(arg1, Contact))
+        self.assertEqual(msg.node, arg1.id)
+        self.assertEqual(peer.host, arg1.address)
+        self.assertEqual(peer.port, arg1.port)
+        self.assertEqual(msg.version, arg1.version)
+        self.assertTrue(isinstance(arg1.last_seen, float))
+
     def test_message_received_ping(self):
         """
         Ensures a Ping message is handled correctly.
@@ -110,7 +133,7 @@ class TestNode(unittest.TestCase):
         """
         Ensures the handle_ping method returns a Pong message.
         """
-        self.protocol.transport.sendMessage = MagicMock()
+        self.protocol.sendMessage = MagicMock()
         # Create a simple Ping message.
         uuid = str(uuid4())
         version = get_version()
@@ -119,4 +142,4 @@ class TestNode(unittest.TestCase):
         self.node.handle_ping(msg, self.protocol)
         # Check the result.
         result = Pong(uuid, self.node.id, version)
-        self.protocol.transport.sendMessage.assert_called_once_with(result)
+        self.protocol.sendMessage.assert_called_once_with(result)

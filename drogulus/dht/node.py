@@ -20,6 +20,7 @@ Contains code that defines the local node in the DHT network.
 from twisted.internet import reactor, defer
 import twisted.internet.threads
 from uuid import uuid4
+import time
 
 import constants
 from messages import (Error, Ping, Pong, Store, FindNode, Nodes, FindValue,
@@ -83,8 +84,12 @@ class Node(object):
         """
         Handles incoming messages.
         """
-        # TODO: Update the routing table.
-        # peer = protocol.transport.getPeer()
+        # Update the routing table.
+        peer = protocol.transport.getPeer()
+        other_node = Contact(message.node, peer.host, peer.port,
+                             message.version, time.time())
+        self._routing_table.add_contact(other_node)
+        # Sort on message type and pass to handler method.
         if isinstance(message, Ping):
             self.handle_ping(message, protocol)
 
@@ -93,7 +98,7 @@ class Node(object):
         Handles an incoming Ping message
         """
         pong = Pong(message.uuid, self.id, self.version)
-        protocol.transport.sendMessage(pong)
+        protocol.sendMessage(pong)
 
     def handle_store(self, key, value):
         """
