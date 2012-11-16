@@ -71,6 +71,8 @@ class TestDHTProtocol(unittest.TestCase):
         """
         Sanity test to check error handling works as expected.
         """
+        # Mock
+        self.transport.loseConnection = MagicMock()
         # Send bad message
         self.protocol.dataReceived('1:a,')
         # Check we receive the expected error in return
@@ -83,6 +85,8 @@ class TestDHTProtocol(unittest.TestCase):
         uuidMatch = ('[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-' +
                      '[a-f0-9]{12}')
         self.assertTrue(re.match(uuidMatch, err.uuid))
+        # Ensure the loseConnection method was also called.
+        self.transport.loseConnection.assert_called_once_with()
 
     def test_string_received_good_message(self):
         """
@@ -134,7 +138,7 @@ class TestDHTProtocol(unittest.TestCase):
         expected = self._to_netstring(to_msgpack(msg))
         actual = self.transport.value()
         self.assertEqual(expected, actual)
-        # Ensure the loseConnection method was also called.
+        # Ensure the loseConnection method was not called.
         self.assertEqual(0, len(self.transport.loseConnection.mock_calls))
 
     def test_send_message_with_lose_connection(self):

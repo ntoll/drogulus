@@ -133,6 +133,7 @@ class TestNode(unittest.TestCase):
         """
         Ensures the handle_ping method returns a Pong message.
         """
+        # Mock
         self.protocol.sendMessage = MagicMock()
         # Create a simple Ping message.
         uuid = str(uuid4())
@@ -142,4 +143,21 @@ class TestNode(unittest.TestCase):
         self.node.handle_ping(msg, self.protocol)
         # Check the result.
         result = Pong(uuid, self.node.id, version)
-        self.protocol.sendMessage.assert_called_once_with(result)
+        self.protocol.sendMessage.assert_called_once_with(result, True)
+
+    def test_handle_ping_loses_connection(self):
+        """
+        Ensures the handle_ping method returns a Pong message.
+        """
+        # Mock
+        self.protocol.transport.loseConnection = MagicMock()
+        # Create a simple Ping message.
+        uuid = str(uuid4())
+        version = get_version()
+        msg = Ping(uuid, self.node_id, version)
+        # Handle it.
+        self.node.handle_ping(msg, self.protocol)
+        # Check the result.
+        result = Pong(uuid, self.node.id, version)
+        # Ensure the loseConnection method was also called.
+        self.protocol.transport.loseConnection.assert_called_once_with()

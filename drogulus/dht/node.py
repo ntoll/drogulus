@@ -98,7 +98,7 @@ class Node(object):
         Handles an incoming Ping message
         """
         pong = Pong(message.uuid, self.id, self.version)
-        protocol.sendMessage(pong)
+        protocol.sendMessage(pong, True)
 
     def handle_store(self, key, value):
         """
