@@ -58,27 +58,193 @@
 		<div class="twelve columns offset-by-one content">
 			<h1>Drogulus</h1>
 			<h2>A resilient data store &amp; computation platform built for simplicity, security &amp; openness.</h2>
+            <div class="warning">Drogulus is currently an unfinished work in
+            progress.</div>
 			<hr />
             <div id="what">
                 <h3>What</h3>
+                <p>Drogulus is a federated, decentralized and openly writable
+                data store and computation platform that includes mechanisms
+                for provenance and trust via public key cryptography.</p>
+
+                <p>Being federated (the system consists of many independent
+                but collaborating entities) and decentralized (no entity is
+                more important than any of the others) ensures users are free
+                from a central authority that might desire to control their
+                data and their use of the system.</p>
+
+                <p>Being openly writable ensures no user is barred from the
+                system. All users are free to contribute, change, enhance and
+                expand the system.</p>
+
+                <p>Being a distributed computation platform means users can do
+                something useful with the information they find via Drogulus.
+                By distributed computation I mean running programs on the
+                shared resources that Drogulus provides without having to rely
+                on others to provide such services.</p>
+
+                <p>Having a mechanism for provenance and trust allows users of
+                Drogulus to know who each other are and retain control of
+                their data without needing to rely on external parties.</p>
             </div>
             <div id="why">
                 <h3>Why</h3>
+
+<p>The World-Wide Web has become a ghetto of walled gardens built upon years of
+technological compromise. DNS (used to link domain names with their host
+computer) is beholden to the whims of governments and companies without
+recourse to due process. More worryingly still, our data is analyzed by
+companies, sold via targeted advertising or handed over to governments without
+our consent.</p>
+
+<p><strong>Problem #1: Users are no longer in control of their digital
+assets.</strong></p>
+
+<p>In order to publish anything on the web most users need third party services
+(web sites) to curate data on their behalf. How this data is organized is
+usually not decided by the user whose data it is but by the service provider.
+Furthermore, how this data is stored and made available is often done in such a
+way that makes it difficult to change service provider. As if that wasn't
+enough, each service requires its own set of credentials to identify the user -
+making it hard to tell if the provenance of data on one service is the same as
+data on yet another. Baroque technological solutions have been proposed to
+solve the problem of multiple identities on different services but these are
+merely a manifestation of problem #2 (see below).</p>
+
+<p><strong>Problem #2: hackers (used in the positive sense of the word) are
+obstructed by incumbent technology from tackling problems with elegant,
+useful and joyful solutions.</strong></p>
+
+<p>The beautifuly simple hypertext system originally envisioned by
+Tim Berners-Lee has grown into a monster. It's a plethora of complex
+technologies specified by committee that run on quirky browsers which never
+behave consistently. The ubiquity of the web also means it has assumed the
+status of de-facto platform for solutions thoughtlessly implemented in a
+sub-optimal way in order to cope with the limitations of web based technology.
+Furthermore, the resilience of the web's decentralized nature has been
+undermined: large parts of the web go dark when certain hosting providers
+break down or if popular websites fall over.</p>
+
+<p><strong>Problem #3: At a fundamental level the web isn't openly writable or
+configurable.</strong></p>
+
+<p>Creating, editing or organising content is not part of the web itself, but
+implemented at a higher level of abstraction (causing problem #1) in a way that
+abuses and complicates the original simple hypertext system (see problem #2).
+This technical situation has profound political and ethical implications
+concerning control, privacy and participation. Such potential disempowerment
+extends to DNS - a single point of control that links domains to the computers
+that host websites.</p>
             </div>
             <div id="how">
                 <h3>How</h3>
+                <p>There are three central pillars to Drogulus:</p>
+                <ul>
+                    <li>A distributed hash table (DHT) that provides the data
+                    store and replaces DNS.</li>
+                    <li>Trust and identity enforced via cryptographic
+                    signing of digital assets.</li>
+                    <li>Drogulisp, a simple implementation of the Lisp
+                    programming language for working with data stored in the
+                    DHT that limits programs in terms of time
+                    (how long a computation is allowed to last) and space (how
+                    much memory a program is allowed to use).</li>
+                </ul>
+
+                <p>Drogulus implements a version of the
+                <a href="https://en.wikipedia.org/wiki/Kademlia">Kademlia</a>
+                distributed hash table. The innovation Drogulus brings to the
+                table is that values (data) stored in the DHT are
+                cryptographically signed in such a way that their provenance
+                can be proven and content shown to be "intact" (i.e. not
+                tampered with). Values that do not pass the cryptographic
+                checks are ignored and nodes on the network that attempt to
+                propogate such values are blocked. Drogulisp programs are
+                values stored within the DHT, run in asynchronous "ensembles"
+                that arrive at a consensus and process other items of data
+                (including other programs) stored within the DHT.</p>
+
+                <p>Currently, the DHT is almost finished, the cryptographic
+                layer is done and Drogulisp is in the planning stages.</p>
             </div>
             <div id="install">
                 <h3>Install</h3>
+                <p>Drogulus is written in
+                <a href="http://python.org">Python</a> and you should ensure
+                that a recent version (such as 2.7) is installed on your
+                machine.</p>
+
+                <p>There are several ways to install Drogulus. Using Python's
+                <code>pip</code> command is perhaps the easiest:</p>
+
+                <pre><code>$ pip install -U drogulus</pre></code>
+
+                <p>Alternatively, clone/download the source code, change into
+                the project's root directory and run the following
+                command:</p>
+
+                <pre><code>$ python setup.py install</code></pre>
+
+                <p>You may need to install the requirements with the
+                following command:</p>
+
+                <pre><code>$ pip install -r requirements.txt</code></pre>
+
+                <p>The installation procedure should have installed a command
+                called <code>drogd</code> on your computer. Running this
+                command for the first time will walk you through setting up
+                your instance of Drogulus. <span class="warning">TODO: Write
+                this up when finished / finalised.</span></p>
             </div>
             <div id="code">
                 <h3>Source Code</h3>
+                <p>Source code is currently hosted on
+                <a href="https://github.com/ntoll/drogulus">Github</a>.
+                Patches, pull requests, bug reports, comments, suggestions
+                and good ideas most welcome!</p>
             </div>
             <div id="version">
                 <h3>Version Log</h3>
+                <ul>
+                    <li><strong>0.0.0.alpha.0</strong> (19th August 2011):
+                    The release number used during planning and initial
+                    implementation.
+                        <ul>
+                            <li>Implementation of
+                            <a href="https://en.wikipedia.org/wiki/Kademlia">
+                            Kademlia</a> based distributed hash table.</li>
+                            <li>Lots of documentation.</li>
+                            <li>Implementation of crypto based trust
+                            mechanism.</li>
+                            <li>A simple shim of a Lisp written in Python
+                            created as a proof-of-concept rather than sensible
+                            solution.</li>
+                        </ul>
+                    </li>
+                </ul>
             </div>
             <div id="license">
                 <h3>License</h3>
+                <p>Drogulus is &copy; 2012 <a href="http://ntoll.org/about">
+                Nicholas H.Tollervey</a> and released under the
+                <a href="http://www.gnu.org/licenses/agpl-3.0.html">GNU Affero
+                General Public License</a>.</p>
+
+                <p>This makes Drogulus free software: you can redistribute it
+                and/or modify it under the terms of the GNU Affero General
+                Public License as published by the Free Software Foundation,
+                either version 3 of the License, or (at your option) any later
+                version.</p>
+
+                <p>Drogulus is distributed in the hope that it will be useful,
+                but <strong>WITHOUT ANY WARRANTY</strong>; without even the
+                implied warranty of <strong>MERCHANTABILITY</strong> or
+                <strong>FITNESS FOR A PARTICULAR PURPOSE</strong>.  See the
+                GNU Affero General Public License for more details.</p>
+
+                <p>A copy of the GNU Affero General Public License can be
+                found <a href="http://www.gnu.org/licenses/agpl-3.0.html">
+                here</a>.</p>
             </div>
             <footer>
                 <hr/>

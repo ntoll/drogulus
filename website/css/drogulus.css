@@ -62,3 +62,15 @@ footer {
         display: none;
     }
 }
+
+.warning {
+    color: red;
+}
+
+code {
+    font-family: monospace;
+}
+
+pre {
+    margin-bottom: 20px;
+}
