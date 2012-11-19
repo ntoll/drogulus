@@ -17,7 +17,8 @@ setup(
     license='GNU AGPLv3',
     classifiers=[
         'Development Status :: 1 - Planning',
-        'Environment :: Console',
+        'Environment :: No Input/Output (Daemon)',
+        'Framework :: Twisted',
         'Intended Audience :: Developers',
         'Intended Audience :: Information Technology',
         'License :: OSI Approved :: GNU Affero General Public License v3',
