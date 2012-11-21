@@ -70,8 +70,8 @@
                 <p>Being federated (the system consists of many independent
                 but collaborating entities) and decentralized (no entity is
                 more important than any of the others) ensures users are free
-                from a central authority that might desire to control their
-                data and their use of the system.</p>
+                from points of authority that may be used to control user's
+                access to data and use of the system.</p>
 
                 <p>Being openly writable ensures no user is barred from the
                 system. All users are free to contribute, change, enhance and
@@ -98,16 +98,16 @@ companies, sold via targeted advertising or handed over to governments without
 our consent.</p>
 
 <p><strong>Problem #1: Users are no longer in control of their digital
-assets.</strong></p>
+assets or identity.</strong></p>
 
 <p>In order to publish anything on the web most users need third party services
 (web sites) to curate data on their behalf. How this data is organized is
-usually not decided by the user whose data it is but by the service provider.
+usually decided by the service provider rather than the user whose data it is.
 Furthermore, how this data is stored and made available is often done in such a
 way that makes it difficult to change service provider. As if that wasn't
 enough, each service requires its own set of credentials to identify the user -
 making it hard to tell if the provenance of data on one service is the same as
-data on yet another. Baroque technological solutions have been proposed to
+that on yet another. Baroque technological solutions have been proposed to
 solve the problem of multiple identities on different services but these are
 merely a manifestation of problem #2 (see below).</p>
 
@@ -123,7 +123,8 @@ status of de-facto platform for solutions thoughtlessly implemented in a
 sub-optimal way in order to cope with the limitations of web based technology.
 Furthermore, the resilience of the web's decentralized nature has been
 undermined: large parts of the web go dark when certain hosting providers
-break down or if popular websites fall over.</p>
+break down or if popular websites fall over. This is the inevitable result of
+developer's reliance on such services.</p>
 
 <p><strong>Problem #3: At a fundamental level the web isn't openly writable or
 configurable.</strong></p>
@@ -133,8 +134,12 @@ implemented at a higher level of abstraction (causing problem #1) in a way that
 abuses and complicates the original simple hypertext system (see problem #2).
 This technical situation has profound political and ethical implications
 concerning control, privacy and participation. Such potential disempowerment
-extends to DNS - a single point of control that links domains to the computers
+even extends to DNS - the mechanism for linking domains to the computers
 that host websites.</p>
+
+<p>Ultimately the web is no longer a flat structure of interlinking documents
+but now contains many points of control, lock-in and authority each of which
+is a potential mechanism for disempowerment and exploitation.</p>
             </div>
             <div id="how">
                 <h3>How</h3>
@@ -145,10 +150,8 @@ that host websites.</p>
                     <li>Trust and identity enforced via cryptographic
                     signing of digital assets.</li>
                     <li>Drogulisp, a simple implementation of the Lisp
-                    programming language for working with data stored in the
-                    DHT that limits programs in terms of time
-                    (how long a computation is allowed to last) and space (how
-                    much memory a program is allowed to use).</li>
+                    programming language for asynchronously working with data
+                    stored in the DHT.</li>
                 </ul>
 
                 <p>Drogulus implements a version of the
@@ -160,9 +163,12 @@ that host websites.</p>
                 tampered with). Values that do not pass the cryptographic
                 checks are ignored and nodes on the network that attempt to
                 propogate such values are blocked. Drogulisp programs are
-                values stored within the DHT, run in asynchronous "ensembles"
-                that arrive at a consensus and process other items of data
-                (including other programs) stored within the DHT.</p>
+                themselves values stored within the DHT, run in asynchronous
+                "ensembles" that arrive at a consensus and process other items
+                of data (including other programs) stored within the DHT. They
+                are intentionally limited in terms of time (how long a
+                computation may last) and space (how much memory may be
+                used).</p>
 
                 <p>Currently, the DHT is almost finished, the cryptographic
                 layer is done and Drogulisp is in the planning stages.</p>
