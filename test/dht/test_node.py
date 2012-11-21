@@ -154,6 +154,23 @@ class TestNode(unittest.TestCase):
         # Check it results in a call to the node's message_received method.
         self.node.handle_ping.assert_called_once_with(msg, self.protocol)
 
+    def test_message_received_store(self):
+        """
+        Ensures a Store message is handled correctly.
+        """
+        self.node.handle_store = MagicMock()
+        # Create a simple Store message.
+        msg = Store(self.uuid, self.node.id, self.key, self.value,
+                    self.timestamp, self.expires, PUBLIC_KEY, self.name,
+                    self.meta, self.signature, self.version)
+        # Receive it...
+        self.node.message_received(msg, self.protocol)
+        # Dummy contact.
+        contact = Contact(self.node.id, '192.168.1.1', 54321, self.version)
+        # Check it results in a call to the node's message_received method.
+        self.node.handle_store.assert_called_once_with(msg, self.protocol,
+                                                       contact)
+
     def test_handle_ping(self):
         """
         Ensures the handle_ping method returns a Pong message.
@@ -172,7 +189,8 @@ class TestNode(unittest.TestCase):
 
     def test_handle_ping_loses_connection(self):
         """
-        Ensures the handle_ping method returns a Pong message.
+        Ensures the handle_ping method loses the connection after sending the
+        Pong.
         """
         # Mock
         self.protocol.transport.loseConnection = MagicMock()
@@ -182,8 +200,6 @@ class TestNode(unittest.TestCase):
         msg = Ping(uuid, self.node_id, version)
         # Handle it.
         self.node.handle_ping(msg, self.protocol)
-        # Check the result.
-        Pong(uuid, self.node.id, version)
         # Ensure the loseConnection method was also called.
         self.protocol.transport.loseConnection.assert_called_once_with()
 
@@ -234,3 +250,38 @@ class TestNode(unittest.TestCase):
         result = Error(self.uuid, self.node.id, 6, ERRORS[6], details,
                        self.version)
         self.protocol.sendMessage.assert_called_once_with(result, True)
+
+    def test_handle_store_loses_connection(self):
+        """
+        Ensures the handle_store method with a good Store message loses the
+        connection after sending the Pong message.
+        """
+        # Mock
+        self.protocol.transport.loseConnection = MagicMock()
+        # Incoming message and peer
+        msg = Store(self.uuid, self.node.id, self.key, self.value,
+                    self.timestamp, self.expires, PUBLIC_KEY, self.name,
+                    self.meta, self.signature, self.version)
+        other_node = Contact(self.node.id, '127.0.0.1', 1908,
+                             self.version, time.time())
+        self.node.handle_store(msg, self.protocol, other_node)
+        # Ensure the loseConnection method was also called.
+        self.protocol.transport.loseConnection.assert_called_once_with()
+
+    def test_handle_store_loses_connection_bad_message(self):
+        """
+        Ensures the handle_store method with an invalid message loses the
+        connection after sending the Error message.
+        """
+        # Mock
+        self.protocol.transport.loseConnection = MagicMock()
+        # Incoming message and peer
+        msg = Store(self.uuid, self.node.id, self.key, 'wrong value',
+                    self.timestamp, self.expires, PUBLIC_KEY, self.name,
+                    self.meta, self.signature, self.version)
+        other_node = Contact('12345678abc', '127.0.0.1', 1908,
+                             self.version, time.time())
+        # Handle faulty message.
+        self.node.handle_store(msg, self.protocol, other_node)
+        # Ensure the loseConnection method was also called.
+        self.protocol.transport.loseConnection.assert_called_once_with()
