@@ -62,10 +62,10 @@ def validate_signature(value, timestamp, expires, name, meta, signature,
     return verifier.verify(generated_hash, signature)
 
 
-def validate_key_value(key, message):
+def validate_message(message):
     """
-    Given a key and associated message containing a value this function will
-    return a tuple containing two fields:
+    Given a message containing a key and value this function will return a
+    tuple containing two fields:
 
     * A boolean to indicate its validity
     * An error number (in the case of a fail) or None (if success).
@@ -88,7 +88,7 @@ def validate_key_value(key, message):
     # If the signature is correct then the public key must be valid. Ensure
     # that the key used to store the value in the DHT is valid.
     generated_key = construct_key(message.public_key, message.name)
-    if generated_key != key:
+    if generated_key != message.key:
         # The key cannot be derived from the public_key and name fields.
         return (False, 7)
     # It checks out so return truthy.

@@ -452,6 +452,24 @@ class TestRoutingTable(unittest.TestCase):
         r.remove_contact('b')
         self.assertEqual(len(r._buckets[0]), 2)
 
+    def test_remove_contact_with_not_enough_RPC_but_forced(self):
+        """
+        Ensures that the contact is removed despite it's failedRPCs counter
+        being less than constants.ALLOWED_RPC_FAILS because the 'forced' flag
+        is used.
+        """
+        parent_node_id = 'abc'
+        r = RoutingTable(parent_node_id)
+        contact1 = Contact('a', '192.168.0.1', 9999, self.version, 0)
+        contact2 = Contact('b', '192.168.0.2', 9999, self.version, 0)
+        r.add_contact(contact1)
+        r.add_contact(contact2)
+        # Sanity check
+        self.assertEqual(len(r._buckets[0]), 2)
+
+        r.remove_contact('b', forced=True)
+        self.assertEqual(len(r._buckets[0]), 1)
+
     def test_touch_kbucket(self):
         """
         Ensures that the lastAccessed field of the affected k-bucket is updated

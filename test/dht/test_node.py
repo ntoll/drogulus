@@ -7,7 +7,8 @@ from drogulus.dht.constants import ERRORS
 from drogulus.dht.contact import Contact
 from drogulus.version import get_version
 from drogulus.dht.net import DHTFactory
-from drogulus.dht.messages import Ping, Pong
+from drogulus.dht.messages import Error, Ping, Pong, Store
+from drogulus.dht.crypto import construct_key
 from twisted.trial import unittest
 from twisted.test import proto_helpers
 from mock import MagicMock
@@ -15,6 +16,14 @@ from uuid import uuid4
 import hashlib
 import time
 import re
+
+
+PUBLIC_KEY = """-----BEGIN PUBLIC KEY-----
+MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC+n3Au1cbSkjCVsrfnTbmA0SwQ
+LN2RbbDIMHILA1i6wByXkqEamnEBvgsOkUUrsEXYtt0vb8Qill4LSs9RqTetSCjG
+b+oGVTKizfbMbGCKZ8fT64ZZgan9TvhItl7DAwbIXcyvQ+b1J7pHaytAZwkSwh+M
+6WixkMTbFM91fW0mUwIDAQAB
+-----END PUBLIC KEY-----"""
 
 
 class TestNode(unittest.TestCase):
@@ -36,6 +45,22 @@ class TestNode(unittest.TestCase):
         self.protocol = self.factory.buildProtocol(('127.0.0.1', 0))
         self.transport = proto_helpers.StringTransport()
         self.protocol.makeConnection(self.transport)
+        self.signature = ('\xadqPs\xcf@\x01r\xe4\xc5^?\x0e\x89o\xfc-\xe1?{%' +
+                          '\x9a\x8f\x8f\xb9\xa4\xc2\x96\xf9b\xeb?\xa8\xdbL' +
+                          '\xeb\xa1\xec9\xe6q\xad2\xd9\xfb\xa2t+\xb9\xf8' +
+                          '\xb6r/|\x87\xb9\xd8\x88_D\xff\xd9\x1a\x7fV<P/\rL' +
+                          '\xd1Z\xb2\x10\xc5\xa5\x1e\xf2\xdaqP{\x9e\xa6[{' +
+                          '\xc5\x849\xc6\x92\x0f\xe5\x88\x05\x92\x82' +
+                          '\x15[y\\_b8V\x8c\xab\x82B\xcd\xaey\xcc\x980p\x0e5' +
+                          '\xcf\xf4\xa7?\x94\x8a\\Z\xc4\x8a')
+        self.value = 'value'
+        self.uuid = str(uuid4())
+        self.timestamp = 1350544046.084875
+        self.expires = 1352221970.14242
+        self.name = 'name'
+        self.meta = {'meta': 'value'}
+        self.version = get_version()
+        self.key = construct_key(PUBLIC_KEY, self.name)
 
     def test_init(self):
         """
@@ -44,7 +69,7 @@ class TestNode(unittest.TestCase):
         node = Node(123)
         self.assertEqual(123, node.id)
         self.assertTrue(node._routing_table)
-        self.assertTrue(node._data_store)
+        self.assertEqual({}, node._data_store)
         self.assertEqual(get_version(), node.version)
 
     def test_except_to_error_with_exception_args(self):
@@ -158,6 +183,54 @@ class TestNode(unittest.TestCase):
         # Handle it.
         self.node.handle_ping(msg, self.protocol)
         # Check the result.
-        result = Pong(uuid, self.node.id, version)
+        Pong(uuid, self.node.id, version)
         # Ensure the loseConnection method was also called.
         self.protocol.transport.loseConnection.assert_called_once_with()
+
+    def test_handle_store(self):
+        """
+        Ensures a correct Store message is handled correctly.
+        """
+        # Mock
+        self.protocol.sendMessage = MagicMock()
+        # Incoming message and peer
+        msg = Store(self.uuid, self.node.id, self.key, self.value,
+                    self.timestamp, self.expires, PUBLIC_KEY, self.name,
+                    self.meta, self.signature, self.version)
+        other_node = Contact(self.node.id, '127.0.0.1', 1908,
+                             self.version, time.time())
+        self.node.handle_store(msg, self.protocol, other_node)
+        # Ensure the message is in local storage.
+        self.assertIn(self.key, self.node._data_store)
+        # Ensure the response is a Pong message.
+        result = Pong(self.uuid, self.node.id, self.version)
+        self.protocol.sendMessage.assert_called_once_with(result, True)
+
+    def test_handle_store_bad_message(self):
+        """
+        Ensures an invalid Store message is handled correctly.
+        """
+        # Mock
+        self.protocol.sendMessage = MagicMock()
+        # Incoming message and peer
+        msg = Store(self.uuid, self.node.id, self.key, 'wrong value',
+                    self.timestamp, self.expires, PUBLIC_KEY, self.name,
+                    self.meta, self.signature, self.version)
+        other_node = Contact('12345678abc', '127.0.0.1', 1908,
+                             self.version, time.time())
+        self.node._routing_table.add_contact(other_node)
+        # Sanity check for expected routing table start state.
+        self.assertEqual(1, len(self.node._routing_table._buckets[0]))
+        # Handle faulty message.
+        self.node.handle_store(msg, self.protocol, other_node)
+        # Ensure the message is not in local storage.
+        self.assertNotIn(self.key, self.node._data_store)
+        # Ensure the contact is not in the routing table
+        self.assertEqual(0, len(self.node._routing_table._buckets[0]))
+        # Ensure the response is an Error message.
+        details = {
+            'message': 'You have been removed from remote routing table.'
+        }
+        result = Error(self.uuid, self.node.id, 6, ERRORS[6], details,
+                       self.version)
+        self.protocol.sendMessage.assert_called_once_with(result, True)

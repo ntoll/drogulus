@@ -17,8 +17,7 @@ Contains code that defines the local node in the DHT network.
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from twisted.internet import reactor, defer
-import twisted.internet.threads
+from twisted.python import log
 from uuid import uuid4
 import time
 
@@ -27,9 +26,10 @@ from messages import (Error, Ping, Pong, Store, FindNode, Nodes, FindValue,
                       Value)
 from routingtable import RoutingTable
 from datastore import DictDataStore
-from net import TimeoutError, DHTProtocol
+from net import TimeoutError
 from contact import Contact
 from constants import ERRORS
+from crypto import validate_message
 from drogulus.version import get_version
 
 
@@ -48,8 +48,9 @@ class Node(object):
         """
         self.id = id
         self._routing_table = RoutingTable(id)
-        self._data_store = DictDataStore
+        self._data_store = DictDataStore()
         self.version = get_version()
+        log.msg('Initialised node with id: %r' % self.id)
 
     def except_to_error(self, exception):
         """
@@ -88,29 +89,59 @@ class Node(object):
         peer = protocol.transport.getPeer()
         other_node = Contact(message.node, peer.host, peer.port,
                              message.version, time.time())
+        log.msg('Message received from %s' % other_node)
+        log.msg(message)
         self._routing_table.add_contact(other_node)
         # Sort on message type and pass to handler method.
         if isinstance(message, Ping):
             self.handle_ping(message, protocol)
+        elif isinstance(message, Store):
+            self.handle_store(message, protocol, other_node)
 
     def handle_ping(self, message, protocol):
         """
-        Handles an incoming Ping message
+        Handles an incoming Ping message. Returns a Pong message using the
+        referenced protocol object.
         """
         pong = Pong(message.uuid, self.id, self.version)
         protocol.sendMessage(pong, True)
 
-    def handle_store(self, key, value):
+    def handle_store(self, message, protocol, sender):
+        """
+        Handles an incoming Store message. Checks the provenance of the message
+        before storing locally. If there is a problem, removes the
+        untrustworthy peer from the routing table.
+
+        Sends a Pong message if successful otherwise replies with an Error.
+        """
+        # Check provenance
+        is_valid, err_code = validate_message(message)
+        if is_valid:
+            # Store value.
+            self._data_store.set_item(message.key, message)
+            # Reply with a pong so the other end updates its routing table.
+            pong = Pong(message.uuid, self.id, self.version)
+            protocol.sendMessage(pong, True)
+        else:
+            # Remove from the routing table.
+            log.msg('Problem with Store command: %d - %s' %
+                    (err_code, constants.ERRORS[err_code]))
+            self._routing_table.remove_contact(sender.id, True)
+            details = {
+                'message': 'You have been removed from remote routing table.'
+            }
+            err = Error(message.uuid, self.id, err_code,
+                        constants.ERRORS[err_code], details, self.version)
+            log.msg('Replying with Error message:')
+            log.msg(err)
+            protocol.sendMessage(err, True)
+
+    def handle_find_node(self, message, protocol):
         """
         """
         pass
 
-    def handle_find_node(self, key):
-        """
-        """
-        pass
-
-    def handle_find_value(self, key):
+    def handle_find_value(self, message, protocol):
         """
         """
         pass

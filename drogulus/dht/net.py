@@ -19,6 +19,7 @@ Contains a definition of the low-level networking protocol used by the DHT
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from twisted.internet import protocol
+from twisted.python import log
 from twisted.protocols.basic import NetstringReceiver
 from messages import to_msgpack, from_msgpack
 
@@ -57,6 +58,7 @@ class DHTProtocol(NetstringReceiver):
             self.factory.node.message_received(message, self)
         except Exception, ex:
             # Catch all for anything unexpected
+            log.msg(ex)
             self.sendMessage(self.factory.node.except_to_error(ex), True)
 
     def sendMessage(self, msg, loseConnection=False):

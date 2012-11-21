@@ -2,7 +2,7 @@
 A set of sanity checks to ensure that the messages are defined as expected.
 """
 from drogulus.dht.crypto import (generate_signature, validate_signature,
-                                 validate_key_value, construct_hash,
+                                 validate_message, construct_hash,
                                  construct_key)
 from drogulus.dht.messages import Value
 import unittest
@@ -136,78 +136,78 @@ class TestMessageCryptoFunctions(unittest.TestCase):
                                    ALT_PUBLIC_KEY)
         self.assertEqual(False, check)
 
-    def test_validate_key_value_good(self):
+    def test_validate_message_good(self):
         """
-        Ensures the verify_message function returns True for a valid message.
+        Ensures the validate_message function returns True for a valid message.
         """
         val = Value(1, 1, self.key, self.value, self.timestamp, self.expires,
                     PUBLIC_KEY, self.name, self.meta, self.signature,
                     self.version)
         expected = (True, None)
-        actual = validate_key_value(self.key, val)
+        actual = validate_message(val)
         self.assertEqual(expected, actual)
 
-    def test_validate_key_value_wrong_value(self):
+    def test_validate_message_wrong_value(self):
         """
-        Ensures the verify_message function returns False if the message's
+        Ensures the validate_message function returns False if the message's
         value field has been altered.
         """
         val = Value(1, 1, self.key, 'bad_value', self.timestamp, self.expires,
                     PUBLIC_KEY, self.name, self.meta, self.signature,
                     self.version)
         expected = (False, 6)
-        actual = validate_key_value(self.key, val)
+        actual = validate_message(val)
         self.assertEqual(expected, actual)
 
-    def test_validate_key_value_wrong_timestamp(self):
+    def test_validate_message_wrong_timestamp(self):
         """
-        Ensures the verify_message function returns False if the message's
+        Ensures the validate_message function returns False if the message's
         timestamp field has been altered.
         """
         val = Value(1, 1, self.key, self.value, 1350544046.084876,
                     self.expires, PUBLIC_KEY, self.name, self.meta,
                     self.signature, self.version)
         expected = (False, 6)
-        actual = validate_key_value(self.key, val)
+        actual = validate_message(val)
         self.assertEqual(expected, actual)
 
-    def test_validate_key_value_wrong_expires(self):
+    def test_validate_message_wrong_expires(self):
         """
-        Ensures the verify_message function returns False if the message's
+        Ensures the validate_message function returns False if the message's
         expires field has been altered.
         """
         val = Value(1, 1, self.key, self.value, self.timestamp, 0.0,
                     PUBLIC_KEY, self.name, self.meta, self.signature,
                     self.version)
         expected = (False, 6)
-        actual = validate_key_value(self.key, val)
+        actual = validate_message(val)
         self.assertEqual(expected, actual)
 
-    def test_validate_key_value_wrong_name(self):
+    def test_validate_message_wrong_name(self):
         """
-        Ensures the verify_message function returns False if the message's
+        Ensures the validate_message function returns False if the message's
         name field has been altered.
         """
         val = Value(1, 1, self.key, self.value, self.timestamp, self.expires,
                     PUBLIC_KEY, 'bad_name', self.meta, self.signature,
                     self.version)
         expected = (False, 6)
-        actual = validate_key_value(self.key, val)
+        actual = validate_message(val)
         self.assertEqual(expected, actual)
 
-    def test_validate_key_value_wrong_meta(self):
+    def test_validate_message_wrong_meta(self):
         """
-        Ensures the verify_message function returns False if the message's
+        Ensures the validate_message function returns False if the message's
         meta field has been altered.
         """
         val = Value(1, 1, self.key, self.value, self.timestamp, self.expires,
                     PUBLIC_KEY, self.name, {'bad_meta': 'value'},
                     self.signature, self.version)
         expected = (False, 6)
-        actual = validate_key_value(self.key, val)
+        actual = validate_message(val)
         self.assertEqual(expected, actual)
 
-    def test_validate_key_value_bad_public_key(self):
+    def test_validate_message_bad_public_key(self):
         """
         Ensure the correct result is returned if the message is invalid
         because of a bad public key.
@@ -216,10 +216,10 @@ class TestMessageCryptoFunctions(unittest.TestCase):
                     ALT_PUBLIC_KEY, self.name, self.meta, self.signature,
                     self.version)
         expected = (False, 6)
-        actual = validate_key_value(self.key, val)
+        actual = validate_message(val)
         self.assertEqual(expected, actual)
 
-    def test_validate_key_value_bad_sig(self):
+    def test_validate_message_bad_sig(self):
         """
         Ensure the correct result is returned if the message is invalid
         because of a bad signature.
@@ -235,10 +235,10 @@ class TestMessageCryptoFunctions(unittest.TestCase):
                     PUBLIC_KEY, self.name, self.meta, bad_signature,
                     self.version)
         expected = (False, 6)
-        actual = validate_key_value(self.key, val)
+        actual = validate_message(val)
         self.assertEqual(expected, actual)
 
-    def test_verify_message_bad_key_from_public_key(self):
+    def test_validate_message_bad_key_from_public_key(self):
         """
         Ensure the correct result is returned if the message is invalid
         because of an incorrect 'key' value with wrong public key
@@ -248,10 +248,10 @@ class TestMessageCryptoFunctions(unittest.TestCase):
                     PUBLIC_KEY, self.name, self.meta, self.signature,
                     self.version)
         expected = (False, 7)
-        actual = validate_key_value(key, val)
+        actual = validate_message(val)
         self.assertEqual(expected, actual)
 
-    def test_verify_message_bad_key_from_name(self):
+    def test_validate_message_bad_key_from_name(self):
         """
         Ensure the correct result is returned if the message is invalid
         because of an incorrect 'key' value with wrong name.
@@ -261,7 +261,7 @@ class TestMessageCryptoFunctions(unittest.TestCase):
                     PUBLIC_KEY, self.name, self.meta, self.signature,
                     self.version)
         expected = (False, 7)
-        actual = validate_key_value(key, val)
+        actual = validate_message(val)
         self.assertEqual(expected, actual)
 
     def test_construct_hash(self):

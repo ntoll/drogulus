@@ -228,13 +228,14 @@ class RoutingTable(object):
             bucket_index += 1
         return refresh_IDs
 
-    def remove_contact(self, contact_id):
+    def remove_contact(self, contact_id, forced=False):
         """
         Attempt to remove the contact with the specified contactID string from
         the routing table.
 
-        The operation will only succeed if the number of failed RPCs made
-        against the contact is >= constants.ALLOWED_RPC_FAILS.
+        The operation will only succeed if either the number of failed RPCs
+        made against the contact is >= constants.ALLOWED_RPC_FAILS or the
+        'forced' flag is set to True (defaults to False).
 
         If there are any contacts in the replacement cache for the affected
         bucket then the most up-to-date contact in the replacement cache will
@@ -248,7 +249,7 @@ class RoutingTable(object):
             # anyway.
             return
         contact.failed_RPCs += 1
-        if contact.failed_RPCs >= constants.ALLOWED_RPC_FAILS:
+        if forced or contact.failed_RPCs >= constants.ALLOWED_RPC_FAILS:
             self._buckets[bucket_index].remove_contact(contact_id)
             # If possible, replace the stale contact with the most recent
             # contact stored in the replacement cache.
