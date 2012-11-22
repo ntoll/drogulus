@@ -38,10 +38,12 @@
 <body>
 	<div class="container">
         <div class="two columns sidebar">
-            <img src="images/ipu.png"
-                alt="Drogulus logo (an invisible pink unicorn)"
-                title="Drogulus logo (an invisible pink unicorn)"
-                id="logo"/>
+            <a href="#top" onclick="window.scroll(0,0); return false;">
+                <img src="images/ipu.png"
+                    alt="Drogulus logo (an invisible pink unicorn)"
+                    title="Drogulus logo (an invisible pink unicorn)"
+                    id="logo"/>
+            </a>
             <nav>
                 <ul>
                     <li><a href="#what">What</a></li>
@@ -55,12 +57,21 @@
             </nav>
             <p>&nbsp;</p>
         </div>
-		<div class="twelve columns offset-by-one content">
+		<div class="twelve columns offset-by-one content" id="top">
 			<h1>Drogulus</h1>
 			<h2>A resilient data store &amp; computation platform built for simplicity, security, openness &amp; fun.</h2>
             <div class="warning">Drogulus is currently an unfinished work in
             progress.</div>
 			<hr />
+
+            <p>I thought, "I'm probably mad", then asked myself, "what's
+            the worst that could happen?" and started to create the Drogulus ~
+            a utopian exercise in practical philosophy built to give me a
+            place to explore ideas that have been knocking around inside my
+            head for a while now.</p>
+
+            <p>It'll probably all come to nothing...</p>
+
             <div id="what">
                 <h3>What</h3>
                 <p>Drogulus is a federated, decentralized and openly writable
@@ -252,6 +263,8 @@ is a potential mechanism for dis-empowerment and exploitation.</p>
                 found <a href="http://www.gnu.org/licenses/agpl-3.0.html">
                 here</a>.</p>
             </div>
+            <p><a href="#top" onclick="window.scroll(0,0); return false;">
+            &#8682; Back to the top</a></p>
             <footer>
                 <hr/>
                     &copy; 2012
