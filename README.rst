@@ -3,6 +3,8 @@ Drogulus!
 
 **NB: This is an unfinished work in progress.**
 
+Check out the website for more details: http://drogul.us
+
 Drogulus is a federated data store and computation platform designed for
 simplicity, security, openness and resilience. It's also an exercise in
 practical philosophy.
