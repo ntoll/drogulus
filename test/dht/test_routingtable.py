@@ -7,6 +7,7 @@ from drogulus.dht.contact import Contact
 from drogulus.dht.kbucket import KBucket
 from drogulus.dht import constants
 from drogulus.version import get_version
+from uuid import uuid4
 import unittest
 import time
 
@@ -33,9 +34,10 @@ class TestRoutingTable(unittest.TestCase):
         # Ensure the parent's node ID is stored.
         self.assertEqual(parent_node_id, r._parent_node_id)
 
-    def test_kbucket_index(self):
+    def test_kbucket_index_single_bucket(self):
         """
-        Ensures the expected index is returned.
+        Ensures the expected index is returned when only a single bucket
+        exists.
         """
         parent_node_id = 'abc'
         r = RoutingTable(parent_node_id)
@@ -44,7 +46,13 @@ class TestRoutingTable(unittest.TestCase):
         expected_index = 0
         actual_index = r._kbucket_index(test_key)
         self.assertEqual(expected_index, actual_index)
-        # a more complex test with multiple kbuckets.
+
+    def test_kbucket_index_multiple_buckets(self):
+        """
+        Ensures the expected index is returned when multiple buckets exist.
+        """
+        parent_node_id = 'abc'
+        r = RoutingTable(parent_node_id)
         r._split_bucket(0)
         split_point = (2 ** 160) / 2
         lower_key = split_point - 1
@@ -55,6 +63,25 @@ class TestRoutingTable(unittest.TestCase):
         actual_higher_index = r._kbucket_index(higher_key)
         self.assertEqual(expected_lower_index, actual_lower_index)
         self.assertEqual(expected_higher_index, actual_higher_index)
+
+    def test_kbucket_index_out_of_range(self):
+        """
+        If the requested id is not within the range of the keyspace then a
+        KeyError should be raised.
+        """
+        parent_node_id = 'abc'
+        r = RoutingTable(parent_node_id)
+        # Populate the routing table with contacts.
+        for i in range(160):
+            contact = Contact(2 ** i, "192.168.0.%d" % i, self.version, 0)
+            r.add_contact(contact)
+        with self.assertRaises(KeyError):
+            # Incoming id that's too small.
+            r.find_close_nodes(-1)
+        with self.assertRaises(KeyError):
+            # Incoming id that's too big
+            r.find_close_nodes(str(uuid4()))
+
 
     def test_random_key_in_bucket_range(self):
         """
@@ -298,7 +325,7 @@ class TestRoutingTable(unittest.TestCase):
         result = r.find_close_nodes(2 ** 80)
         self.assertEqual(20, len(result))
 
-    def testFindCloseNodesExcludeContact(self):
+    def test_find_close_nodes_exclude_contact(self):
         """
         Ensure that nearest nodes are returned except for the specified
         excluded node.

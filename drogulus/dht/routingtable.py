@@ -59,6 +59,7 @@ class RoutingTable(object):
                 return i
             else:
                 i += 1
+        raise KeyError('Node id out of range.')
 
     def _random_key_in_bucket_range(self, bucket_index):
         """
@@ -166,7 +167,7 @@ class RoutingTable(object):
         bucket_index = self._kbucket_index(key)
         closest_nodes = self._buckets[bucket_index].get_contacts(
             constants.K, rpc_node_id)
-        # How for away to jump beyond the containing bucket of the given key.
+        # How far away to jump beyond the containing bucket of the given key.
         bucket_jump = 1
         number_of_buckets = len(self._buckets)
         # Flags that indicate if it's possible to jump higher or lower through
