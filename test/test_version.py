@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 A rather silly test but added all the same for completeness and to check the
 initial test suite works as expected.

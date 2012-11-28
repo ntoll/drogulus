@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Ensures the generic functions used in various places within the DHT
 implementation work as expected.

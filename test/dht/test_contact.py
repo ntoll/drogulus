@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Ensures details of contacts (other nodes on the network) are represented
 correctly.

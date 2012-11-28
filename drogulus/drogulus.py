@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Encapsulates a node in the Drogulus.
 """

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Ensures the DHT implementation has the required constants defined
 """

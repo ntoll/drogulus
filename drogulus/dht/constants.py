@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Defines constants used by the Kademlia DHT network. Where possible naming is
 derived from the original Kademlia paper.

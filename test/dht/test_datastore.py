@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Ensures datastore related classes work as expected.
 """

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Contains functions that are used to validate the type and content of fields
 in messages sent between nodes in the DHT.

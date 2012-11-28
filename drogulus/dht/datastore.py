@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Contains class definitions that define the local data store for the node.
 """

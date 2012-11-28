@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Contains functions that work directly with the messages for cryptographically
 signing / verifying.

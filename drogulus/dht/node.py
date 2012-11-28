@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Contains code that defines the local node in the DHT network.
 """

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Ensures the kbucket (used to store contacts in the network) works as expected.
 """

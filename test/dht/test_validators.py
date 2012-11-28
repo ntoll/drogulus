@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 A set of sanity checks to ensure that function concerning message validation
 work correctly.

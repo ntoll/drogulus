@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Defines a contact (another node) on the network.
 """

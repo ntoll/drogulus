@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Defines contact related storage (the so called k-buckets).
 """

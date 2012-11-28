@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Contains generic utillity functions used in various different parts of the
 implementation of the distributed hash table.

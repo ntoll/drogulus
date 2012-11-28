@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Contains a definition of the low-level networking protocol used by the DHT
 (and related functionality).

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Contains classes that represent messages sent down the wire between nodes on
 the network. Also contains functions for encoding/decoding to/from

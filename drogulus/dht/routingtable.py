@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Contains code that represents Kademlia's routing table tree structure.
 """

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 An over engineered way of setting the version. Based upon a simplification of
 how Django (http://djangoproject.com/) does it. ;-)

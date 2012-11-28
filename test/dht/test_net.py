@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Ensures the low level networking functions of the DHT behave as expected.
 """

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Ensures the routing table (a binary tree used to link kbuckets with key ranges
 in the DHT) works as expected.
