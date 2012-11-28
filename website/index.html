@@ -81,8 +81,8 @@
                 <p>Being federated (the system consists of many independent
                 but collaborating entities) and decentralized (no entity is
                 more important than any of the others) ensures users are free
-                from points of authority that may be used to control user's
-                access to data and use of the system.</p>
+                from choke points of authority that may be used to control
+                their access to data and use of the system.</p>
 
                 <p>Being openly writable ensures no user is barred from the
                 system. All users are free to contribute, change, enhance and
@@ -167,18 +167,22 @@ is a potential mechanism for dis-empowerment and exploitation.</p>
 
                 <p>Drogulus implements a version of the
                 <a href="https://en.wikipedia.org/wiki/Kademlia">Kademlia</a>
-                distributed hash table. The innovation Drogulus brings to the
-                table is that values (data) stored in the DHT are
-                cryptographically signed in such a way that their provenance
-                can be proven and content shown to be "intact" (i.e. not
-                tampered with). Values that do not pass the cryptographic
-                checks are ignored and nodes on the network that attempt to
-                propagate such values are blocked. Drogulisp programs are
-                themselves values stored within the DHT, run in asynchronous
-                "ensembles" that arrive at a consensus and process other items
-                of data (including other programs) stored within the DHT. They
-                are intentionally limited in terms of time (how long a
-                computation may last) and space (how much memory may be
+                distributed hash table (Drogulus uses the
+                <a href="https://en.wikipedia.org/wiki/SHA-2">SHA512</a>
+                hash function rather than the
+                <a href="https://en.wikipedia.org/wiki/SHA-1">SHA1</a> function
+                used in the original version of Kademlia). The innovation
+                Drogulus brings to the table is that values (data) stored in
+                the DHT are cryptographically signed in such a way that their
+                provenance can be proven and content shown to be "intact"
+                (i.e. not tampered with). Values that do not pass the
+                cryptographic checks are ignored and nodes on the network that
+                attempt to propagate such values are blocked. Drogulisp
+                programs are themselves values stored within the DHT, run in
+                asynchronous "ensembles" that arrive at a consensus and process
+                other items of data (including other programs) stored within
+                the DHT. They are intentionally limited in terms of time (how
+                long a computation may last) and space (how much memory may be
                 used).</p>
 
                 <p>Currently, the DHT is almost finished, the cryptographic
