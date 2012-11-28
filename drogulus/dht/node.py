@@ -43,7 +43,7 @@ class Node(object):
     performed via this class (or a subclass).
     """
 
-    def __init__(self, id=None):
+    def __init__(self, id):
         """
         Initialises the object representing the node with the given id.
         """
@@ -58,8 +58,6 @@ class Node(object):
         Given a Python exception will return an appropriate Error message
         instance.
         """
-        node = self.id
-        version = get_version()
         if isinstance(exception, Exception) and len(exception.args) == 4:
             # Exception includes all the information we need.
             uuid = exception.args[3]
@@ -71,7 +69,7 @@ class Node(object):
             code = 3
             title = ERRORS[code]
             details = {}
-        return Error(uuid, node, code, title, details, version)
+        return Error(uuid, self.id, code, title, details, get_version())
 
     def join(self, seedNodes=None):
         """
@@ -100,6 +98,8 @@ class Node(object):
             self.handle_store(message, protocol, other_node)
         elif isinstance(message, FindNode):
             self.handle_find_node(message, protocol)
+        elif isinstance(message, FindValue):
+            self.handle_find_value(message, protocol)
 
     def handle_ping(self, message, protocol):
         """
@@ -155,10 +155,33 @@ class Node(object):
 
     def handle_find_value(self, message, protocol):
         """
+        Handles an incoming FindValue message. If the local node contains the
+        value associated with the requested key replies with an appropriate
+        "Value" message. Otherwise, responds with details of up to K other
+        nodes closer to the target key that the local node knows about. In
+        this case a "Nodes" message containing the list of matching nodes is
+        sent to the caller.
+        """
+        match = self._data_store.get(message.key, False)
+        if match:
+            result = Value(message.uuid, self.id, match.key, match.value,
+                           match.timestamp, match.expires, match.public_key,
+                           match.name, match.meta, match.sig, match.version)
+            protocol.sendMessage(result, True)
+        else:
+            self.handle_find_node(message, protocol)
+
+    def handle_error(self, message, protocol, sender):
+        """
         """
         pass
 
-    def handle_error(self, message, protocol, sender):
+    def handle_value(self, message, sender):
+        """
+        """
+        pass
+
+    def handle_nodes(self, message):
         """
         """
         pass

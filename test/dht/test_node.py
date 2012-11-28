@@ -8,7 +8,8 @@ from drogulus.dht.constants import ERRORS
 from drogulus.dht.contact import Contact
 from drogulus.version import get_version
 from drogulus.dht.net import DHTFactory
-from drogulus.dht.messages import Error, Ping, Pong, Store, FindNode, Nodes
+from drogulus.dht.messages import (Error, Ping, Pong, Store, FindNode, Nodes,
+                                   FindValue, Value)
 from drogulus.dht.crypto import construct_key
 from twisted.trial import unittest
 from twisted.test import proto_helpers
@@ -185,6 +186,21 @@ class TestNode(unittest.TestCase):
         # Check it results in a call to the node's message_received method.
         self.node.handle_find_node.assert_called_once_with(msg, self.protocol)
 
+    def test_message_received_find_value(self):
+        """
+        Ensures a FindValue message is handled correctly.
+        """
+        self.node.handle_find_value = MagicMock()
+        # Create a simple Ping message.
+        uuid = str(uuid4())
+        version = get_version()
+        key = '12345abc'
+        msg = FindValue(uuid, self.node_id, key, version)
+        # Receive it...
+        self.node.message_received(msg, self.protocol)
+        # Check it results in a call to the node's message_received method.
+        self.node.handle_find_value.assert_called_once_with(msg, self.protocol)
+
     def test_handle_ping(self):
         """
         Ensures the handle_ping method returns a Pong message.
@@ -321,8 +337,8 @@ class TestNode(unittest.TestCase):
 
     def test_handle_find_nodes_loses_connection(self):
         """
-        Ensures the find_nodes method loses the connection after sending the
-        Nodes message.
+        Ensures the handle_find_nodes method loses the connection after
+        sending the Nodes message.
         """
         # Mock
         self.protocol.transport.loseConnection = MagicMock()
@@ -333,5 +349,58 @@ class TestNode(unittest.TestCase):
         # Incoming FindNode message
         msg = FindNode(self.uuid, self.node.id, self.key, self.version)
         self.node.handle_find_node(msg, self.protocol)
+        # Ensure the loseConnection method was also called.
+        self.protocol.transport.loseConnection.assert_called_once_with()
+
+    def test_handle_find_value_with_match(self):
+        """
+        Ensures the handle_find_value method responds with a matching Value
+        message if the value exists in the datastore.
+        """
+        # Store value.
+        val = Store(self.uuid, self.node.id, self.key, self.value,
+                    self.timestamp, self.expires, PUBLIC_KEY, self.name,
+                    self.meta, self.signature, self.version)
+        self.node._data_store.set_item(val.key, val)
+        # Mock
+        self.protocol.sendMessage = MagicMock()
+        # Incoming FindValue message
+        msg = FindValue(self.uuid, self.node.id, self.key, self.version)
+        self.node.handle_find_value(msg, self.protocol)
+        # Check the response sent back
+        result = Value(msg.uuid, self.node.id, val.key, val.value,
+                       val.timestamp, val.expires, val.public_key, val.name,
+                       val.meta, val.sig, val.version)
+        self.protocol.sendMessage.assert_called_once_with(result, True)
+
+    def test_handle_find_value_no_match(self):
+        """
+        Ensures the handle_find_value method calls the handle_find_nodes
+        method with the correct values if no matching value exists in the
+        local datastore.
+        """
+        # Mock
+        self.node.handle_find_node = MagicMock()
+        # Incoming FindValue message
+        msg = FindValue(self.uuid, self.node.id, self.key, self.version)
+        self.node.handle_find_value(msg, self.protocol)
+        # Check the response sent back
+        self.node.handle_find_node.assert_called_once_with(msg, self.protocol)
+
+    def test_handle_find_value_loses_connection(self):
+        """
+        Ensures the find_value method loses the connection after sending the
+        a matched value.
+        """
+        # Store value.
+        val = Store(self.uuid, self.node.id, self.key, self.value,
+                    self.timestamp, self.expires, PUBLIC_KEY, self.name,
+                    self.meta, self.signature, self.version)
+        self.node._data_store.set_item(val.key, val)
+        # Mock
+        self.protocol.transport.loseConnection = MagicMock()
+        # Incoming FindValue message
+        msg = FindValue(self.uuid, self.node.id, self.key, self.version)
+        self.node.handle_find_value(msg, self.protocol)
         # Ensure the loseConnection method was also called.
         self.protocol.transport.loseConnection.assert_called_once_with()
