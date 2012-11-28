@@ -66,14 +66,15 @@ class TestMessageCryptoFunctions(unittest.TestCase):
         """
         Set some values used in all tests.
         """
-        self.signature = ('\xadqPs\xcf@\x01r\xe4\xc5^?\x0e\x89o\xfc-\xe1?{%' +
-                          '\x9a\x8f\x8f\xb9\xa4\xc2\x96\xf9b\xeb?\xa8\xdbL' +
-                          '\xeb\xa1\xec9\xe6q\xad2\xd9\xfb\xa2t+\xb9\xf8' +
-                          '\xb6r/|\x87\xb9\xd8\x88_D\xff\xd9\x1a\x7fV<P/\rL' +
-                          '\xd1Z\xb2\x10\xc5\xa5\x1e\xf2\xdaqP{\x9e\xa6[{' +
-                          '\xc5\x849\xc6\x92\x0f\xe5\x88\x05\x92\x82' +
-                          '\x15[y\\_b8V\x8c\xab\x82B\xcd\xaey\xcc\x980p\x0e5' +
-                          '\xcf\xf4\xa7?\x94\x8a\\Z\xc4\x8a')
+        self.signature = ('\x882f\xf9A\xcd\xf9\xb1\xcc\xdbl\x1c\xb2\xdb' +
+                          '\xa3UQ\x9a\x08\x96\x12\x83^d\xd8M\xc2`\x81Hz' +
+                          '\x84~\xf4\x9d\x0e\xbd\x81\xc4/\x94\x9dfg\xb2aq' +
+                          '\xa6\xf8!k\x94\x0c\x9b\xb5\x8e \xcd\xfb\x87' +
+                          '\x83`wu\xeb\xf2\x19\xd6X\xdd\xb3\x98\xb5\xbc#B' +
+                          '\xe3\n\x85G\xb4\x9c\x9b\xb0-\xd2B\x83W\xb8\xca' +
+                          '\xecv\xa9\xc4\x9d\xd8\xd0\xf1&\x1a\xfaw\xa0\x99' +
+                          '\x1b\x84\xdad$\xebO\x1a\x9e:w\x14d_\xe3\x03#\x95' +
+                          '\x9d\x10B\xe7\x13')
         self.value = 'value'
         self.timestamp = 1350544046.084875
         self.expires = 1352221970.14242
@@ -276,30 +277,30 @@ class TestMessageCryptoFunctions(unittest.TestCase):
         hashes = []
         for item in (value, timestamp, expires, name, meta):
             packed = msgpack.packb(item)
-            hasher = hashlib.sha1()
+            hasher = hashlib.sha512()
             hasher.update(packed)
-            hashes.append(hasher.hexdigest())
+            hashes.append(hasher.digest())
         compound_hashes = ''.join(hashes)
-        hasher = hashlib.sha1()
+        hasher = hashlib.sha512()
         hasher.update(compound_hashes)
-        expected = hasher.hexdigest()
+        expected = hasher.digest()
         actual = construct_hash(value, timestamp, expires, name, meta)
-        self.assertEqual(expected, actual.hexdigest())
+        self.assertEqual(expected, actual.digest())
 
     def test_construct_key(self):
         """
         Ensures that a DHT key is constructed correctly given correct inputs.
         """
         name = 'foo/bar.baz'
-        pk_hasher = hashlib.sha1()
+        pk_hasher = hashlib.sha512()
         pk_hasher.update(PUBLIC_KEY)
-        pk_hash = pk_hasher.hexdigest()
-        name_hasher = hashlib.sha1()
+        pk_hash = pk_hasher.digest()
+        name_hasher = hashlib.sha512()
         name_hasher.update(name)
-        name_hash = name_hasher.hexdigest()
-        hasher = hashlib.sha1()
+        name_hash = name_hasher.digest()
+        hasher = hashlib.sha512()
         hasher.update(pk_hash + name_hash)
-        expected = hasher.hexdigest()
+        expected = hasher.digest()
         actual = construct_key(PUBLIC_KEY, name)
         self.assertEqual(expected, actual)
 
@@ -307,8 +308,8 @@ class TestMessageCryptoFunctions(unittest.TestCase):
         """
         Ensures that a DHT key is constructed given only the public key.
         """
-        pk_hasher = hashlib.sha1()
+        pk_hasher = hashlib.sha512()
         pk_hasher.update(PUBLIC_KEY)
-        expected = pk_hasher.hexdigest()
+        expected = pk_hasher.digest()
         actual = construct_key(PUBLIC_KEY)
         self.assertEqual(expected, actual)

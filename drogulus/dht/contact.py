@@ -16,6 +16,7 @@ Defines a contact (another node) on the network.
 #
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+from utils import long_to_hex
 
 
 class Contact(object):
@@ -28,9 +29,13 @@ class Contact(object):
         Initialises the contact object with its unique id within the DHT, IP
         address, port, the Drogulus version the contact is running and a
         timestamp when the last connection was made with the contact (defaults
-        to 0).
+        to 0). The id, if passed in as a numeric value, will be converted into
+        a hexadecimal string.
         """
-        self.id = id
+        if isinstance(id, long) or isinstance(id, int):
+            self.id = long_to_hex(id)
+        else:
+            self.id = id
         self.address = address
         self.port = port
         self.version = version

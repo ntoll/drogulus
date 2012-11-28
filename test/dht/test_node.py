@@ -7,13 +7,12 @@ from drogulus.dht.constants import ERRORS
 from drogulus.dht.contact import Contact
 from drogulus.version import get_version
 from drogulus.dht.net import DHTFactory
-from drogulus.dht.messages import Error, Ping, Pong, Store
+from drogulus.dht.messages import Error, Ping, Pong, Store, FindNode, Nodes
 from drogulus.dht.crypto import construct_key
 from twisted.trial import unittest
 from twisted.test import proto_helpers
 from mock import MagicMock
 from uuid import uuid4
-import hashlib
 import time
 import re
 
@@ -37,23 +36,22 @@ class TestNode(unittest.TestCase):
 
         http://twistedmatrix.com/documents/current/core/howto/trial.html
         """
-        hasher = hashlib.sha1()
-        hasher.update(str(time.time()))
-        self.node_id = hasher.hexdigest()
+        self.node_id = '1234567890abc'
         self.node = Node(self.node_id)
         self.factory = DHTFactory(self.node)
         self.protocol = self.factory.buildProtocol(('127.0.0.1', 0))
         self.transport = proto_helpers.StringTransport()
         self.protocol.makeConnection(self.transport)
-        self.signature = ('\xadqPs\xcf@\x01r\xe4\xc5^?\x0e\x89o\xfc-\xe1?{%' +
-                          '\x9a\x8f\x8f\xb9\xa4\xc2\x96\xf9b\xeb?\xa8\xdbL' +
-                          '\xeb\xa1\xec9\xe6q\xad2\xd9\xfb\xa2t+\xb9\xf8' +
-                          '\xb6r/|\x87\xb9\xd8\x88_D\xff\xd9\x1a\x7fV<P/\rL' +
-                          '\xd1Z\xb2\x10\xc5\xa5\x1e\xf2\xdaqP{\x9e\xa6[{' +
-                          '\xc5\x849\xc6\x92\x0f\xe5\x88\x05\x92\x82' +
-                          '\x15[y\\_b8V\x8c\xab\x82B\xcd\xaey\xcc\x980p\x0e5' +
-                          '\xcf\xf4\xa7?\x94\x8a\\Z\xc4\x8a')
         self.value = 'value'
+        self.signature = ('\x882f\xf9A\xcd\xf9\xb1\xcc\xdbl\x1c\xb2\xdb' +
+                          '\xa3UQ\x9a\x08\x96\x12\x83^d\xd8M\xc2`\x81Hz' +
+                          '\x84~\xf4\x9d\x0e\xbd\x81\xc4/\x94\x9dfg\xb2aq' +
+                          '\xa6\xf8!k\x94\x0c\x9b\xb5\x8e \xcd\xfb\x87' +
+                          '\x83`wu\xeb\xf2\x19\xd6X\xdd\xb3\x98\xb5\xbc#B' +
+                          '\xe3\n\x85G\xb4\x9c\x9b\xb0-\xd2B\x83W\xb8\xca' +
+                          '\xecv\xa9\xc4\x9d\xd8\xd0\xf1&\x1a\xfaw\xa0\x99' +
+                          '\x1b\x84\xdad$\xebO\x1a\x9e:w\x14d_\xe3\x03#\x95' +
+                          '\x9d\x10B\xe7\x13')
         self.uuid = str(uuid4())
         self.timestamp = 1350544046.084875
         self.expires = 1352221970.14242
@@ -171,6 +169,21 @@ class TestNode(unittest.TestCase):
         self.node.handle_store.assert_called_once_with(msg, self.protocol,
                                                        contact)
 
+    def test_message_received_find_node(self):
+        """
+        Ensures a FindNode message is handled correctly.
+        """
+        self.node.handle_find_node = MagicMock()
+        # Create a simple Ping message.
+        uuid = str(uuid4())
+        version = get_version()
+        key = '12345abc'
+        msg = FindNode(uuid, self.node_id, key, version)
+        # Receive it...
+        self.node.message_received(msg, self.protocol)
+        # Check it results in a call to the node's message_received method.
+        self.node.handle_find_node.assert_called_once_with(msg, self.protocol)
+
     def test_handle_ping(self):
         """
         Ensures the handle_ping method returns a Pong message.
@@ -283,5 +296,41 @@ class TestNode(unittest.TestCase):
                              self.version, time.time())
         # Handle faulty message.
         self.node.handle_store(msg, self.protocol, other_node)
+        # Ensure the loseConnection method was also called.
+        self.protocol.transport.loseConnection.assert_called_once_with()
+
+    def test_handle_find_nodes(self):
+        """
+        Ensure a valid FindNodes message is handled correctly.
+        """
+        # Mock
+        self.protocol.sendMessage = MagicMock()
+        # Populate the routing table with contacts.
+        for i in range(512):
+            contact = Contact(2 ** i, "192.168.0.%d" % i, self.version, 0)
+            self.node._routing_table.add_contact(contact)
+        # Incoming FindNode message
+        msg = FindNode(self.uuid, self.node.id, self.key, self.version)
+        self.node.handle_find_node(msg, self.protocol)
+        # Check the response sent back
+        other_nodes = [(n.id, n.address, n.port, n.version) for n in
+                       self.node._routing_table.find_close_nodes(self.key)]
+        result = Nodes(msg.uuid, self.node.id, other_nodes, self.version)
+        self.protocol.sendMessage.assert_called_once_with(result, True)
+
+    def test_handle_find_nodes_loses_connection(self):
+        """
+        Ensures the find_nodes method loses the connection after sending the
+        Nodes message.
+        """
+        # Mock
+        self.protocol.transport.loseConnection = MagicMock()
+        # Populate the routing table with contacts.
+        for i in range(512):
+            contact = Contact(2 ** i, "192.168.0.%d" % i, self.version, 0)
+            self.node._routing_table.add_contact(contact)
+        # Incoming FindNode message
+        msg = FindNode(self.uuid, self.node.id, self.key, self.version)
+        self.node.handle_find_node(msg, self.protocol)
         # Ensure the loseConnection method was also called.
         self.protocol.transport.loseConnection.assert_called_once_with()

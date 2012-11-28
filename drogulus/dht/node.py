@@ -97,6 +97,8 @@ class Node(object):
             self.handle_ping(message, protocol)
         elif isinstance(message, Store):
             self.handle_store(message, protocol, other_node)
+        elif isinstance(message, FindNode):
+            self.handle_find_node(message, protocol)
 
     def handle_ping(self, message, protocol):
         """
@@ -138,10 +140,24 @@ class Node(object):
 
     def handle_find_node(self, message, protocol):
         """
+        Handles an incoming FindNode message. Finds the details of up to K
+        other nodes closer to the target key that *this* node knows about.
+        Responds with a "Nodes" message containing the list of matching
+        nodes.
+        """
+        target_key = message.key
+        # List containing tuples of information about the matching contacts.
+        other_nodes = [(n.id, n.address, n.port, n.version) for n in
+                       self._routing_table.find_close_nodes(target_key)]
+        result = Nodes(message.uuid, self.id, other_nodes, self.version)
+        protocol.sendMessage(result, True)
+
+    def handle_find_value(self, message, protocol):
+        """
         """
         pass
 
-    def handle_find_value(self, message, protocol):
+    def handle_error(self, message, protocol, sender):
         """
         """
         pass

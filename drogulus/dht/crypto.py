@@ -19,7 +19,7 @@ signing / verifying.
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from Crypto.PublicKey import RSA
-from Crypto.Hash import SHA
+from Crypto.Hash import SHA512
 from Crypto.Signature import PKCS1_v1_5
 import msgpack
 
@@ -31,11 +31,11 @@ def generate_signature(value, timestamp, expires, name, meta, private_key):
     hash to the message to be used to sign / validate the message.
 
     The hash is created with the private key of the person storing the
-    key/value pair. It is, in turn, based upon the SHA1 hash of the SHA1 hashes
-    of the 'value', 'timestamp', 'expires', 'name' and 'meta' fields.
+    key/value pair. It is, in turn, based upon the SHA512 hash of the SHA512
+    hashes of the 'value', 'timestamp', 'expires', 'name' and 'meta' fields.
 
     This mechanism ensures that the public_key used in the compound key is
-    valid (i.e. it creates the correct SHA1 hash) and also ensures that the
+    valid (i.e. it creates the correct SHA512 hash) and also ensures that the
     'value', 'timestamp', 'expires', 'name' and 'meta' fields have not been
     tampered with.
     """
@@ -71,13 +71,14 @@ def validate_message(message):
     * An error number (in the case of a fail) or None (if success).
 
     The message contains a public_key field which is used to decrypt the
-    message's 'hash' field into a list of SHA1 hashes of the message's 'value',
-    'timestamp', 'name' and 'meta' fields. This validates the provenance of
-    the data and ensures that these fields have not been tampered with.
+    message's 'hash' field into a list of SHA512 hashes of the message's
+    'value', 'timestamp', 'name' and 'meta' fields. This validates the
+    provenance of the data and ensures that these fields have not been
+    tampered with.
 
     Furthermore, once the validity of the public_key field is proven through
-    the proceeding check, the 'key' field is verified to be a SHA1 hash of
-    the SHA1 hashes of the 'public_key' and 'name' fields. This ensures the
+    the proceeding check, the 'key' field is verified to be a SHA512 hash of
+    the SHA512 hashes of the 'public_key' and 'name' fields. This ensures the
     correct key is used to locate the data in the DHT.
     """
     if not validate_signature(message.value, message.timestamp,
@@ -97,8 +98,8 @@ def validate_message(message):
 
 def construct_hash(value, timestamp, expires, name, meta):
     """
-    The hash is a SHA1 hash of the SHA1 hashes of the msgpack encoded 'value',
-    'timetamp, 'expires', 'name' and 'meta' fields (in that order).
+    The hash is a SHA512 hash of the SHA512 hashes of the msgpack encoded
+    'value', 'timetamp, 'expires', 'name' and 'meta' fields (in that order).
 
     It ensures that the 'value', 'timestamp', 'expires', 'name' and 'meta'
     fields have not been tampered with.
@@ -106,30 +107,30 @@ def construct_hash(value, timestamp, expires, name, meta):
     hashes = []
     for item in (value, timestamp, expires, name, meta):
         packed = msgpack.packb(item)
-        hashed = SHA.new(packed).hexdigest()
+        hashed = SHA512.new(packed).digest()
         hashes.append(hashed)
     compound_hashes = ''.join(hashes)
-    return SHA.new(compound_hashes)
+    return SHA512.new(compound_hashes)
 
 
 def construct_key(public_key, name=''):
     """
     Given a string representation of a user's public key and the meaningful
-    name of a key in the DHT will return a hex digest of the SHA1 hash to use
+    name of a key in the DHT will return a digest of the SHA512 hash to use
     as the actual key to use within the DHT.
 
     This ensures that the provenance (public key) and meaning of the DHT key
     determine its value.
     """
     # Simple normalisation: no spaces or newlines around the public key
-    key_hash = SHA.new(public_key.strip())
+    key_hash = SHA512.new(public_key.strip())
     if name:
         # If the key has a meaningful name, create a compound key based upon
-        # the SHA1 values of both the public_key and name.
-        name_hash = SHA.new(name)
-        compound_key = key_hash.hexdigest() + name_hash.hexdigest()
-        compound_hash = SHA.new(compound_key)
-        return compound_hash.hexdigest()
+        # the SHA512 values of both the public_key and name.
+        name_hash = SHA512.new(name)
+        compound_key = key_hash.digest() + name_hash.digest()
+        compound_hash = SHA512.new(compound_key)
+        return compound_hash.digest()
     else:
         # Not a compound key, so just return the hash of the public_key
-        return key_hash.hexdigest()
+        return key_hash.digest()

@@ -29,6 +29,36 @@ class TestContact(unittest.TestCase):
         self.assertEqual(last_seen, contact.last_seen)
         self.assertEqual(0, contact.failed_RPCs)
 
+    def testInitWithLongID(self):
+        """
+        If the ID is passed in as a long value ensure it's translated to the
+        correct string representation of the hex version.
+        """
+        id = 12345L
+        address = '192.168.0.1'
+        port = 9999
+        version = get_version()
+        last_seen = 123
+        contact = Contact(id, address, port, version, last_seen)
+        expected = '09'
+        self.assertEqual(expected, contact.id)
+        self.assertEqual(12345L, long(contact.id.encode('hex'), 16))
+
+    def testInitWithIntID(self):
+        """
+        If the ID is passed in as an int value ensure it's translated to the
+        correct string representation of the hex version.
+        """
+        id = 12345
+        address = '192.168.0.1'
+        port = 9999
+        version = get_version()
+        last_seen = 123
+        contact = Contact(id, address, port, version, last_seen)
+        expected = '09'
+        self.assertEqual(expected, contact.id)
+        self.assertEqual(12345L, long(contact.id.encode('hex'), 16))
+
     def testEq(self):
         """
         Makes sure equality works between a string representation of an ID and

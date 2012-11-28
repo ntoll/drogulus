@@ -28,7 +28,7 @@ class TestDHTProtocol(unittest.TestCase):
         """
         hasher = hashlib.sha1()
         hasher.update(str(time.time()))
-        self.node_id = hasher.hexdigest()
+        self.node_id = hasher.digest()
         self.node = Node(self.node_id)
         self.factory = DHTFactory(self.node)
         self.protocol = self.factory.buildProtocol(('127.0.0.1', 0))

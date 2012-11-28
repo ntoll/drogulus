@@ -7,7 +7,6 @@ from drogulus.dht.contact import Contact
 from drogulus.dht.kbucket import KBucket
 from drogulus.dht import constants
 from drogulus.version import get_version
-from uuid import uuid4
 import unittest
 import time
 
@@ -54,7 +53,7 @@ class TestRoutingTable(unittest.TestCase):
         parent_node_id = 'abc'
         r = RoutingTable(parent_node_id)
         r._split_bucket(0)
-        split_point = (2 ** 160) / 2
+        split_point = (2 ** 512) / 2
         lower_key = split_point - 1
         higher_key = split_point + 1
         expected_lower_index = 0
@@ -64,24 +63,41 @@ class TestRoutingTable(unittest.TestCase):
         self.assertEqual(expected_lower_index, actual_lower_index)
         self.assertEqual(expected_higher_index, actual_higher_index)
 
+    def test_kbucket_index_as_string_and_int(self):
+        """
+        Ensures that the specified key can be expressed as both a string
+        and integer value.
+        """
+        parent_node_id = 'abc'
+        r = RoutingTable(parent_node_id)
+        # key as a string
+        test_key = 'abc123'
+        expected_index = 0
+        actual_index = r._kbucket_index(test_key)
+        self.assertEqual(expected_index, actual_index)
+        # key as an integer
+        test_key = 1234567
+        actual_index = r._kbucket_index(test_key)
+        self.assertEqual(expected_index, actual_index)
+
     def test_kbucket_index_out_of_range(self):
         """
         If the requested id is not within the range of the keyspace then a
-        KeyError should be raised.
+        ValueError should be raised.
         """
         parent_node_id = 'abc'
         r = RoutingTable(parent_node_id)
         # Populate the routing table with contacts.
-        for i in range(160):
+        for i in range(512):
             contact = Contact(2 ** i, "192.168.0.%d" % i, self.version, 0)
             r.add_contact(contact)
-        with self.assertRaises(KeyError):
+        with self.assertRaises(ValueError):
             # Incoming id that's too small.
             r.find_close_nodes(-1)
-        with self.assertRaises(KeyError):
+        with self.assertRaises(ValueError):
             # Incoming id that's too big
-            r.find_close_nodes(str(uuid4()))
-
+            big_id = 2 ** 512
+            r.find_close_nodes(big_id)
 
     def test_random_key_in_bucket_range(self):
         """
@@ -204,7 +220,7 @@ class TestRoutingTable(unittest.TestCase):
             contact = Contact(i, '192.168.0.%d' % i, self.version, 0)
             r.add_contact(contact)
         # This id will be just over the max range for the bucket in position 0
-        large_id = 730750818665451459101842416358141509827966271489L
+        large_id = ((2 ** 512) / 2) + 1
         contact = Contact(large_id, '192.168.0.33', self.version, 0)
         r.add_contact(contact)
         self.assertEqual(len(r._buckets), 2)
@@ -239,17 +255,17 @@ class TestRoutingTable(unittest.TestCase):
         r = RoutingTable(parent_node_id)
         # Fill up the bucket and replacement cache
         for i in range(40):
-            contact = Contact(i, "192.168.0.%d" % i, self.version, 0)
+            contact = Contact(str(i), "192.168.0.%d" % i, self.version, 0)
             r.add_contact(contact)
         # Sanity check of the replacement cache.
         self.assertEqual(len(r._replacement_cache[0]), 20)
-        self.assertEqual(20, r._replacement_cache[0][0].id)
+        self.assertEqual('20', r._replacement_cache[0][0].id)
         # Create a new contact that will be added to the replacement cache.
-        new_contact = Contact(40, "192.168.0.20", self.version, 0)
+        new_contact = Contact('40', "192.168.0.20", self.version, 0)
         r.add_contact(new_contact)
         self.assertEqual(len(r._replacement_cache[0]), 20)
         self.assertEqual(new_contact, r._replacement_cache[0][19])
-        self.assertEqual(21, r._replacement_cache[0][0].id)
+        self.assertEqual('21', r._replacement_cache[0][0].id)
 
     def test_add_contact_with_existing_contact_in_replacement_cache(self):
         """
@@ -261,17 +277,34 @@ class TestRoutingTable(unittest.TestCase):
         r = RoutingTable(parent_node_id)
         # Fill up the bucket and replacement cache
         for i in range(40):
-            contact = Contact(i, '192.168.0.%d' % i, self.version, 0)
+            contact = Contact(str(i), '192.168.0.%d' % i, self.version, 0)
             r.add_contact(contact)
         # Sanity check of the replacement cache.
         self.assertEqual(len(r._replacement_cache[0]), 20)
-        self.assertEqual(20, r._replacement_cache[0][0].id)
+        self.assertEqual('20', r._replacement_cache[0][0].id)
         # Create a new contact that will be added to the replacement cache.
-        new_contact = Contact(20, '192.168.0.20', self.version, 0)
+        new_contact = Contact('20', '192.168.0.20', self.version, 0)
         r.add_contact(new_contact)
         self.assertEqual(len(r._replacement_cache[0]), 20)
         self.assertEqual(new_contact, r._replacement_cache[0][19])
-        self.assertEqual(21, r._replacement_cache[0][0].id)
+        self.assertEqual('21', r._replacement_cache[0][0].id)
+
+    def test_add_contact_id_out_of_range(self):
+        """
+        Ensures a Contact with an out-of-range id cannot be added to the
+        routing table.
+        """
+        parent_node_id = 'abc'
+        r = RoutingTable(parent_node_id)
+        with self.assertRaises(TypeError):
+            # id too small
+            contact = Contact(-1, '192.168.0.1', self.version, 0)
+            r.add_contact(contact)
+        with self.assertRaises(ValueError):
+            # id too big
+            big_id = (2 ** 512)
+            contact = Contact(big_id, '192.168.0.1', self.version, 0)
+            r.add_contact(contact)
 
     def test_distance(self):
         """
@@ -319,10 +352,10 @@ class TestRoutingTable(unittest.TestCase):
         parent_node_id = 'abc'
         r = RoutingTable(parent_node_id)
         # Fill up the bucket and replacement cache
-        for i in range(160):
+        for i in range(512):
             contact = Contact(2 ** i, "192.168.0.%d" % i, self.version, 0)
             r.add_contact(contact)
-        result = r.find_close_nodes(2 ** 80)
+        result = r.find_close_nodes(2 ** 256)
         self.assertEqual(20, len(result))
 
     def test_find_close_nodes_exclude_contact(self):

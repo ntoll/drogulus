@@ -50,6 +50,12 @@
     :members:
     :special-members:
 
+``drogulus.dht.utils``
+-----------------------------
+.. automodule:: drogulus.dht.utils
+    :members:
+    :special-members:
+
 ``drogulus.dht.validators``
 ---------------------------
 .. automodule:: drogulus.dht.validators

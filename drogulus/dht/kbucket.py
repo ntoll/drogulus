@@ -40,12 +40,15 @@ class KBucket(object):
     grow to size k, where k is a system-wide replication parameter. k is
     chosen such that any given k nodes are very unlikely to fail within an
     hour of each other (for example k = 20)"
+
+    Nota Bene: This implementation of Kademlia uses a 512 bit key space
+    based upon SHA512 rather than the original 160 bit SHA1 implementation.
     """
 
     def __init__(self, range_min, range_max):
         """
         Initialises the object with the lower / upper bound limits of the
-        k-bucket's 160-bit ID space.
+        k-bucket's 512-bit ID space.
         """
         self.range_min = range_min
         self.range_max = range_max

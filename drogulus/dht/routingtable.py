@@ -21,6 +21,7 @@ import time
 import random
 import constants
 import kbucket
+from utils import long_to_hex, hex_to_long
 
 
 class RoutingTable(object):
@@ -31,17 +32,17 @@ class RoutingTable(object):
     k-bucket contains nodes with some common prefic in their ID. The prefix is
     the k-bucket's position in the the binary tree. Thus, each k-bucket covers
     some range of the ID space, and together the k-buckets cover the entire
-    160-bit ID space with no overlap."
+    512-bit ID space with no overlap."
     """
 
     def __init__(self, parent_node_id):
         """
-        The parentNodeID is the 160-bit ID of the node to which this routing
+        The parentNodeID is the 512-bit ID of the node to which this routing
         table belongs.
         """
         # Create the initial (single) k-bucket covering the range of the
-        # entire 160-bit ID space
-        self._buckets = [kbucket.KBucket(range_min=0, range_max=2 ** 160)]
+        # entire 512-bit ID space
+        self._buckets = [kbucket.KBucket(range_min=0, range_max=2 ** 512)]
         self._parent_node_id = parent_node_id
         # Cache containing nodes eligible to replace stale k-bucket entries
         self._replacement_cache = {}
@@ -52,14 +53,18 @@ class RoutingTable(object):
         string.
         """
         if isinstance(key, str):
-            key = long(key.encode('hex'), 16)
+            key = hex_to_long(key)
+        # Bound check for key too small.
+        if key < 0:
+            raise ValueError('Key out of range')
         i = 0
         for bucket in self._buckets:
             if bucket.key_in_range(key):
                 return i
             else:
                 i += 1
-        raise KeyError('Node id out of range.')
+        # Key was too big given the key space.
+        raise ValueError('Key out of range.')
 
     def _random_key_in_bucket_range(self, bucket_index):
         """
@@ -68,19 +73,7 @@ class RoutingTable(object):
         # Get a random integer within the required range.
         keyValue = random.randrange(self._buckets[bucket_index].range_min,
                                     self._buckets[bucket_index].range_max)
-        # Turn it into hex string (remembering to drop the '0x' at the start).
-        randomKey = hex(keyValue)[2:]
-        # If the integer is 'long' knock off the 'L'.
-        if randomKey[-1] == 'L':
-            randomKey = randomKey[:-1]
-        # If required, correct length by appending 'padding' zeros.
-        if len(randomKey) % 2 != 0:
-            randomKey = '0' + randomKey
-        # Ensure the length of the hex representation is correct by, again,
-        # appending 'padding' zeros.
-        randomKey = randomKey.decode('hex')
-        randomKey = (20 - len(randomKey)) * '\x00' + randomKey
-        return randomKey
+        return long_to_hex(keyValue)
 
     def _split_bucket(self, old_bucket_index):
         """
@@ -150,8 +143,8 @@ class RoutingTable(object):
         Calculate the XOR result between two string variables returned as a
         long type value.
         """
-        val_key_one = long(key_one.encode('hex'), 16)
-        val_key_two = long(key_two.encode('hex'), 16)
+        val_key_one = hex_to_long(key_one)
+        val_key_two = hex_to_long(key_two)
         return val_key_one ^ val_key_two
 
     def find_close_nodes(self, key, rpc_node_id=None):

@@ -12,4 +12,5 @@ Contains a simple implementation of the Kademlia distributed hash table (inspire
 * net.py - contains the low level networking code needed for communication between nodes on the network.
 * node.py - defines the local node within the DHT network.
 * routingtable.py - defines the routing table abstraction that contains information about other nodes and their associated states on the DHT network.
+* utils.py - generic utillity functions used in various different parts of the implementation of the distributed hash table.
 * validators.py - functions used to validate messages received from other nodes on the network.
