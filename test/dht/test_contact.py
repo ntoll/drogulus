@@ -13,7 +13,7 @@ class TestContact(unittest.TestCase):
     Ensures the Contact class works as expected.
     """
 
-    def testInit(self):
+    def test_init(self):
         """
         Ensures an object is created as expected.
         """
@@ -30,7 +30,7 @@ class TestContact(unittest.TestCase):
         self.assertEqual(last_seen, contact.last_seen)
         self.assertEqual(0, contact.failed_RPCs)
 
-    def testInitWithLongID(self):
+    def test_init_with_long_id(self):
         """
         If the ID is passed in as a long value ensure it's translated to the
         correct string representation of the hex version.
@@ -45,7 +45,7 @@ class TestContact(unittest.TestCase):
         self.assertEqual(expected, contact.id)
         self.assertEqual(12345L, long(contact.id.encode('hex'), 16))
 
-    def testInitWithIntID(self):
+    def test_init_with_int_id(self):
         """
         If the ID is passed in as an int value ensure it's translated to the
         correct string representation of the hex version.
@@ -60,7 +60,7 @@ class TestContact(unittest.TestCase):
         self.assertEqual(expected, contact.id)
         self.assertEqual(12345L, long(contact.id.encode('hex'), 16))
 
-    def testEq(self):
+    def test_eq(self):
         """
         Makes sure equality works between a string representation of an ID and
         a contact object.
@@ -73,7 +73,7 @@ class TestContact(unittest.TestCase):
         contact = Contact(id, address, port, version, last_seen)
         self.assertTrue(id == contact)
 
-    def testNe(self):
+    def test_ne(self):
         """
         Makes sure non-equality works between a string representation of an ID
         and a contact object.
@@ -86,7 +86,7 @@ class TestContact(unittest.TestCase):
         contact = Contact(id, address, port, version, last_seen)
         self.assertTrue('54321' != contact)
 
-    def testStr(self):
+    def test_str(self):
         """
         Ensures the string representation of a contact is something useful.
         """
