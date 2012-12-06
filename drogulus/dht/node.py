@@ -100,6 +100,8 @@ class Node(object):
             self.handle_find_node(message, protocol)
         elif isinstance(message, FindValue):
             self.handle_find_value(message, protocol)
+        elif isinstance(message, Error):
+            self.handle_error(message, protocol, other_node)
 
     def handle_ping(self, message, protocol):
         """
@@ -173,8 +175,12 @@ class Node(object):
 
     def handle_error(self, message, protocol, sender):
         """
+        Handles an incoming Error message. Currently, this simply logs the
+        error and closes the connection. In future this *may* remove the
+        sender from the routing table (depending on the error).
         """
-        pass
+        log.msg('***** ERROR ***** from %s' % sender)
+        log.msg(message)
 
     def handle_value(self, message, sender):
         """

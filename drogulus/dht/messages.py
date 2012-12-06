@@ -44,7 +44,7 @@ class Error(namedtuple('Error',
     * node - the ID of the node sending the message.
     * code - the code that identifies the specific error.
     * title - a description of the type of error generated.
-    * details - any details that may be useful for diagnosing the error.
+    * details - diagnostic details expressed as a dict of string key/values.
     * version - the protocol version the message conforms to.
     """
     pass

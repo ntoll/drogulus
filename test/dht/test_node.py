@@ -13,6 +13,7 @@ from drogulus.dht.messages import (Error, Ping, Pong, Store, FindNode, Nodes,
 from drogulus.dht.crypto import construct_key
 from twisted.trial import unittest
 from twisted.test import proto_helpers
+from twisted.python import log
 from mock import MagicMock
 from uuid import uuid4
 import time
@@ -129,7 +130,7 @@ class TestNode(unittest.TestCase):
         msg = Ping(uuid, self.node_id, version)
         # Receive it...
         self.node.message_received(msg, self.protocol)
-        # Check it results in a call to the node's message_received method.
+        # Check it results in a call to the routing table's add_contact method.
         peer = self.protocol.transport.getPeer()
         self.assertEqual(1, self.node._routing_table.add_contact.call_count)
         arg1 = self.node._routing_table.add_contact.call_args[0][0]
@@ -151,7 +152,7 @@ class TestNode(unittest.TestCase):
         msg = Ping(uuid, self.node_id, version)
         # Receive it...
         self.node.message_received(msg, self.protocol)
-        # Check it results in a call to the node's message_received method.
+        # Check it results in a call to the node's handle_ping method.
         self.node.handle_ping.assert_called_once_with(msg, self.protocol)
 
     def test_message_received_store(self):
@@ -167,7 +168,7 @@ class TestNode(unittest.TestCase):
         self.node.message_received(msg, self.protocol)
         # Dummy contact.
         contact = Contact(self.node.id, '192.168.1.1', 54321, self.version)
-        # Check it results in a call to the node's message_received method.
+        # Check it results in a call to the node's handle_store method.
         self.node.handle_store.assert_called_once_with(msg, self.protocol,
                                                        contact)
 
@@ -183,7 +184,7 @@ class TestNode(unittest.TestCase):
         msg = FindNode(uuid, self.node_id, key, version)
         # Receive it...
         self.node.message_received(msg, self.protocol)
-        # Check it results in a call to the node's message_received method.
+        # Check it results in a call to the node's handle_find_node method.
         self.node.handle_find_node.assert_called_once_with(msg, self.protocol)
 
     def test_message_received_find_value(self):
@@ -198,8 +199,29 @@ class TestNode(unittest.TestCase):
         msg = FindValue(uuid, self.node_id, key, version)
         # Receive it...
         self.node.message_received(msg, self.protocol)
-        # Check it results in a call to the node's message_received method.
+        # Check it results in a call to the node's handle_find_value method.
         self.node.handle_find_value.assert_called_once_with(msg, self.protocol)
+
+    def test_message_received_error(self):
+        """
+        Ensures an Error message is handled correctly.
+        """
+        self.node.handle_error = MagicMock()
+        # Create an Error message.
+        uuid = str(uuid4())
+        version = get_version()
+        key = '12345abc'
+        code = 1
+        title = ERRORS[code]
+        details = {'foo': 'bar'}
+        msg = Error(uuid, self.node_id, code, title, details, version)
+        # Receive it...
+        self.node.message_received(msg, self.protocol)
+        # Dummy contact.
+        contact = Contact(self.node.id, '192.168.1.1', 54321, self.version)
+        # Check it results in a call to the node's handle_error method.
+        self.node.handle_error.assert_called_once_with(msg, self.protocol,
+                                                       contact)
 
     def test_handle_ping(self):
         """
@@ -389,8 +411,8 @@ class TestNode(unittest.TestCase):
 
     def test_handle_find_value_loses_connection(self):
         """
-        Ensures the find_value method loses the connection after sending the
-        a matched value.
+        Ensures the handle_find_value method loses the connection after
+        sending the a matched value.
         """
         # Store value.
         val = Store(self.uuid, self.node.id, self.key, self.value,
@@ -404,3 +426,25 @@ class TestNode(unittest.TestCase):
         self.node.handle_find_value(msg, self.protocol)
         # Ensure the loseConnection method was also called.
         self.protocol.transport.loseConnection.assert_called_once_with()
+
+    def test_handle_error_writes_to_log(self):
+        """
+        Ensures the handle_error method writes details about the error to the
+        log.
+        """
+        log.msg = MagicMock()
+        # Create an Error message.
+        uuid = str(uuid4())
+        version = get_version()
+        key = '12345abc'
+        code = 1
+        title = ERRORS[code]
+        details = {'foo': 'bar'}
+        msg = Error(uuid, self.node_id, code, title, details, version)
+        # Dummy contact.
+        contact = Contact(self.node.id, '192.168.1.1', 54321, self.version)
+        # Receive it...
+        self.node.handle_error(msg, self.protocol, contact)
+        # Check it results in two calls to the log.msg method (one to signify
+        # an error has happened, the other the actual error message).
+        self.assertEqual(2, log.msg.call_count)
