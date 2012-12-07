@@ -27,7 +27,7 @@ class TestDHTProtocol(unittest.TestCase):
 
         http://twistedmatrix.com/documents/current/core/howto/trial.html
         """
-        hasher = hashlib.sha1()
+        hasher = hashlib.sha512()
         hasher.update(str(time.time()))
         self.node_id = hasher.digest()
         self.node = Node(self.node_id)
