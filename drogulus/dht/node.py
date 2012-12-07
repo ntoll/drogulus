@@ -19,7 +19,6 @@ Contains code that defines the local node in the DHT network.
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from twisted.python import log
-from uuid import uuid4
 import time
 
 import constants
@@ -27,9 +26,7 @@ from messages import (Error, Ping, Pong, Store, FindNode, Nodes, FindValue,
                       Value)
 from routingtable import RoutingTable
 from datastore import DictDataStore
-from net import TimeoutError
 from contact import Contact
-from constants import ERRORS
 from crypto import validate_message
 from drogulus.version import get_version
 
@@ -52,24 +49,6 @@ class Node(object):
         self._data_store = DictDataStore()
         self.version = get_version()
         log.msg('Initialised node with id: %r' % self.id)
-
-    def except_to_error(self, exception):
-        """
-        Given a Python exception will return an appropriate Error message
-        instance.
-        """
-        if isinstance(exception, Exception) and len(exception.args) == 4:
-            # Exception includes all the information we need.
-            uuid = exception.args[3]
-            code = exception.args[0]
-            title = exception.args[1]
-            details = exception.args[2]
-        else:
-            uuid = str(uuid4())
-            code = 3
-            title = ERRORS[code]
-            details = {}
-        return Error(uuid, self.id, code, title, details, get_version())
 
     def join(self, seedNodes=None):
         """
@@ -184,6 +163,11 @@ class Node(object):
 
     def handle_value(self, message, sender):
         """
+        Handles an incoming Value message containing a value retrieved from
+        another node on the DHT. Ensures the message is valid and calls the
+        referenced deferred to signal the arrival of the value.
+
+        TODO: How to handle invalid messages and errback the deferred.
         """
         pass
 

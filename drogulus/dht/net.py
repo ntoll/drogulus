@@ -22,7 +22,10 @@ Contains a definition of the low-level networking protocol used by the DHT
 from twisted.internet import protocol
 from twisted.python import log
 from twisted.protocols.basic import NetstringReceiver
-from messages import to_msgpack, from_msgpack
+from messages import Error, to_msgpack, from_msgpack
+from constants import ERRORS
+from drogulus.version import get_version
+from uuid import uuid4
 
 
 class TimeoutError(Exception):
@@ -47,6 +50,25 @@ class DHTProtocol(NetstringReceiver):
     details are hidden).
     """
 
+    def except_to_error(self, exception):
+        """
+        Given a Python exception will return an appropriate Error message
+        instance.
+        """
+        if isinstance(exception, Exception) and len(exception.args) == 4:
+            # Exception includes all the information we need.
+            uuid = exception.args[3]
+            code = exception.args[0]
+            title = exception.args[1]
+            details = exception.args[2]
+        else:
+            uuid = str(uuid4())
+            code = 3
+            title = ERRORS[code]
+            details = {}
+        return Error(uuid, self.factory.node.id, code, title, details,
+                     get_version())
+
     def stringReceived(self, raw):
         """
         Handles incoming requests by unpacking them and instantiating the
@@ -60,7 +82,7 @@ class DHTProtocol(NetstringReceiver):
         except Exception, ex:
             # Catch all for anything unexpected
             log.msg(ex)
-            self.sendMessage(self.factory.node.except_to_error(ex), True)
+            self.sendMessage(self.except_to_error(ex), True)
 
     def sendMessage(self, msg, loseConnection=False):
         """

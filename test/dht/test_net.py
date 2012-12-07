@@ -36,23 +36,6 @@ class TestDHTProtocol(unittest.TestCase):
         self.transport = proto_helpers.StringTransport()
         self.protocol.makeConnection(self.transport)
 
-    def _testIn(self, msg, expected):
-        """
-        Utility function that simulates the arrival of message and checks that
-        the response is expected.
-        """
-        self.protocol.dataReceived(msg)
-        self.assertEqual(self.transport.value(), expected)
-
-    def _testOut(self):
-        """
-        Utility function that simulates the sending of a message and checks
-        that the outgoing stream is as expected.
-
-        TODO: Finish this!
-        """
-        pass
-
     def _to_netstring(self, raw):
         """
         Converts a raw msgpacked value into a netstring.
@@ -67,6 +50,52 @@ class TestDHTProtocol(unittest.TestCase):
         length, content = raw.split(':', 1)
         # remove trailing comma
         return content[:-1]
+
+    def test_except_to_error_with_exception_args(self):
+        """
+        Ensure an exception created by drogulus (that includes meta-data in
+        the form of exception args) is correctly transformed into an Error
+        message instance.
+        """
+        uuid = str(uuid4())
+        details = {'context': 'A message'}
+        ex = ValueError(1, ERRORS[1], details, uuid)
+        result = self.protocol.except_to_error(ex)
+        self.assertEqual(uuid, result.uuid)
+        self.assertEqual(self.node.id, result.node)
+        self.assertEqual(1, result.code)
+        self.assertEqual(ERRORS[1], result.title)
+        self.assertEqual(details, result.details)
+
+    def test_except_to_error_with_regular_exception(self):
+        """
+        Ensure that a generic Python exception is correctly transformed in to
+        an Error message instance.
+        """
+        ex = ValueError('A generic exception')
+        result = self.protocol.except_to_error(ex)
+        self.assertEqual(self.node.id, result.node)
+        self.assertEqual(3, result.code)
+        self.assertEqual(ERRORS[3], result.title)
+        self.assertEqual({}, result.details)
+        uuidMatch = ('[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-' +
+                     '[a-f0-9]{12}')
+        self.assertTrue(re.match(uuidMatch, result.uuid))
+
+    def test_except_to_error_with_junk(self):
+        """
+        Given that this is a function that cannot fail it must be able to cope
+        with input that is not an Exception. A sanity check for some defensive
+        programming.
+        """
+        result = self.protocol.except_to_error('foo')
+        self.assertEqual(self.node.id, result.node)
+        self.assertEqual(3, result.code)
+        self.assertEqual(ERRORS[3], result.title)
+        self.assertEqual({}, result.details)
+        uuidMatch = ('[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-' +
+                     '[a-f0-9]{12}')
+        self.assertTrue(re.match(uuidMatch, result.uuid))
 
     def test_string_received_except_to_error(self):
         """

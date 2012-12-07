@@ -17,7 +17,6 @@ from twisted.python import log
 from mock import MagicMock
 from uuid import uuid4
 import time
-import re
 
 
 PUBLIC_KEY = """-----BEGIN PUBLIC KEY-----
@@ -72,52 +71,6 @@ class TestNode(unittest.TestCase):
         self.assertTrue(node._routing_table)
         self.assertEqual({}, node._data_store)
         self.assertEqual(get_version(), node.version)
-
-    def test_except_to_error_with_exception_args(self):
-        """
-        Ensure an exception created by drogulus (that includes meta-data in
-        the form of exception args) is correctly transformed into an Error
-        message instance.
-        """
-        uuid = str(uuid4())
-        details = {'context': 'A message'}
-        ex = ValueError(1, ERRORS[1], details, uuid)
-        result = self.node.except_to_error(ex)
-        self.assertEqual(uuid, result.uuid)
-        self.assertEqual(self.node.id, result.node)
-        self.assertEqual(1, result.code)
-        self.assertEqual(ERRORS[1], result.title)
-        self.assertEqual(details, result.details)
-
-    def test_except_to_error_with_regular_exception(self):
-        """
-        Ensure that a generic Python exception is correctly transformed in to
-        an Error message instance.
-        """
-        ex = ValueError('A generic exception')
-        result = self.node.except_to_error(ex)
-        self.assertEqual(self.node.id, result.node)
-        self.assertEqual(3, result.code)
-        self.assertEqual(ERRORS[3], result.title)
-        self.assertEqual({}, result.details)
-        uuidMatch = ('[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-' +
-                     '[a-f0-9]{12}')
-        self.assertTrue(re.match(uuidMatch, result.uuid))
-
-    def test_except_to_error_with_junk(self):
-        """
-        Given that this is a function that cannot fail it must be able to cope
-        with input that is not an Exception. A sanity check for some defensive
-        programming.
-        """
-        result = self.node.except_to_error('foo')
-        self.assertEqual(self.node.id, result.node)
-        self.assertEqual(3, result.code)
-        self.assertEqual(ERRORS[3], result.title)
-        self.assertEqual({}, result.details)
-        uuidMatch = ('[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-' +
-                     '[a-f0-9]{12}')
-        self.assertTrue(re.match(uuidMatch, result.uuid))
 
     def test_message_received_calls_routing_table(self):
         """
@@ -210,7 +163,6 @@ class TestNode(unittest.TestCase):
         # Create an Error message.
         uuid = str(uuid4())
         version = get_version()
-        key = '12345abc'
         code = 1
         title = ERRORS[code]
         details = {'foo': 'bar'}
@@ -436,7 +388,6 @@ class TestNode(unittest.TestCase):
         # Create an Error message.
         uuid = str(uuid4())
         version = get_version()
-        key = '12345abc'
         code = 1
         title = ERRORS[code]
         details = {'foo': 'bar'}
