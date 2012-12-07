@@ -113,11 +113,11 @@ class TestMessages(unittest.TestCase):
         """
         Expected behaviour of a nodes message.
         """
-        nodes = Nodes(self.uuid, self.node, ((self.node, '127.0.0.1', 1908)),
-                      '0.1')
+        nodes = Nodes(self.uuid, self.node,
+                     ((self.node, '127.0.0.1', 1908, '0.1')), '0.1')
         self.assertEqual(self.uuid, nodes.uuid)
         self.assertEqual(self.node, nodes.node)
-        self.assertEqual(((self.node, '127.0.0.1', 1908)), nodes.nodes)
+        self.assertEqual(((self.node, '127.0.0.1', 1908, '0.1')), nodes.nodes)
         self.assertEqual('0.1', nodes.version)
 
     def test_find_value(self):
@@ -175,7 +175,8 @@ class TestMessagePackConversion(unittest.TestCase):
                                       self.name, self.meta, PRIVATE_KEY)
         self.version = '0.1'
         self.message = 'value'
-        self.nodes = (('hash1', '127.0.0.1', 1908), ('hash2', '0.0.0.0', 1908))
+        self.nodes = (('hash1', '127.0.0.1', 1908, '0.1'),
+                     ('hash2', '0.0.0.0', 1908, '0.1'))
         self.mock_message = Value(self.uuid, self.node, self.key, self.value,
                                   self.timestamp, self.expires,
                                   self.public_key, self.name, self.meta,

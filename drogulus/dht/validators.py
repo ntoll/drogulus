@@ -71,12 +71,14 @@ def validate_node(val):
       port values.
     """
     if isinstance(val, tuple):
-        if len(val) == 3:
+        if len(val) == 4:
             valid_id = validate_string(val[0])
             valid_adr = validate_string(val[1])
+            valid_version = validate_string(val[3])
             port = val[2]
             if isinstance(port, int):
-                return valid_id and valid_adr and (port >= 0 and port <= 49151)
+                return (valid_id and valid_adr and valid_version and
+                        (port >= 0 and port <= 49151))
     return False
 
 
