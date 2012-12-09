@@ -173,5 +173,38 @@ class Node(object):
 
     def handle_nodes(self, message):
         """
+        Handles an incoming Nodes message containing information about other
+        nodes on the network that are close to a requested key.
+        """
+        pass
+
+    def send_ping(self, contact):
+        """
+        Sends a ping request to the given contact and returns a deferred
+        that is fired when the reply arrives or an error occurs.
+        """
+        pass
+
+    def send_store(self, contact, public_key, name, value, timestamp, expires,
+                   meta):
+        """
+        Sends a Store message to the given contact. The value contained within
+        the message is stored against a key derived from the public_key and
+        name. Furthermore, the message is cryptographically signed using the
+        value, timestamp, expires, name and meta values.
+        """
+        pass
+
+    def send_find_node(self, contact, id):
+        """
+        Sends a FindNode message to the given contact with the intention of
+        obtaining contact information about the node with the specified id.
+        """
+        pass
+
+    def send_find_value(self, contact, key):
+        """
+        Sends a FindValue message to the given contact with the intention of
+        obtaining the value associated with the specified key.
         """
         pass
