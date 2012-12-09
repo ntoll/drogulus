@@ -92,8 +92,8 @@ class Node(object):
 
     def handle_store(self, message, protocol, sender):
         """
-        Handles an incoming Store message. Checks the provenance of the message
-        before storing locally. If there is a problem, removes the
+        Handles an incoming Store message. Checks the provenance of the
+        message before storing locally. If there is a problem, removes the
         untrustworthy peer from the routing table.
 
         Sends a Pong message if successful otherwise replies with an Error.
