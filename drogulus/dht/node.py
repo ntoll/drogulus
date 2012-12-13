@@ -103,8 +103,8 @@ class Node(object):
         if is_valid:
             # Ensure the node doesn't already have a more up-to-date version
             # of the value.
-            if message.key in self._data_store:
-                current_version = self._data_store[message.key]
+            current_version = self._data_store.get(message.key, False)
+            if current_version:
                 if message.timestamp < current_version.timestamp:
                     # The node already has a later version of the value so
                     # return an error.
@@ -168,7 +168,7 @@ class Node(object):
         error and closes the connection. In future this *may* remove the
         sender from the routing table (depending on the error).
         """
-        # TODO: Handle error 8 (out of date)
+        # TODO: Handle error 8 (out of date data)
         log.msg('***** ERROR ***** from %s' % sender)
         log.msg(message)
 
