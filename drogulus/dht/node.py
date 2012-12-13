@@ -70,7 +70,7 @@ class Node(object):
         log.msg('Message received from %s' % other_node)
         log.msg(message)
         self._routing_table.add_contact(other_node)
-        # Sort on message type and pass to handler method.
+        # Sort on message type and pass to handler method. Explicit > implicit.
         if isinstance(message, Ping):
             self.handle_ping(message, protocol)
         elif isinstance(message, Store):
@@ -103,17 +103,16 @@ class Node(object):
         if is_valid:
             # Ensure the node doesn't already have a more up-to-date version
             # of the value.
-            current_version = self._data_store.get(message.key, False)
-            if current_version:
-                if message.timestamp < current_version.timestamp:
+            current = self._data_store.get(message.key, False)
+            if current and (message.timestamp < current.timestamp):
                     # The node already has a later version of the value so
                     # return an error.
                     details = {
-                        'new_timestamp': '%d' % current_version.timestamp
+                        'new_timestamp': '%d' % current.timestamp
                     }
                     raise ValueError(8, constants.ERRORS[8], details,
                                      message.uuid)
-            # Store value.
+            # Good to go, so store value.
             self._data_store.set_item(message.key, message)
             # Reply with a pong so the other end updates its routing table.
             pong = Pong(message.uuid, self.id, self.version)
