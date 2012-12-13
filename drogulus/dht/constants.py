@@ -61,5 +61,7 @@ ERRORS = {
     # The request could not be cryptographically verified.
     6: 'Unverifiable provenance',
     # The key / value pair did not match together as expected.
-    7: 'Key mismatch'
+    7: 'Key mismatch',
+    # The value is superceded (a newer version is known to the node already).
+    8: 'Superceded value'
 }

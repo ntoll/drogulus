@@ -81,6 +81,7 @@ class DHTProtocol(NetstringReceiver):
             self.factory.node.message_received(message, self)
         except Exception, ex:
             # Catch all for anything unexpected
+            log.msg('ERROR')
             log.msg(ex)
             self.sendMessage(self.except_to_error(ex), True)
 

@@ -226,12 +226,92 @@ class TestNode(unittest.TestCase):
         result = Pong(self.uuid, self.node.id, self.version)
         self.protocol.sendMessage.assert_called_once_with(result, True)
 
+    def test_handle_store_old_value(self):
+        """
+        Ensures that a Store message containing an out-of-date version of a
+        value already known to the node is handled correctly:
+
+        * The current up-to-date value is not overwritten.
+        * The node responds with an appropriate error message.
+        """
+        # Create existing up-to-date value
+        newer_msg = Store(self.uuid, self.node.id, self.key, self.value,
+                          self.timestamp, self.expires, PUBLIC_KEY, self.name,
+                          self.meta, self.signature, self.version)
+        self.node._data_store.set_item(newer_msg.key, newer_msg)
+        # Incoming message and peer
+        old_timestamp = self.timestamp - 9999
+        old_value = 'old value'
+        old_sig = ('\t^#F:\x0c;\r{Z\xbd$\xe4\xffz}\xb6Q\xb3g6\xca,\xe8' +
+                   '\xe4eY<g\x92tN\x8f\xbe\x8fs|\xdf\xe5O\xc6eZ\xef\xf5' +
+                   '\xd8\xab?g\xd7y\x81\xbeB\\\xe0=\xd1{\xcc\x0f%#\x9ad' +
+                   '\xcf\xea\xbd\x95\x0e\xed\xd7\x98\xfc\x85O\x81\x15' +
+                   '\x18/\xcb\xa0\x01\x1f+\x12\x8e\xdc\xbf\x9a\r\xd6\xfb' +
+                   '\xe0\xab\xc9\xff\xb5\xe5\x18\xb8\xe9\x8c\x13\xd1\xa5' +
+                   '\xba\xeb\xfa\xce\xaaT\xc8\x8c:\xcd\xc7\x0c\xfdCD\x00' +
+                   '\xd9\x93\xfeo><')
+        old_msg = Store(self.uuid, self.node.id, self.key, old_value,
+                        old_timestamp, self.expires, PUBLIC_KEY, self.name,
+                        self.meta, old_sig, self.version)
+        other_node = Contact(self.node.id, '127.0.0.1', 1908,
+                             self.version, time.time())
+        # Check for the expected exception.
+        ex = self.assertRaises(ValueError, self.node.handle_store, old_msg,
+                               self.protocol, other_node)
+        details = {
+            'new_timestamp': '%d' % self.timestamp
+        }
+        self.assertEqual(ex.args[0], 8)
+        self.assertEqual(ex.args[1], ERRORS[8])
+        self.assertEqual(ex.args[2], details)
+        self.assertEqual(ex.args[3], self.uuid)
+        # Ensure the original message is in local storage.
+        self.assertIn(self.key, self.node._data_store)
+        self.assertEqual(newer_msg, self.node._data_store[self.key])
+
+    def test_handle_store_new_value(self):
+        """
+        Ensures that a Store message containing a new version of a
+        value already known to the node is handled correctly.
+        """
+        # Mock
+        self.protocol.sendMessage = MagicMock()
+        # Create existing up-to-date value
+        old_timestamp = self.timestamp - 9999
+        old_value = 'old value'
+        old_sig = ('\t^#F:\x0c;\r{Z\xbd$\xe4\xffz}\xb6Q\xb3g6\xca,\xe8' +
+                   '\xe4eY<g\x92tN\x8f\xbe\x8fs|\xdf\xe5O\xc6eZ\xef\xf5' +
+                   '\xd8\xab?g\xd7y\x81\xbeB\\\xe0=\xd1{\xcc\x0f%#\x9ad' +
+                   '\xcf\xea\xbd\x95\x0e\xed\xd7\x98\xfc\x85O\x81\x15' +
+                   '\x18/\xcb\xa0\x01\x1f+\x12\x8e\xdc\xbf\x9a\r\xd6\xfb' +
+                   '\xe0\xab\xc9\xff\xb5\xe5\x18\xb8\xe9\x8c\x13\xd1\xa5' +
+                   '\xba\xeb\xfa\xce\xaaT\xc8\x8c:\xcd\xc7\x0c\xfdCD\x00' +
+                   '\xd9\x93\xfeo><')
+        old_msg = Store(self.uuid, self.node.id, self.key, old_value,
+                        old_timestamp, self.expires, PUBLIC_KEY, self.name,
+                        self.meta, old_sig, self.version)
+        self.node._data_store.set_item(old_msg.key, old_msg)
+        self.assertIn(self.key, self.node._data_store)
+        self.assertEqual(old_msg, self.node._data_store[self.key])
+        # Incoming message and peer
+        new_msg = Store(self.uuid, self.node.id, self.key, self.value,
+                        self.timestamp, self.expires, PUBLIC_KEY, self.name,
+                        self.meta, self.signature, self.version)
+        other_node = Contact(self.node.id, '127.0.0.1', 1908,
+                             self.version, time.time())
+        # Store the new version of the message.
+        self.node.handle_store(new_msg, self.protocol, other_node)
+        # Ensure the message is in local storage.
+        self.assertIn(self.key, self.node._data_store)
+        self.assertEqual(new_msg, self.node._data_store[self.key])
+        # Ensure the response is a Pong message.
+        result = Pong(self.uuid, self.node.id, self.version)
+        self.protocol.sendMessage.assert_called_once_with(result, True)
+
     def test_handle_store_bad_message(self):
         """
         Ensures an invalid Store message is handled correctly.
         """
-        # Mock
-        self.protocol.sendMessage = MagicMock()
         # Incoming message and peer
         msg = Store(self.uuid, self.node.id, self.key, 'wrong value',
                     self.timestamp, self.expires, PUBLIC_KEY, self.name,
@@ -242,18 +322,20 @@ class TestNode(unittest.TestCase):
         # Sanity check for expected routing table start state.
         self.assertEqual(1, len(self.node._routing_table._buckets[0]))
         # Handle faulty message.
-        self.node.handle_store(msg, self.protocol, other_node)
+        ex = self.assertRaises(ValueError, self.node.handle_store, msg,
+                               self.protocol, other_node)
+        # Check the exception
+        self.assertEqual(ex.args[0], 6)
+        self.assertEqual(ex.args[1], ERRORS[6])
+        details = {
+            'message': 'You have been removed from remote routing table.'
+        }
+        self.assertEqual(ex.args[2], details)
+        self.assertEqual(ex.args[3], self.uuid)
         # Ensure the message is not in local storage.
         self.assertNotIn(self.key, self.node._data_store)
         # Ensure the contact is not in the routing table
         self.assertEqual(0, len(self.node._routing_table._buckets[0]))
-        # Ensure the response is an Error message.
-        details = {
-            'message': 'You have been removed from remote routing table.'
-        }
-        result = Error(self.uuid, self.node.id, 6, ERRORS[6], details,
-                       self.version)
-        self.protocol.sendMessage.assert_called_once_with(result, True)
 
     def test_handle_store_loses_connection(self):
         """
@@ -268,24 +350,6 @@ class TestNode(unittest.TestCase):
                     self.meta, self.signature, self.version)
         other_node = Contact(self.node.id, '127.0.0.1', 1908,
                              self.version, time.time())
-        self.node.handle_store(msg, self.protocol, other_node)
-        # Ensure the loseConnection method was also called.
-        self.protocol.transport.loseConnection.assert_called_once_with()
-
-    def test_handle_store_loses_connection_bad_message(self):
-        """
-        Ensures the handle_store method with an invalid message loses the
-        connection after sending the Error message.
-        """
-        # Mock
-        self.protocol.transport.loseConnection = MagicMock()
-        # Incoming message and peer
-        msg = Store(self.uuid, self.node.id, self.key, 'wrong value',
-                    self.timestamp, self.expires, PUBLIC_KEY, self.name,
-                    self.meta, self.signature, self.version)
-        other_node = Contact('12345678abc', '127.0.0.1', 1908,
-                             self.version, time.time())
-        # Handle faulty message.
         self.node.handle_store(msg, self.protocol, other_node)
         # Ensure the loseConnection method was also called.
         self.protocol.transport.loseConnection.assert_called_once_with()

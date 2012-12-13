@@ -101,6 +101,18 @@ class Node(object):
         # Check provenance
         is_valid, err_code = validate_message(message)
         if is_valid:
+            # Ensure the node doesn't already have a more up-to-date version
+            # of the value.
+            if message.key in self._data_store:
+                current_version = self._data_store[message.key]
+                if message.timestamp < current_version.timestamp:
+                    # The node already has a later version of the value so
+                    # return an error.
+                    details = {
+                        'new_timestamp': '%d' % current_version.timestamp
+                    }
+                    raise ValueError(8, constants.ERRORS[8], details,
+                                     message.uuid)
             # Store value.
             self._data_store.set_item(message.key, message)
             # Reply with a pong so the other end updates its routing table.
@@ -111,14 +123,12 @@ class Node(object):
             log.msg('Problem with Store command: %d - %s' %
                     (err_code, constants.ERRORS[err_code]))
             self._routing_table.remove_contact(sender.id, True)
+            # Return an error.
             details = {
                 'message': 'You have been removed from remote routing table.'
             }
-            err = Error(message.uuid, self.id, err_code,
-                        constants.ERRORS[err_code], details, self.version)
-            log.msg('Replying with Error message:')
-            log.msg(err)
-            protocol.sendMessage(err, True)
+            raise ValueError(err_code, constants.ERRORS[err_code], details,
+                             message.uuid)
 
     def handle_find_node(self, message, protocol):
         """
@@ -158,6 +168,7 @@ class Node(object):
         error and closes the connection. In future this *may* remove the
         sender from the routing table (depending on the error).
         """
+        # TODO: Handle error 8 (out of date)
         log.msg('***** ERROR ***** from %s' % sender)
         log.msg(message)
 
