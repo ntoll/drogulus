@@ -19,6 +19,7 @@ Contains code that defines the local node in the DHT network.
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from twisted.python import log
+from twisted.internet import reactor, defer
 import time
 
 import constants
@@ -44,9 +45,16 @@ class Node(object):
         """
         Initialises the object representing the node with the given id.
         """
+        # The node's ID within the distributed hash table.
         self.id = id
+        # The routing table stores information about other nodes on the DHT.
         self._routing_table = RoutingTable(id)
+        # The local key/value store containing data held by this node.
         self._data_store = DictDataStore()
+        # A dictionary of IDs for messages pending a response and associated
+        # deferreds to be fired when a response is completed.
+        self._pending = {}
+        # The version of Drogulus that this node implements.
         self.version = get_version()
         log.msg('Initialised node with id: %r' % self.id)
 
@@ -179,6 +187,7 @@ class Node(object):
 
         TODO: How to handle invalid messages and errback the deferred.
         """
+        d.callback(foo)
         pass
 
     def handle_nodes(self, message):
@@ -186,7 +195,26 @@ class Node(object):
         Handles an incoming Nodes message containing information about other
         nodes on the network that are close to a requested key.
         """
+        d.callback(foo)
         pass
+
+    def timeout(self, uuid):
+        """
+        Called when a pending message awaiting a response times-out. Cleans
+        up the _pending dict correctly.
+        """
+        del self._pending[uuid]
+
+    def send_message(self, message):
+        """
+        Abstracts the sending of a message, adds it to the _pending dictionary
+        and ensures it times-out after the correct period.
+        """
+        d = defer.Deferred()
+        self._pending[message.uuid] = d
+        reactor.callLater(constants.RPC_TIMEOUT, handle_timeout, self,
+                          message.uuid)
+        return d
 
     def send_ping(self, contact):
         """

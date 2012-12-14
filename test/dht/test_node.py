@@ -70,6 +70,7 @@ class TestNode(unittest.TestCase):
         self.assertEqual(123, node.id)
         self.assertTrue(node._routing_table)
         self.assertEqual({}, node._data_store)
+        self.assertEqual({}, node._pending)
         self.assertEqual(get_version(), node.version)
 
     def test_message_received_calls_routing_table(self):
@@ -463,3 +464,13 @@ class TestNode(unittest.TestCase):
         # Check it results in two calls to the log.msg method (one to signify
         # an error has happened, the other the actual error message).
         self.assertEqual(2, log.msg.call_count)
+
+    def test_timeout(self):
+        """
+        """
+        assert False
+
+    def test_send_message(self):
+        """
+        """
+        assert False
