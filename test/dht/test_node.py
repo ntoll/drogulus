@@ -71,6 +71,7 @@ class TestNode(unittest.TestCase):
         self.assertTrue(node._routing_table)
         self.assertEqual({}, node._data_store)
         self.assertEqual({}, node._pending)
+        self.assertEqual('ssl:%s:%d:', node._client_string)
         self.assertEqual(get_version(), node.version)
 
     def test_message_received_calls_routing_table(self):

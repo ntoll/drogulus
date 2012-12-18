@@ -20,6 +20,7 @@ Contains code that defines the local node in the DHT network.
 
 from twisted.python import log
 from twisted.internet import reactor, defer
+from twisted.internet.endpoints import clientFromString
 import time
 
 import constants
@@ -41,7 +42,7 @@ class Node(object):
     performed via this class (or a subclass).
     """
 
-    def __init__(self, id):
+    def __init__(self, id, client_string='ssl:%s:%d:'):
         """
         Initialises the object representing the node with the given id.
         """
@@ -54,6 +55,9 @@ class Node(object):
         # A dictionary of IDs for messages pending a response and associated
         # deferreds to be fired when a response is completed.
         self._pending = {}
+        # The template string to use when initiating a connection to another
+        # node on the network.
+        self._client_string = client_string
         # The version of Drogulus that this node implements.
         self.version = get_version()
         log.msg('Initialised node with id: %r' % self.id)
@@ -198,22 +202,35 @@ class Node(object):
         d.callback(foo)
         pass
 
-    def timeout(self, uuid):
+    def timeout(self, uuid, protocol):
         """
         Called when a pending message awaiting a response times-out. Cleans
         up the _pending dict correctly.
         """
+        # TODO: Close connection and clean up protocol object.
         del self._pending[uuid]
 
-    def send_message(self, message):
+    def send_message(self, contact, message):
         """
-        Abstracts the sending of a message, adds it to the _pending dictionary
-        and ensures it times-out after the correct period.
+        Abstracts the sending of a message to the specified contact, adds it
+        to the _pending dictionary and ensures it times-out after the correct
+        period.
         """
         d = defer.Deferred()
-        self._pending[message.uuid] = d
-        reactor.callLater(constants.RPC_TIMEOUT, handle_timeout, self,
-                          message.uuid)
+        # open network call.
+        client_string = self._client_string % (contact.address, contact.port)
+        client = clientFromString(reactor, client_string)
+        connected = client.connect(DHTFactory(self))
+
+        def on_connect(protocol):
+            # TODO: self???
+            protocol.sendMessage(message)
+            self._pending[message.uuid] = d
+            reactor.callLater(constants.RPC_TIMEOUT, handle_timeout, self,
+                              message.uuid, protocol)
+
+        connected.addCallback(on_connect)
+        # TODO: Add errBack
         return d
 
     def send_ping(self, contact):
