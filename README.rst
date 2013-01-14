@@ -21,3 +21,6 @@ work is done. Lisp implementation is an (uncommitted) toy which requires
 further work.
 
 If in doubt, please ask. :-)
+
+Should you wish to contribute please make sure you read CONTRIBUTE file. By
+making a contribution you are agreeing to the terms described therein.
