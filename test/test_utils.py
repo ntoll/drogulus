@@ -3,7 +3,7 @@
 Ensures the generic functions used in various places within the DHT
 implementation work as expected.
 """
-from drogulus.dht.utils import long_to_hex, hex_to_long
+from drogulus.utils import long_to_hex, hex_to_long
 import unittest
 
 

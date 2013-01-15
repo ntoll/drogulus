@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Contains generic utillity functions used in various different parts of the
-implementation of the distributed hash table.
+Contains generic utillity functions used in various different parts of
+Drogulus.
 """
 
 # Copyright (C) 2012 Nicholas H.Tollervey.

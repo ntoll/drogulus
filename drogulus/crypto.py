@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Contains functions that work directly with the messages for cryptographically
-signing / verifying.
+Contains functions for cryptographically signing / verifying.
 """
 
 # Copyright (C) 2012 Nicholas H.Tollervey.

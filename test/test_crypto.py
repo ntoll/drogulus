@@ -2,10 +2,10 @@
 """
 A set of sanity checks to ensure that the messages are defined as expected.
 """
-from drogulus.dht.crypto import (generate_signature, validate_signature,
-                                 validate_message, construct_hash,
-                                 construct_key)
-from drogulus.dht.messages import Value
+from drogulus.crypto import (generate_signature, validate_signature,
+                             validate_message, construct_hash,
+                             construct_key)
+from drogulus.net.messages import Value
 import unittest
 import hashlib
 import msgpack
