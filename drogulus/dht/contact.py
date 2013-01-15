@@ -17,7 +17,7 @@ Defines a contact (another node) on the network.
 #
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-from utils import long_to_hex
+from drogulus.utils import long_to_hex
 
 
 class Contact(object):

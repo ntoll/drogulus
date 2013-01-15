@@ -4,13 +4,13 @@ Ensures code that represents a local node in the DHT network works as
 expected
 """
 from drogulus.dht.node import Node
-from drogulus.dht.constants import ERRORS
+from drogulus.constants import ERRORS
 from drogulus.dht.contact import Contact
 from drogulus.version import get_version
-from drogulus.dht.net import DHTFactory
-from drogulus.dht.messages import (Error, Ping, Pong, Store, FindNode, Nodes,
+from drogulus.net.protocol import DHTFactory
+from drogulus.net.messages import (Error, Ping, Pong, Store, FindNode, Nodes,
                                    FindValue, Value)
-from drogulus.dht.crypto import construct_key
+from drogulus.crypto import construct_key
 from twisted.trial import unittest
 from twisted.test import proto_helpers
 from twisted.python import log

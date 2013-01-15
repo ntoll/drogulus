@@ -19,7 +19,7 @@ in messages sent between nodes in the DHT.
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from drogulus.dht.constants import ERRORS
+from drogulus.constants import ERRORS
 
 
 def validate_timestamp(val):

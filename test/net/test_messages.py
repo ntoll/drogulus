@@ -2,11 +2,11 @@
 """
 A set of sanity checks to ensure that the messages are defined as expected.
 """
-from drogulus.dht.messages import (Error, Ping, Pong, Store, FindNode, Nodes,
+from drogulus.net.messages import (Error, Ping, Pong, Store, FindNode, Nodes,
                                    FindValue, Value, to_msgpack, from_msgpack,
                                    make_message)
-from drogulus.dht.constants import ERRORS
-from drogulus.dht.crypto import construct_key, generate_signature
+from drogulus.constants import ERRORS
+from drogulus.crypto import construct_key, generate_signature
 import unittest
 import msgpack
 import time

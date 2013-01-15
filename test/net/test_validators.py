@@ -3,7 +3,7 @@
 A set of sanity checks to ensure that function concerning message validation
 work correctly.
 """
-from drogulus.dht.validators import (validate_timestamp, validate_code,
+from drogulus.net.validators import (validate_timestamp, validate_code,
                                      validate_string, validate_meta,
                                      validate_node, validate_nodes,
                                      validate_value, VALIDATORS)

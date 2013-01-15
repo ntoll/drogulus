@@ -6,7 +6,7 @@ in the DHT) works as expected.
 from drogulus.dht.routingtable import RoutingTable
 from drogulus.dht.contact import Contact
 from drogulus.dht.kbucket import KBucket
-from drogulus.dht import constants
+from drogulus import constants
 from drogulus.version import get_version
 import unittest
 import time

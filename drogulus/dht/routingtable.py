@@ -20,9 +20,9 @@ Contains code that represents Kademlia's routing table tree structure.
 
 import time
 import random
-import constants
 import kbucket
-from utils import long_to_hex, hex_to_long
+from drogulus import constants
+from drogulus.utils import long_to_hex, hex_to_long
 
 
 class RoutingTable(object):

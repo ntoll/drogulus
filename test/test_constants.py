@@ -2,7 +2,7 @@
 """
 Ensures the DHT implementation has the required constants defined
 """
-import drogulus.dht.constants as constants
+from drogulus import constants
 import unittest
 
 

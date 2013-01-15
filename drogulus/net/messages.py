@@ -30,8 +30,8 @@ in the way that they are.
 
 from collections import namedtuple
 import msgpack
-from constants import ERRORS
 from validators import VALIDATORS
+from drogulus.constants import ERRORS
 
 
 class Error(namedtuple('Error',

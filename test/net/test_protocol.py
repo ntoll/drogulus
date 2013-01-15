@@ -3,10 +3,10 @@
 Ensures the low level networking functions of the DHT behave as expected.
 """
 from drogulus.version import get_version
-from drogulus.dht.constants import ERRORS
-from drogulus.dht.net import DHTFactory
+from drogulus.constants import ERRORS
+from drogulus.net.protocol import DHTFactory
+from drogulus.net.messages import Pong, to_msgpack, from_msgpack
 from drogulus.dht.node import Node
-from drogulus.dht.messages import Pong, to_msgpack, from_msgpack
 from twisted.trial import unittest
 from twisted.test import proto_helpers
 from mock import MagicMock

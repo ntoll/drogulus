@@ -4,7 +4,7 @@ Ensures the kbucket (used to store contacts in the network) works as expected.
 """
 from drogulus.dht.kbucket import KBucket, KBucketFull
 from drogulus.dht.contact import Contact
-from drogulus.dht.constants import K
+from drogulus.constants import K
 import unittest
 
 

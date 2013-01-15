@@ -3,8 +3,8 @@
 Ensures datastore related classes work as expected.
 """
 from drogulus.dht.datastore import DataStore, DictDataStore
-from drogulus.dht.messages import Value
-from drogulus.dht.crypto import construct_key, generate_signature
+from drogulus.net.messages import Value
+from drogulus.crypto import construct_key, generate_signature
 import unittest
 import time
 from uuid import uuid4

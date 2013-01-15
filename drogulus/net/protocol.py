@@ -23,7 +23,7 @@ from twisted.internet import protocol
 from twisted.python import log
 from twisted.protocols.basic import NetstringReceiver
 from messages import Error, to_msgpack, from_msgpack
-from constants import ERRORS
+from drogulus.constants import ERRORS
 from drogulus.version import get_version
 from uuid import uuid4
 

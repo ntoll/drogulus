@@ -23,13 +23,13 @@ from twisted.internet import reactor, defer
 from twisted.internet.endpoints import clientFromString
 import time
 
-import constants
-from messages import (Error, Ping, Pong, Store, FindNode, Nodes, FindValue,
-                      Value)
+from drogulus import constants
+from drogulus.net.messages import (Error, Ping, Pong, Store, FindNode, Nodes,
+                                   FindValue, Value)
 from routingtable import RoutingTable
 from datastore import DictDataStore
 from contact import Contact
-from crypto import validate_message
+from drogulus.crypto import validate_message
 from drogulus.version import get_version
 
 

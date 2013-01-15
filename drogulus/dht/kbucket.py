@@ -18,7 +18,7 @@ Defines contact related storage (the so called k-buckets).
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from constants import K
+from drogulus.constants import K
 
 
 class KBucketFull(Exception):
