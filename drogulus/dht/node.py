@@ -117,13 +117,13 @@ class Node(object):
             # of the value.
             current = self._data_store.get(message.key, False)
             if current and (message.timestamp < current.timestamp):
-                    # The node already has a later version of the value so
-                    # return an error.
-                    details = {
-                        'new_timestamp': '%d' % current.timestamp
-                    }
-                    raise ValueError(8, constants.ERRORS[8], details,
-                                     message.uuid)
+                # The node already has a later version of the value so
+                # return an error.
+                details = {
+                    'new_timestamp': '%d' % current.timestamp
+                }
+                raise ValueError(8, constants.ERRORS[8], details,
+                                 message.uuid)
             # Good to go, so store value.
             self._data_store.set_item(message.key, message)
             # Reply with a pong so the other end updates its routing table.
@@ -226,7 +226,7 @@ class Node(object):
             # TODO: self???
             protocol.sendMessage(message)
             self._pending[message.uuid] = d
-            reactor.callLater(constants.RPC_TIMEOUT, handle_timeout, self,
+            reactor.callLater(constants.RPC_TIMEOUT, self.timeout, self,
                               message.uuid, protocol)
 
         connected.addCallback(on_connect)
