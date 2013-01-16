@@ -4,7 +4,7 @@ Defines constants used by the Kademlia DHT network. Where possible naming is
 derived from the original Kademlia paper.
 """
 
-# Copyright (C) 2012 Nicholas H.Tollervey.
+# Copyright (C) 2012-2013 Nicholas H.Tollervey.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published by

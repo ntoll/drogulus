@@ -4,7 +4,7 @@ Contains functions that are used to validate the type and content of fields
 in messages sent between nodes in the DHT.
 """
 
-# Copyright (C) 2012 Nicholas H.Tollervey.
+# Copyright (C) 2012-2013 Nicholas H.Tollervey.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published by

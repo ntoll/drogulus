@@ -3,7 +3,7 @@
 Defines contact related storage (the so called k-buckets).
 """
 
-# Copyright (C) 2012 Nicholas H.Tollervey.
+# Copyright (C) 2012-2013 Nicholas H.Tollervey.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published by
