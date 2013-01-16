@@ -65,9 +65,11 @@ class Ping(namedtuple('Ping', ['uuid', 'node', 'version'])):
 
 class Pong(namedtuple('Pong', ['uuid', 'node', 'version'])):
     """
-    A "pong" message is sent as a response to a ping request.
+    A "pong" message is sent as a confirmation response. This is usually a
+    ping request but may be used to confirm reciept of any other sort of
+    request when no further data is expected to be returned.
 
-    * uuid - the ping request's id.
+    * uuid - the request id of the source of the response.
     * node - the ID of the node sending the message.
     * version - the protocol version the message conforms to.
     """
@@ -241,7 +243,8 @@ def from_msgpack(raw):
 def make_message(klass, data):
     """
     Returns an instance of the referenced namedtuple based class that is
-    created from the validated data.
+    created from the raw data. Data will be validated and an exception raised
+    if this fails.
     """
     fields = klass._fields
     args = []
