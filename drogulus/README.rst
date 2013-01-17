@@ -1,5 +1,13 @@
-Drogulus Source Code
-====================
+``drogulus``
+============
+
+* dht - The distributed hash table module.
+* drogulisp - The simple Lisp like language used for computation.
+* net - The low level network functionality.
+* constants.py - defines constants used by the Kademlia DHT network.
+* crypto.py - contains functions used for cryptographically validating / signing messages.
+* utils.py - generic utillity functions used in various different parts of the implementation of the distributed hash table.
+* version.py - defines the current version of this source code.
 
 Please remember:
 
