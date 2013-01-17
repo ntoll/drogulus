@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Contains a definition of the low-level networking protocol used by the DHT
-(and related functionality).
+Contains a definition of the low-level networking protocol used by the
+Drogulus.
 """
 
 # Copyright (C) 2012-2013 Nicholas H.Tollervey.
@@ -57,10 +57,10 @@ class DHTProtocol(NetstringReceiver):
         """
         if isinstance(exception, Exception) and len(exception.args) == 4:
             # Exception includes all the information we need.
-            uuid = exception.args[3]
             code = exception.args[0]
             title = exception.args[1]
             details = exception.args[2]
+            uuid = exception.args[3]
         else:
             uuid = str(uuid4())
             code = 3

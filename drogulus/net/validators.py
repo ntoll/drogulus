@@ -63,12 +63,14 @@ def validate_node(val):
     """
     Returns a boolean to indicate if the passed in tuple conforms to a
     specification of another node within the DHT. A valid node is a tuple with
-    three items:
+    four items:
 
     * A string representation of the SHA512 id of the node.
     * A string representation of the node's IP address.
     * An integer representation of the node's port within a valid range of
       port values.
+    * A string representation of the version of Drogulus the remote node
+      conforms to.
     """
     if isinstance(val, tuple):
         if len(val) == 4:
@@ -106,7 +108,7 @@ def validate_value(val):
 
 """
 Lookup for the correct validation function for each type of field a message
-may contain.
+may contain. Explicit is better than implicit (Zen of Python).
 """
 VALIDATORS = {
     'uuid': validate_string,

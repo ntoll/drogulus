@@ -90,7 +90,8 @@ class TestValidators(unittest.TestCase):
 
     def test_validate_node(self):
         """
-        A tuple containing an IP address string and port integer passes.
+        A tuple containing id and IP address strings, a port integer and
+        version string passes.
         """
         self.assertTrue(validate_node(('id', '127.0.0.1', 1908, '0.1')))
 
@@ -134,7 +135,7 @@ class TestValidators(unittest.TestCase):
 
     def test_validate_node_invalid_version(self):
         """
-        The if should be a string.
+        The version number should be a string.
         """
         self.assertFalse(validate_node(('id', '127.0.0.1', 1908, 0.1)))
 
