@@ -206,7 +206,7 @@ def to_msgpack(message):
     name = message.__class__.__name__.lower()
     data = message._asdict()
     data['message'] = name
-    return msgpack.packb(data)
+    return msgpack.packb(dict(data))
 
 
 def from_msgpack(raw):
