@@ -65,9 +65,9 @@ class Ping(namedtuple('Ping', ['uuid', 'node', 'version'])):
 
 class Pong(namedtuple('Pong', ['uuid', 'node', 'version'])):
     """
-    A "pong" message is sent as a confirmation response. This is usually a
-    ping request but may be used to confirm reciept of any other sort of
-    request when no further data is expected to be returned.
+    A "pong" message is sent as a confirmation response. This is usually the
+    result of a ping request but may be used to confirm reciept of any other
+    sort of request when no further data is expected to be returned.
 
     * uuid - the request id of the source of the response.
     * node - the ID of the node sending the message.
