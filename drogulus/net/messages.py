@@ -101,18 +101,19 @@ class Store(namedtuple('Store', ['uuid', 'node', 'key', 'value', 'timestamp',
     * name - the human-readable name of the key.
     * meta - a list of tuples containing key/value strings for user defined
              metadata.
-    * sig - the cryptographic signature for the value, timestamp, name and meta
-            fields.
+    * sig - the cryptographic signature for the value, timestamp, expires, name
+            and meta fields.
     * version - the protocol version the message conforms to.
 
     The provenance of the message is guaranteed through cryptography:
 
     The 'sig' field is created with the private key of the person storing the
     key/value pair. It's derived from the SHA512 hash of the SHA512 hashes of
-    the 'value', 'timestamp', 'name' and 'meta' fields. This mechanism ensures
-    that the public_key used in the compound key is valid (i.e. it validates
-    the sig field given the correct SHA512 hash) and also ensures that the
-    'value', 'timestamp', 'name' and 'meta' fields have not been tampered with.
+    the 'value', 'timestamp', 'expires', 'name' and 'meta' fields. This
+    mechanism ensures that the public_key used in the compound key is valid
+    (i.e. it validates the sig field given the correct SHA512 hash) and also
+    ensures that the 'value', 'timestamp', 'expires', 'name' and 'meta' fields
+    have not been tampered with.
 
     The 'key' value is a compound key. It is a SHA512 hash of the SHA512 hashes
     of the 'public_key' and 'name' fields. The 'public_key' and 'name' fields
@@ -191,8 +192,8 @@ class Value(namedtuple('Value', ['uuid', 'node', 'key', 'value', 'timestamp',
     * name - the human-readable name of the key.
     * meta - a list of tuples containing key/value strings for user defined
              metadata.
-    * sig - the cryptographic signature for the value, timestamp, name and meta
-            fields.
+    * sig - the cryptographic signature for the value, timestamp, expires, name
+            and meta fields.
     * version - the protocol version the message conforms to.
     """
     pass
