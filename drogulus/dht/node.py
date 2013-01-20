@@ -191,8 +191,15 @@ class Node(object):
 
         TODO: How to handle invalid messages and errback the deferred.
         """
+        is_valid, err_code = validate_message(message)
+        
+        if is_valid:
+            #store message
+            pass
+        else:
+            #remove node from routing table
+        
         d.callback(foo)
-        pass
 
     def handle_nodes(self, message):
         """
