@@ -1,9 +1,4 @@
-application
-==========
-* pycrypto
-* twisted
-* msgpack-python
-
-testing
-======
-* mock
+pycrypto
+twisted
+msgpack-python
+mock
