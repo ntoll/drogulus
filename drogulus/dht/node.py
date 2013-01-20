@@ -197,6 +197,7 @@ class Node(object):
             #store message
             pass
         else:
+            pass
             #remove node from routing table
         
         d.callback(foo)
