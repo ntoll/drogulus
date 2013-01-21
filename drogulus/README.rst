@@ -2,7 +2,7 @@
 ============
 
 * dht - The distributed hash table module.
-* drogulisp - The simple Lisp like language used for computation.
+* logos - The simple Lisp like language used for computation.
 * net - The low level network functionality.
 * constants.py - defines constants used by the Kademlia DHT network.
 * crypto.py - contains functions used for cryptographically validating / signing messages.

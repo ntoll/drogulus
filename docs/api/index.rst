@@ -4,7 +4,7 @@
     :maxdepth: 2
 
     dht
-    drogulisp
+    logos
 
 ``drogulus.drogulus``
 ---------------------

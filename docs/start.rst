@@ -16,7 +16,7 @@ Connect
 
 TBD
 
-Drogulisp First Steps
-=====================
+Logos First Steps
+=================
 
 TBD
