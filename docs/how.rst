@@ -11,7 +11,7 @@ Cryptographic Trust
 
 TBD
 
-Drogulisp
-=========
+Logos
+=====
 
 TBD

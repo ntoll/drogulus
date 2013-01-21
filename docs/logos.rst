@@ -1,5 +1,5 @@
-Drogulisp Primer
-++++++++++++++++
+Logos Primer
+++++++++++++
 
 It's YAL (Yet Another Lisp)
 ===========================

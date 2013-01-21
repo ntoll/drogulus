@@ -1,7 +1,7 @@
-``drogulus.drogulisp``
+``drogulus.logos``
 ======================
 
-Drogulisp is:
+Logos is a Lisp-like language for giving Drogulus instructions. It is:
 
 * Simple
 * Easy to read
@@ -74,15 +74,15 @@ Reference dictionaries like this::
 
     ... TBD
 
-Drogulisp includes tail call optimization::
+Logos includes tail call optimization::
 
     ... TBD
 
-Drogulus is homoiconic and provides Lisp-y macros::
+Logos is homoiconic and provides Lisp-y macros::
 
     ... TBD
 
-Drogulisp comes with batteries included for manipulating data in Drogulus::
+Logos comes with batteries included for manipulating data in Drogulus::
 
     ... TDB
     (set ...)
