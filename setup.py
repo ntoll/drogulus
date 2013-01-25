@@ -10,6 +10,8 @@ setup(
     long_description=open('README.rst').read(),
     author='Nicholas H.Tollervey',
     author_email='ntoll@ntoll.org',
+    keywords='federated, decentralised, data, store, computation, platform,' +
+             ' lisp, fun',
     url='http://packages.python.org/drogulus',
     package_dir={'': 'drogulus'},
     packages=find_packages('drogulus'),
