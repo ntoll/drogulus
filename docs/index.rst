@@ -11,7 +11,7 @@ Table of Contents
     why
     how
     install
-    drogulisp
+    logos
     api/index
     license
     authors
