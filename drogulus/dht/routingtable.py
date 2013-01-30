@@ -58,12 +58,9 @@ class RoutingTable(object):
         # Bound check for key too small.
         if key < 0:
             raise ValueError('Key out of range')
-        i = 0
-        for bucket in self._buckets:
+        for i, bucket in enumerate(self._buckets):
             if bucket.key_in_range(key):
                 return i
-            else:
-                i += 1
         # Key was too big given the key space.
         raise ValueError('Key out of range.')
 
