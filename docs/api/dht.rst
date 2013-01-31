@@ -1,8 +1,8 @@
 .. include:: ../../drogulus/dht/README.rst
 
-``drogulus.dht.constants``
+``drogulus.constants``
 --------------------------
-.. automodule:: drogulus.dht.constants
+.. automodule:: drogulus.constants
     :members:
 
 ``drogulus.dht.contact``
@@ -11,9 +11,9 @@
     :members:
     :special-members:
 
-``drogulus.dht.crypto``
+``drogulus.crypto``
 -----------------------
-.. automodule:: drogulus.dht.crypto
+.. automodule:: drogulus.crypto
     :members:
 
 ``drogulus.dht.datastore``
@@ -28,14 +28,14 @@
     :members:
     :special-members:
 
-``drogulus.dht.messages``
+``drogulus.net.messages``
 -------------------------
-.. automodule:: drogulus.dht.messages
+.. automodule:: drogulus.net.messages
     :members:
 
 ``drogulus.dht.net``
 --------------------
-.. automodule:: drogulus.dht.net
+.. automodule:: drogulus.net
     :members:
 
 ``drogulus.dht.node``
@@ -50,13 +50,13 @@
     :members:
     :special-members:
 
-``drogulus.dht.utils``
+``drogulus.utils``
 -----------------------------
-.. automodule:: drogulus.dht.utils
+.. automodule:: drogulus.utils
     :members:
     :special-members:
 
-``drogulus.dht.validators``
+``drogulus.net.validators``
 ---------------------------
-.. automodule:: drogulus.dht.validators
+.. automodule:: drogulus.net.validators
     :members:
