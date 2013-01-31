@@ -2,7 +2,7 @@
 
 ``drogulus.dht.constants``
 --------------------------
-.. automodule:: drogulus.dht.constants
+.. automodule:: drogulus.constants
     :members:
 
 ``drogulus.dht.contact``
@@ -13,7 +13,7 @@
 
 ``drogulus.dht.crypto``
 -----------------------
-.. automodule:: drogulus.dht.crypto
+.. automodule:: drogulus.crypto
     :members:
 
 ``drogulus.dht.datastore``
@@ -30,12 +30,12 @@
 
 ``drogulus.dht.messages``
 -------------------------
-.. automodule:: drogulus.dht.messages
+.. automodule:: drogulus.net.messages
     :members:
 
 ``drogulus.dht.net``
 --------------------
-.. automodule:: drogulus.dht.net
+.. automodule:: drogulus.net
     :members:
 
 ``drogulus.dht.node``
@@ -52,11 +52,11 @@
 
 ``drogulus.dht.utils``
 -----------------------------
-.. automodule:: drogulus.dht.utils
+.. automodule:: drogulus.utils
     :members:
     :special-members:
 
 ``drogulus.dht.validators``
 ---------------------------
-.. automodule:: drogulus.dht.validators
+.. automodule:: drogulus.net.validators
     :members:
