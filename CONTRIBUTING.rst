@@ -31,3 +31,5 @@ Follow these steps to contribute code:
 * Make sure you include tests!
 
 * Did I mention you should include tests..? Yeah, include tests.
+
+* If you've not done so already, add yourself to the AUTHORS file.

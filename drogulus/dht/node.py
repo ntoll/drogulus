@@ -104,6 +104,8 @@ class Node(object):
         # Sort on message type and pass to handler method. Explicit > implicit.
         if isinstance(message, Ping):
             self.handle_ping(message, protocol)
+        elif isinstance(message, Pong):
+            self.handle_pong(message)
         elif isinstance(message, Store):
             self.handle_store(message, protocol, other_node)
         elif isinstance(message, FindNode):
@@ -113,6 +115,40 @@ class Node(object):
         elif isinstance(message, Error):
             self.handle_error(message, protocol, other_node)
 
+    def send_message(self, contact, message):
+        """
+        Sends a message to the specified contact, adds it to the _pending
+        dictionary and ensures it times-out after the correct period.
+        """
+        d = defer.Deferred()
+        # open network call.
+        client_string = self._client_string % (contact.address, contact.port)
+        client = clientFromString(reactor, client_string)
+        connection = client.connect(DHTFactory(self))
+
+        def on_connect(protocol):
+            protocol.sendMessage(message)
+            self._pending[message.uuid] = d
+            protocol.callLater(constants.RPC_TIMEOUT, timeout, message.uuid,
+                               protocol, self._pending)
+
+        connection.addCallback(on_connect)
+        return d
+
+    def trigger_deferred(self, message, error=False):
+        """
+        Given a message, will attempt to retrieve the deferred and trigger it
+        with the appropriate callback or errback.
+        """
+        if message.uuid in self._pending:
+            deferred = self._pending[message.uuid]
+            if error:
+                deferred.errback(message)
+            else:
+                deferred.callback(message)
+            # Remove the called deferred from the _pending dictionary.
+            del self._pending[message.uuid]
+
     def handle_ping(self, message, protocol):
         """
         Handles an incoming Ping message. Returns a Pong message using the
@@ -120,6 +156,12 @@ class Node(object):
         """
         pong = Pong(message.uuid, self.id, self.version)
         protocol.sendMessage(pong, True)
+
+    def handle_pong(self, message):
+        """
+        Handles an incoming Pong message.
+        """
+        self.trigger_deferred(message)
 
     def handle_store(self, message, protocol, sender):
         """
@@ -221,26 +263,6 @@ class Node(object):
         """
         d.callback(foo)
         pass
-
-    def send_message(self, contact, message):
-        """
-        Sends a message to the specified contact, adds it to the _pending
-        dictionary and ensures it times-out after the correct period.
-        """
-        d = defer.Deferred()
-        # open network call.
-        client_string = self._client_string % (contact.address, contact.port)
-        client = clientFromString(reactor, client_string)
-        connection = client.connect(DHTFactory(self))
-
-        def on_connect(protocol):
-            protocol.sendMessage(message)
-            self._pending[message.uuid] = d
-            protocol.callLater(constants.RPC_TIMEOUT, timeout, message.uuid,
-                               protocol, self._pending)
-
-        connection.addCallback(on_connect)
-        return d
 
     def send_ping(self, contact):
         """

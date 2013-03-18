@@ -15,6 +15,7 @@ from twisted.trial import unittest
 from twisted.test import proto_helpers
 from twisted.python import log
 from twisted.internet import defer, task
+from twisted.python.failure import Failure
 from mock import MagicMock, patch
 from uuid import uuid4
 import time
@@ -204,6 +205,20 @@ class TestNode(unittest.TestCase):
         self.node.message_received(msg, self.protocol)
         # Check it results in a call to the node's handle_ping method.
         self.node.handle_ping.assert_called_once_with(msg, self.protocol)
+
+    def test_message_received_pong(self):
+        """
+        Ensures a Pong message is handled correctly.
+        """
+        self.node.handle_pong = MagicMock()
+        # Create a simple Pong message.
+        uuid = str(uuid4())
+        version = get_version()
+        msg = Pong(uuid, self.node_id, version)
+        # Receive it...
+        self.node.message_received(msg, self.protocol)
+        # Check it results in a call to the node's handle_pong method.
+        self.node.handle_pong.assert_called_once_with(msg)
 
     def test_message_received_store(self):
         """
@@ -641,3 +656,107 @@ class TestNode(unittest.TestCase):
         self.protocol.sendMessage.assert_called_once_with(msg)
         # Tidy up.
         self.clock.advance(RPC_TIMEOUT)
+
+    def test_trigger_deferred_no_match(self):
+        """
+        Ensures that there are no changes to the _pending dict if there are
+        no matches for the incoming message's uuid.
+        """
+        to_not_match = str(uuid4())
+        self.node._pending[to_not_match] = defer.Deferred()
+        # Create a simple Pong message.
+        uuid = str(uuid4())
+        version = get_version()
+        msg = Pong(uuid, self.node_id, version)
+        # Trigger.
+        self.node.trigger_deferred(msg)
+        # Check.
+        self.assertEqual(1, len(self.node._pending))
+        self.assertIn(to_not_match, self.node._pending)
+
+    def test_trigger_deferred_with_error(self):
+        """
+        Ensures that an errback is called on the correct deferred given the
+        incoming message's uuid if the error flag is passed in.
+        """
+        uuid = str(uuid4())
+        deferred = defer.Deferred()
+        self.node._pending[uuid] = deferred
+        handler = MagicMock()
+        deferred.addErrback(handler)
+        # Create an Error message.
+        version = get_version()
+        code = 1
+        title = ERRORS[code]
+        details = {'foo': 'bar'}
+        msg = Error(uuid, self.node_id, code, title, details, version)
+        # Sanity check.
+        self.assertEqual(1, len(self.node._pending))
+        # Trigger.
+        self.node.trigger_deferred(msg, True)
+        # The deferred has fired with an errback.
+        self.assertTrue(deferred.called)
+        self.assertEqual(1, handler.call_count)
+        self.assertEqual(handler.call_args[0][0].value, msg)
+        self.assertEqual(handler.call_args[0][0].__class__, Failure)
+
+    def test_trigger_deferred_with_ok_message(self):
+        """
+        Ensures that a callback is triggered on the correct deferred given the
+        incoming message's uuid.
+        """
+        # Set up a simple Pong message.
+        uuid = str(uuid4())
+        deferred = defer.Deferred()
+        self.node._pending[uuid] = deferred
+        handler = MagicMock()
+        deferred.addCallback(handler)
+        version = get_version()
+        msg = Pong(uuid, self.node_id, version)
+        # Sanity check.
+        self.assertEqual(1, len(self.node._pending))
+        # Trigger.
+        self.node.trigger_deferred(msg)
+        # The deferred has fired with a callback.
+        self.assertTrue(deferred.called)
+        self.assertEqual(1, handler.call_count)
+        self.assertEqual(handler.call_args[0][0], msg)
+        # The deferred is removed from pending.
+        self.assertEqual(0, len(self.node._pending))
+
+    def test_trigger_deferred_cleans_up(self):
+        """
+        Ensures that once the deferred is triggered it is cleaned from the
+        node's _pending dict.
+        """
+        # Set up a simple Pong message.
+        uuid = str(uuid4())
+        deferred = defer.Deferred()
+        self.node._pending[uuid] = deferred
+        handler = MagicMock()
+        deferred.addCallback(handler)
+        version = get_version()
+        msg = Pong(uuid, self.node_id, version)
+        # Sanity check.
+        self.assertEqual(1, len(self.node._pending))
+        # Trigger.
+        self.node.trigger_deferred(msg)
+        # The deferred is removed from pending.
+        self.assertEqual(0, len(self.node._pending))
+
+    def test_handle_pong(self):
+        """
+        Ensures that a pong message triggers the correct deferred that was
+        originally created by an outgoing (ping) message.
+        """
+        # Mock
+        self.node.trigger_deferred = MagicMock()
+        # Create a simple Pong message.
+        uuid = str(uuid4())
+        version = get_version()
+        msg = Pong(uuid, self.node_id, version)
+        # Handle it.
+        self.node.handle_pong(msg)
+        # Check the result.
+        result = Pong(uuid, self.node.id, version)
+        self.node.trigger_deferred.assert_called_once_with(result)
