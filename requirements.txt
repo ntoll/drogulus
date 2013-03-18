@@ -1,3 +1,4 @@
 pycrypto
 twisted
+pyopenssl
 msgpack-python

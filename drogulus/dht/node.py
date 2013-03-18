@@ -26,11 +26,30 @@ import time
 from drogulus import constants
 from drogulus.net.messages import (Error, Ping, Pong, Store, FindNode, Nodes,
                                    FindValue, Value)
+from drogulus.net.protocol import DHTFactory
 from routingtable import RoutingTable
 from datastore import DictDataStore
 from contact import Contact
 from drogulus.crypto import validate_message
 from drogulus.version import get_version
+
+
+def timeout(uuid, protocol, pending):
+    """
+    Called when a pending message (identified with a uuid) awaiting a response
+    via a given protocol object times-out. Closes the connection and removes
+    the deferred from the "pending" dictionary.
+    """
+    if uuid not in pending:
+        # Nothing to do here.
+        return
+    # Check the state of the protocol object.
+    if protocol._state is not protocol._PARSING_PAYLOAD:
+        # The protocol hasn't started getting data from the peer so clean
+        # up.
+        pending[uuid].cancel()
+        del pending[uuid]
+        protocol.transport.abortConnection()
 
 
 class Node(object):
@@ -42,7 +61,7 @@ class Node(object):
     performed via this class (or a subclass).
     """
 
-    def __init__(self, id, client_string='ssl:%s:%d:'):
+    def __init__(self, id, client_string='ssl:%s:%d'):
         """
         Initialises the object representing the node with the given id.
         """
@@ -104,11 +123,12 @@ class Node(object):
 
     def handle_store(self, message, protocol, sender):
         """
-        Handles an incoming Store message. Checks the provenance of the
-        message before storing locally. If there is a problem, removes the
-        untrustworthy peer from the routing table.
+        Handles an incoming Store message. Checks the provenance and timeliness
+        of the message before storing locally. If there is a problem, removes
+        the untrustworthy peer from the routing table.
 
-        Sends a Pong message if successful otherwise replies with an Error.
+        Sends a Pong message if successful otherwise replies with an
+        appropriate Error.
         """
         # Check provenance
         is_valid, err_code = validate_message(message)
@@ -202,35 +222,24 @@ class Node(object):
         d.callback(foo)
         pass
 
-    def timeout(self, uuid, protocol):
-        """
-        Called when a pending message awaiting a response times-out. Cleans
-        up the _pending dict correctly.
-        """
-        # TODO: Close connection and clean up protocol object.
-        del self._pending[uuid]
-
     def send_message(self, contact, message):
         """
-        Abstracts the sending of a message to the specified contact, adds it
-        to the _pending dictionary and ensures it times-out after the correct
-        period.
+        Sends a message to the specified contact, adds it to the _pending
+        dictionary and ensures it times-out after the correct period.
         """
         d = defer.Deferred()
         # open network call.
         client_string = self._client_string % (contact.address, contact.port)
         client = clientFromString(reactor, client_string)
-        connected = client.connect(DHTFactory(self))
+        connection = client.connect(DHTFactory(self))
 
         def on_connect(protocol):
-            # TODO: self???
             protocol.sendMessage(message)
             self._pending[message.uuid] = d
-            reactor.callLater(constants.RPC_TIMEOUT, self.timeout, self,
-                              message.uuid, protocol)
+            protocol.callLater(constants.RPC_TIMEOUT, timeout, message.uuid,
+                               protocol, self._pending)
 
-        connected.addCallback(on_connect)
-        # TODO: Add errBack
+        connection.addCallback(on_connect)
         return d
 
     def send_ping(self, contact):
