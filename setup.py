@@ -28,5 +28,5 @@ setup(
         'Topic :: Security',
         'Topic :: System :: Distributed Computing',
     ],
-    install_requires=['pycrypto', 'twisted', 'msgpack-python']
+    install_requires=['pycrypto', 'twisted', 'pyopenssl', 'msgpack-python']
 )
