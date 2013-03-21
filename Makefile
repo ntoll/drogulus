@@ -1,4 +1,4 @@
-al:
+all:
 	@echo "There is no default Makefile target right now."
 
 clean:
