@@ -32,3 +32,4 @@ Quick Start
 * ``pip install -r requirements.txt``
 * ``make check`` runs various code quality checks and the test suite.
 * ``make docs`` builds the documentation.
+* A simple demo application is coming soon...
