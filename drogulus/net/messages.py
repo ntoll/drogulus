@@ -216,7 +216,7 @@ def from_msgpack(raw):
     data in the raw string. Encapsulates a variety of cleaning and checking of
     the raw message from the (potentially dangerous) external network.
     """
-    data = msgpack.unpackb(raw)
+    data = msgpack.unpackb(raw, use_list=False)
     message = data['message']
     # Explicit is better than implicit (Zen of Python).
     if message == 'error':

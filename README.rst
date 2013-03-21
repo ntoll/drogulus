@@ -24,3 +24,11 @@ If in doubt, please ask. :-)
 
 Should you wish to contribute please make sure you read CONTRIBUTE file. By
 making a contribution you are agreeing to the terms described therein.
+
+Quick Start
+-----------
+
+* Clone the repository
+* `pip install -r requirements.txt`
+* `make check` runs various code quality checks and the test suite.
+* `make docs` builds the documentation.

@@ -2,3 +2,6 @@ pycrypto
 twisted
 pyopenssl
 msgpack-python
+sphinx
+pep8
+pyflakes
