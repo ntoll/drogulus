@@ -1,4 +1,4 @@
-all:
+al:
 	@echo "There is no default Makefile target right now."
 
 clean:
@@ -19,3 +19,9 @@ test: clean
 	@cd _trial_temp/coverage; grep -n -T '>>>>>' drogulus.*
 
 check: pep8 pyflakes test
+
+docs: clean
+	cd docs; make html
+	@echo "\nDocumentation can be viewed in your browser here:"
+	@echo file://`pwd`/docs/_build/html/index.html
+	@echo "\n"
