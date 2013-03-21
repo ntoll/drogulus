@@ -14,7 +14,15 @@ project as simple as possible. To this end, any contribution to the source code
 * There is no guarantee that a contribution will be accepted in to the source
   code.
 
-Follow these steps to contribute code:
+* Feedback will be given for contributions and, where necessary, changes will
+  be politely requested and discussed with the originating author. Respectful
+  yet robust argument is most welcome.
+
+* Contributions are welcome without prejudice from *anyone* no matter what
+  their age, gender, religion, race or sexuality is. Good quality code and
+  engaging with respect, humour and intelligence wins every time.
+
+Follow this checklist to contribute code:
 
 * Ensure your contribution is linked to an outstanding ticket in the issue
   tracker.
@@ -29,6 +37,12 @@ Follow these steps to contribute code:
   description of the work done. ;-)
 
 * Make sure you include tests!
+
+* Your code should be commented in *plain English*.
+
+* Ensure you run ``make check`` to tell you that you're following PEP8,
+  PyFlakes isn't complaining about redundant code, all the tests pass and you
+  have as close to 100% test coverage as is possible.
 
 * Did I mention you should include tests..? Yeah, include tests.
 
