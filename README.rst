@@ -29,6 +29,6 @@ Quick Start
 -----------
 
 * Clone the repository
-* `pip install -r requirements.txt`
-* `make check` runs various code quality checks and the test suite.
-* `make docs` builds the documentation.
+* ``pip install -r requirements.txt``
+* ``make check`` runs various code quality checks and the test suite.
+* ``make docs`` builds the documentation.
