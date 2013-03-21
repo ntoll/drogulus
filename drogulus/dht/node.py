@@ -253,7 +253,6 @@ class Node(object):
 
         TODO: How to handle invalid messages and errback the deferred.
         """
-        d.callback(foo)
         pass
 
     def handle_nodes(self, message):
@@ -261,7 +260,6 @@ class Node(object):
         Handles an incoming Nodes message containing information about other
         nodes on the network that are close to a requested key.
         """
-        d.callback(foo)
         pass
 
     def send_ping(self, contact):

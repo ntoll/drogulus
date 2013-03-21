@@ -1,6 +1,21 @@
+all:
+	@echo "There is no default Makefile target right now."
+
 clean:
 	rm -rf dist
 	rm -rf docs/_build
 	find . \( -name '*.py[co]' -o -name dropin.cache \) -print0 | xargs -0 -r rm
 	find . -name _trial_temp -type d -print0 | xargs -0 -r rm -r
 
+pyflakes:
+	find . \( -name _build -o -name var \) -type d -prune -o -name '*.py' -print0 | $(shell which parallel || which xargs) -0 pyflakes
+
+pep8:
+	find . \( -name _build -o -name var \) -type d -prune -o -name '*.py' -print0 | $(shell which parallel || which xargs) -0 -n 1 pep8 --repeat
+
+test: clean
+	trial --rterrors --coverage test
+	@echo "\nMissing test coverage:"
+	@cd _trial_temp/coverage; grep -n -T '>>>>>' drogulus.*
+
+check: pep8 pyflakes test
