@@ -808,7 +808,7 @@ class TestNode(unittest.TestCase):
         self.node.send_message = MagicMock()
         # Dummy contact.
         contact = Contact(self.node.id, '127.0.0.1', 54321, self.version)
-        deferred = self.node.send_ping(contact)
+        self.node.send_ping(contact)
         self.assertEqual(1, self.node.send_message.call_count)
         called_contact = self.node.send_message.call_args[0][0]
         self.assertEqual(contact, called_contact)
