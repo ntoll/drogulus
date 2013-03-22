@@ -42,14 +42,14 @@ class FakeClient(object):
         successfully.
         """
         self.protocol = protocol
-        self.success = True
+        self.success = success
 
     def connect(self, factory):
         d = defer.Deferred()
         if self.success:
             d.callback(self.protocol)
         else:
-            d.errback()
+            d.errback(Exception("Error!"))
         return d
 
 
@@ -657,6 +657,31 @@ class TestNode(unittest.TestCase):
         # Tidy up.
         self.clock.advance(RPC_TIMEOUT)
 
+    @patch('drogulus.dht.node.clientFromString')
+    def test_send_message_fires_errback_in_case_of_errors(self, mock_client):
+        """
+        Ensure that if there's an error during connection or sending of the
+        message then the errback is fired.
+        """
+        mock_client.return_value = FakeClient(self.protocol, success=False)
+        errback = MagicMock()
+        patcher = patch('drogulus.dht.node.log.msg')
+        mockLog = patcher.start()
+        # Create a simple Ping message.
+        uuid = str(uuid4())
+        version = get_version()
+        msg = Ping(uuid, self.node_id, version)
+        # Dummy contact.
+        contact = Contact(self.node.id, '127.0.0.1', 54321, self.version)
+        deferred = self.node.send_message(contact, msg)
+        deferred.addErrback(errback)
+        # The errback is called and the error is logged automatically.
+        self.assertEqual(1, errback.call_count)
+        self.assertEqual(2, mockLog.call_count)
+        # Tidy up.
+        patcher.stop()
+        self.clock.advance(RPC_TIMEOUT)
+
     def test_trigger_deferred_no_match(self):
         """
         Ensures that there are no changes to the _pending dict if there are
@@ -760,3 +785,32 @@ class TestNode(unittest.TestCase):
         # Check the result.
         result = Pong(uuid, self.node.id, version)
         self.node.trigger_deferred.assert_called_once_with(result)
+
+    @patch('drogulus.dht.node.clientFromString')
+    def test_send_ping_returns_deferred(self, mock_client):
+        """
+        Ensures that sending a ping returns a deferred.
+        """
+        mock_client.return_value = FakeClient(self.protocol)
+        # Dummy contact.
+        contact = Contact(self.node.id, '127.0.0.1', 54321, self.version)
+        deferred = self.node.send_ping(contact)
+        self.assertIsInstance(deferred, defer.Deferred)
+        # Tidy up.
+        self.clock.advance(RPC_TIMEOUT)
+
+    def test_send_ping_calls_send_message(self):
+        """
+        Ensures that sending a ping calls the node's send_message method with
+        the ping message.
+        """
+        # Mock
+        self.node.send_message = MagicMock()
+        # Dummy contact.
+        contact = Contact(self.node.id, '127.0.0.1', 54321, self.version)
+        deferred = self.node.send_ping(contact)
+        self.assertEqual(1, self.node.send_message.call_count)
+        called_contact = self.node.send_message.call_args[0][0]
+        self.assertEqual(contact, called_contact)
+        message_to_send = self.node.send_message.call_args[0][1]
+        self.assertIsInstance(message_to_send, Ping)

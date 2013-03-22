@@ -22,6 +22,7 @@ from twisted.python import log
 from twisted.internet import reactor, defer
 from twisted.internet.endpoints import clientFromString
 import time
+from uuid import uuid4
 
 from drogulus import constants
 from drogulus.net.messages import (Error, Ping, Pong, Store, FindNode, Nodes,
@@ -118,7 +119,8 @@ class Node(object):
     def send_message(self, contact, message):
         """
         Sends a message to the specified contact, adds it to the _pending
-        dictionary and ensures it times-out after the correct period.
+        dictionary and ensures it times-out after the correct period. If an
+        error occurs the deferred has errback called.
         """
         d = defer.Deferred()
         # open network call.
@@ -132,7 +134,12 @@ class Node(object):
             protocol.callLater(constants.RPC_TIMEOUT, timeout, message.uuid,
                                protocol, self._pending)
 
-        connection.addCallback(on_connect)
+        def on_error(error):
+            log.msg('***** ERROR ***** connecting to %s' % contact)
+            log.msg(error)
+            d.errback(error)
+
+        connection.addCallbacks(on_connect, on_error)
         return d
 
     def trigger_deferred(self, message, error=False):
@@ -267,7 +274,9 @@ class Node(object):
         Sends a ping request to the given contact and returns a deferred
         that is fired when the reply arrives or an error occurs.
         """
-        pass
+        new_uuid = str(uuid4())
+        ping = Ping(new_uuid, self.id, self.version)
+        return self.send_message(contact, ping)
 
     def send_store(self, contact, public_key, name, value, timestamp, expires,
                    meta):
