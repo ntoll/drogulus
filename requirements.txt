@@ -5,3 +5,4 @@ msgpack-python
 sphinx
 pep8
 pyflakes
+coherence
