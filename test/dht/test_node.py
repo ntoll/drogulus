@@ -4,7 +4,7 @@ Ensures code that represents a local node in the DHT network works as
 expected
 """
 from drogulus.dht.node import timeout, Node
-from drogulus.constants import ERRORS, RPC_TIMEOUT
+from drogulus.constants import ERRORS, RPC_TIMEOUT, MESSAGE_TIMEOUT
 from drogulus.dht.contact import Contact
 from drogulus.version import get_version
 from drogulus.net.protocol import DHTFactory
@@ -14,7 +14,7 @@ from drogulus.crypto import construct_key
 from twisted.trial import unittest
 from twisted.test import proto_helpers
 from twisted.python import log
-from twisted.internet import defer, task
+from twisted.internet import defer, task, reactor
 from twisted.python.failure import Failure
 from mock import MagicMock, patch
 from uuid import uuid4
@@ -105,20 +105,6 @@ class TestTimeout(unittest.TestCase):
         timeout(another_uuid, self.protocol, pending)
         self.assertIn(self.uuid, pending)
 
-    def test_timeout_with_parsing_payload(self):
-        """
-        Ensure that if the protocol is in a PARSING_PAYLOAD state then the
-        message is not timed out because it is getting data from the remote
-        peer.
-        """
-        # There is no change in the number of messages in the pending
-        # dictionary.
-        pending = {}
-        pending[self.uuid] = 'a deferred'
-        self.protocol._state = self.protocol._PARSING_PAYLOAD
-        timeout(self.uuid, self.protocol, pending)
-        self.assertIn(self.uuid, pending)
-
 
 class TestNode(unittest.TestCase):
     """
@@ -139,7 +125,7 @@ class TestNode(unittest.TestCase):
         self.transport.abortConnection = fakeAbortConnection
         self.protocol.makeConnection(self.transport)
         self.clock = task.Clock()
-        self.protocol.callLater = self.clock.callLater
+        reactor.callLater = self.clock.callLater
         self.value = 'value'
         self.signature = ('\x882f\xf9A\xcd\xf9\xb1\xcc\xdbl\x1c\xb2\xdb' +
                           '\xa3UQ\x9a\x08\x96\x12\x83^d\xd8M\xc2`\x81Hz' +
@@ -576,10 +562,17 @@ class TestNode(unittest.TestCase):
         # an error has happened, the other the actual error message).
         self.assertEqual(2, log.msg.call_count)
 
-    def test_send_message(self):
+    @patch('drogulus.dht.node.clientFromString')
+    def test_send_message(self, mock_client):
         """
         Ensure send_message returns a deferred.
         """
+        # Mock, mock, glorious mock; nothing quite like it to test a code
+        # block. (To the tune of "Mud, mud, glorious mud!")
+        mock_client.return_value = FakeClient(self.protocol)
+        # Mock the callLater function
+        patcher = patch('drogulus.dht.node.reactor.callLater')
+        mockCallLater = patcher.start()
         # Create a simple Ping message.
         uuid = str(uuid4())
         version = get_version()
@@ -589,6 +582,13 @@ class TestNode(unittest.TestCase):
         # Check for the deferred.
         result = self.node.send_message(contact, msg)
         self.assertTrue(isinstance(result, defer.Deferred))
+        # Ensure the timeout function was called
+        call_count = mockCallLater.call_count
+        # Tidy up.
+        patcher.stop()
+        # Check callLater was called twice - once each for connection timeout
+        # and message timeout.
+        self.assertEqual(2, call_count)
 
     @patch('drogulus.dht.node.clientFromString')
     def test_send_message_on_connect_adds_message_to_pending(self,
@@ -598,8 +598,7 @@ class TestNode(unittest.TestCase):
         inside send_message adds the message and deferred to the pending
         messages dictionary.
         """
-        # Mock, mock, glorious mock; nothing quite like it to test a code
-        # block. (To the tune of "Mud, mud, glorious mud!")
+        # Mock.
         mock_client.return_value = FakeClient(self.protocol)
         # Create a simple Ping message.
         uuid = str(uuid4())
@@ -632,7 +631,7 @@ class TestNode(unittest.TestCase):
         deferred = self.node.send_message(contact, msg)
         self.assertIn(uuid, self.node._pending)
         self.assertEqual(self.node._pending[uuid], deferred)
-        self.clock.advance(RPC_TIMEOUT)
+        self.clock.advance(MESSAGE_TIMEOUT)
         # Ensure the timeout function was called
         self.assertEqual(1, mockTimeout.call_count)
         # Tidy up.

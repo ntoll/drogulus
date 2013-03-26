@@ -41,13 +41,7 @@ def timeout(uuid, protocol, pending):
     via a given protocol object times-out. Closes the connection and removes
     the deferred from the "pending" dictionary.
     """
-    if uuid not in pending:
-        # Nothing to do here.
-        return
-    # Check the state of the protocol object.
-    if protocol._state is not protocol._PARSING_PAYLOAD:
-        # The protocol hasn't started getting data from the peer so clean
-        # up.
+    if uuid in pending:
         pending[uuid].cancel()
         del pending[uuid]
         protocol.transport.abortConnection()
@@ -120,19 +114,26 @@ class Node(object):
         """
         Sends a message to the specified contact, adds it to the _pending
         dictionary and ensures it times-out after the correct period. If an
-        error occurs the deferred has errback called.
+        error occurs the deferred's errback is called.
         """
         d = defer.Deferred()
         # open network call.
         client_string = self._client_string % (contact.address, contact.port)
         client = clientFromString(reactor, client_string)
         connection = client.connect(DHTFactory(self))
+        # Ensure the connection will potentially time out.
+        connection_timeout = reactor.callLater(constants.RPC_TIMEOUT,
+                                               connection.cancel)
 
         def on_connect(protocol):
+            # Cancel pending connection_timeout if it's still active.
+            if connection_timeout.active():
+                connection_timeout.cancel()
+            # Send the message and add a timeout for the response.
             protocol.sendMessage(message)
             self._pending[message.uuid] = d
-            protocol.callLater(constants.RPC_TIMEOUT, timeout, message.uuid,
-                               protocol, self._pending)
+            reactor.callLater(constants.MESSAGE_TIMEOUT, timeout,
+                              message.uuid, protocol, self._pending)
 
         def on_error(error):
             log.msg('***** ERROR ***** connecting to %s' % contact)
