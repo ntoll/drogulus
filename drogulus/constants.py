@@ -31,7 +31,7 @@ RPC_TIMEOUT = 5
 #: The timeout for receiving complete message once a connection is made (in
 #: seconds). Ensures there are no stale deferreds in the node's _pending
 #: dictionary.
-MESSAGE_TIMEOUT = 1800  # half an hour
+RESPONSE_TIMEOUT = 1800  # half an hour
 
 #: The delay between iterations of node lookups (in seconds).
 ITERATIVE_LOOKUP_DELAY = RPC_TIMEOUT / 2

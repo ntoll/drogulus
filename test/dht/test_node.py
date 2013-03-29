@@ -3,8 +3,8 @@
 Ensures code that represents a local node in the DHT network works as
 expected
 """
-from drogulus.dht.node import timeout, Node
-from drogulus.constants import ERRORS, RPC_TIMEOUT, MESSAGE_TIMEOUT
+from drogulus.dht.node import response_timeout, Node
+from drogulus.constants import ERRORS, RPC_TIMEOUT, RESPONSE_TIMEOUT
 from drogulus.dht.contact import Contact
 from drogulus.version import get_version
 from drogulus.net.protocol import DHTFactory
@@ -35,22 +35,36 @@ class FakeClient(object):
     clientFromString. To be used with the mocks.
     """
 
-    def __init__(self, protocol, success=True):
+    def __init__(self, protocol, success=True, timeout=False,
+                 replace_cancel=False):
         """
         The protocol instance is set up as a fake by the test class. The
-        success flag indicates if the client is to be able to connect
-        successfully.
+        success flag indicates if the client is to be able to work
+        successfully. The timeout flag indicates if the deferred is to fire
+        as if a connection has been made.
         """
         self.protocol = protocol
         self.success = success
+        self.timeout = timeout
+        self.replace_cancel = replace_cancel
+        if replace_cancel:
+            self.cancel_function = MagicMock()
 
     def connect(self, factory):
         d = defer.Deferred()
-        if self.success:
-            d.callback(self.protocol)
+        if self.timeout:
+            # This is a hack to ensure the cancel method is within scope of the
+            # test function (as an attribute of the FakeClient object to
+            # ensure it has fired. :-(
+            if self.replace_cancel:
+                d.cancel = self.cancel_function
+            return d
         else:
-            d.errback(Exception("Error!"))
-        return d
+            if self.success:
+                d.callback(self.protocol)
+            else:
+                d.errback(Exception("Error!"))
+            return d
 
 
 def fakeAbortConnection():
@@ -75,35 +89,42 @@ class TestTimeout(unittest.TestCase):
         self.protocol.makeConnection(self.transport)
         self.uuid = str(uuid4())
 
-    def test_timeout(self):
+    def test_response_timeout(self):
         """
         Test the good case.
         """
         self.protocol.transport.abortConnection = MagicMock()
-        pending = {}
+        self.node._routing_table.remove_contact = MagicMock()
         deferred = defer.Deferred()
-        pending[self.uuid] = deferred
-        timeout(self.uuid, self.protocol, pending)
+        self.node._pending[self.uuid] = deferred
+        # Create a simple Ping message.
+        version = get_version()
+        msg = Ping(self.uuid, self.node_id, version)
+        response_timeout(msg, self.protocol, self.node)
         # The record associated with the uuid has been removed from the pending
         # dictionary.
-        self.assertEqual({}, pending)
+        self.assertEqual({}, self.node._pending)
         # The deferred has been cancelled.
         self.assertIsInstance(deferred.result.value, defer.CancelledError)
         # abortConnection() has been called once.
         self.assertEqual(1, self.protocol.transport.abortConnection.call_count)
+        # The remove_contact method of the routing table has been called once.
+        self.node._routing_table.remove_contact.\
+            assert_called_once_with(msg.node)
 
-    def test_timout_missing(self):
+    def test_message_timout_missing(self):
         """
         Ensure no state is changed if the message's uuid is missing from the
         pending dict.
         """
         # There is no change in the number of messages in the pending
         # dictionary.
-        pending = {}
-        pending[self.uuid] = 'a deferred'
+        self.node._pending[self.uuid] = 'a deferred'
         another_uuid = str(uuid4())
-        timeout(another_uuid, self.protocol, pending)
-        self.assertIn(self.uuid, pending)
+        version = get_version()
+        msg = Ping(another_uuid, self.node_id, version)
+        response_timeout(msg, self.protocol, self.node)
+        self.assertIn(self.uuid, self.node._pending)
 
 
 class TestNode(unittest.TestCase):
@@ -613,14 +634,53 @@ class TestNode(unittest.TestCase):
         self.clock.advance(RPC_TIMEOUT)
 
     @patch('drogulus.dht.node.clientFromString')
-    def test_send_message_timeout_call_later(self, mock_client):
+    def test_send_message_timeout_connection_cancel_called(self, mock_client):
+        """
+        If attempting to connect times out before the connection is eventuially
+        made, ensure the connection's deferred is cancelled.
+        """
+        mock_client.return_value = FakeClient(self.protocol, True, True, True)
+        # Create a simple Ping message.
+        uuid = str(uuid4())
+        version = get_version()
+        msg = Ping(uuid, self.node_id, version)
+        # Dummy contact.
+        contact = Contact(self.node.id, '127.0.0.1', 54321, self.version)
+        self.node.send_message(contact, msg)
+        self.clock.advance(RPC_TIMEOUT)
+        self.assertNotIn(uuid, self.node._pending)
+        self.assertEqual(1,
+                         mock_client.return_value.cancel_function.call_count)
+
+    @patch('drogulus.dht.node.clientFromString')
+    def test_send_message_timeout_remove_contact(self, mock_client):
+        """
+        If the connection deferred is cancelled ensure that the node's
+        _routing_table.remove_contact is called once.
+        """
+        mock_client.return_value = FakeClient(self.protocol, True, True, False)
+        self.node._routing_table.remove_contact = MagicMock()
+        # Create a simple Ping message.
+        uuid = str(uuid4())
+        version = get_version()
+        msg = Ping(uuid, self.node_id, version)
+        # Dummy contact.
+        contact = Contact(self.node.id, '127.0.0.1', 54321, self.version)
+        self.node.send_message(contact, msg)
+        self.clock.advance(RPC_TIMEOUT)
+        self.assertNotIn(uuid, self.node._pending)
+        self.node._routing_table.remove_contact.\
+            assert_called_once_with(self.node.id)
+
+    @patch('drogulus.dht.node.clientFromString')
+    def test_send_message_response_timeout_call_later(self, mock_client):
         """
         Ensure that when a connection is made the on_connect function wrapped
-        inside send_message calls callLater with the timeout function.
+        inside send_message calls callLater with the response_timeout function.
         """
         mock_client.return_value = FakeClient(self.protocol)
         # Mock the timeout function
-        patcher = patch('drogulus.dht.node.timeout')
+        patcher = patch('drogulus.dht.node.response_timeout')
         mockTimeout = patcher.start()
         # Create a simple Ping message.
         uuid = str(uuid4())
@@ -631,7 +691,7 @@ class TestNode(unittest.TestCase):
         deferred = self.node.send_message(contact, msg)
         self.assertIn(uuid, self.node._pending)
         self.assertEqual(self.node._pending[uuid], deferred)
-        self.clock.advance(MESSAGE_TIMEOUT)
+        self.clock.advance(RESPONSE_TIMEOUT)
         # Ensure the timeout function was called
         self.assertEqual(1, mockTimeout.call_count)
         # Tidy up.

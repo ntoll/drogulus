@@ -35,16 +35,19 @@ from drogulus.crypto import validate_message
 from drogulus.version import get_version
 
 
-def timeout(uuid, protocol, pending):
+def response_timeout(message, protocol, node):
     """
     Called when a pending message (identified with a uuid) awaiting a response
     via a given protocol object times-out. Closes the connection and removes
     the deferred from the "pending" dictionary.
     """
+    uuid = message.uuid
+    pending = node._pending
     if uuid in pending:
         pending[uuid].cancel()
         del pending[uuid]
         protocol.transport.abortConnection()
+        node._routing_table.remove_contact(message.node)
 
 
 class Node(object):
@@ -132,12 +135,13 @@ class Node(object):
             # Send the message and add a timeout for the response.
             protocol.sendMessage(message)
             self._pending[message.uuid] = d
-            reactor.callLater(constants.MESSAGE_TIMEOUT, timeout,
-                              message.uuid, protocol, self._pending)
+            reactor.callLater(constants.RESPONSE_TIMEOUT, response_timeout,
+                              message, protocol, self)
 
         def on_error(error):
             log.msg('***** ERROR ***** connecting to %s' % contact)
             log.msg(error)
+            self._routing_table.remove_contact(message.node)
             d.errback(error)
 
         connection.addCallbacks(on_connect, on_error)
