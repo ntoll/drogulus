@@ -10,7 +10,7 @@ from drogulus.version import get_version
 from drogulus.net.protocol import DHTFactory
 from drogulus.net.messages import (Error, Ping, Pong, Store, FindNode, Nodes,
                                    FindValue, Value)
-from drogulus.crypto import construct_key
+from drogulus.crypto import construct_key, generate_signature
 from twisted.trial import unittest
 from twisted.test import proto_helpers
 from twisted.python import log
@@ -19,6 +19,24 @@ from twisted.python.failure import Failure
 from mock import MagicMock, patch
 from uuid import uuid4
 import time
+
+
+# Useful throw-away constants for testing purposes.
+PRIVATE_KEY = """-----BEGIN RSA PRIVATE KEY-----
+MIICXgIBAAKBgQC+n3Au1cbSkjCVsrfnTbmA0SwQLN2RbbDIMHILA1i6wByXkqEa
+mnEBvgsOkUUrsEXYtt0vb8Qill4LSs9RqTetSCjGb+oGVTKizfbMbGCKZ8fT64ZZ
+gan9TvhItl7DAwbIXcyvQ+b1J7pHaytAZwkSwh+M6WixkMTbFM91fW0mUwIDAQAB
+AoGBAJvBENvj5wH1W2dl0ShY9MLRpuxMjHogo3rfQr/G60AkavhaYfKn0MB4tPYh
+MuCgtmF+ATqaWytbq9oUNVPnLUqqn5M9N86+Gb6z8ld+AcR2BD8oZ6tQaiEIGzmi
+L9AWEZZnyluDSHMXDoVrvDLxPpKW0yPjvQfWN15QF+H79faJAkEA0hgdueFrZf3h
+os59ukzNzQy4gjL5ea35azbQt2jTc+lDOu+yjUic2O7Os7oxnSArpujDiOkYgaih
+Dny+/bIgLQJBAOhGKjhpafdpgpr/BjRlmUHXLaa+Zrp/S4RtkIEkE9XXkmQjvVZ3
+EyN/h0IVNBv45lDK0Qztjic0L1GON62Z8H8CQAcRkqZ3ZCKpWRceNXK4NNBqVibj
+SiuC4/psfLc/CqZCueVYvTwtrkFKP6Aiaprrwyw5dqK7nPx3zPtszQxCGv0CQQDK
+51BGiz94VAE1qQYgi4g/zdshSD6xODYd7yBGz99L9M77D4V8nPRpFCRyA9fLf7ii
+ZyoLYxHFCX80fUoCKvG9AkEAyX5iCi3aoLYd/CvOFYB2fcXzauKrhopS7/NruDk/
+LluSlW3qpi1BGDHVTeWWj2sm30NAybTHjNOX7OxEZ1yVwg==
+-----END RSA PRIVATE KEY-----"""
 
 
 PUBLIC_KEY = """-----BEGIN PUBLIC KEY-----
@@ -873,3 +891,85 @@ class TestNode(unittest.TestCase):
         self.assertEqual(contact, called_contact)
         message_to_send = self.node.send_message.call_args[0][1]
         self.assertIsInstance(message_to_send, Ping)
+
+    @patch('drogulus.dht.node.generate_signature')
+    def test_send_store_generates_signature(self, mock):
+        """
+        Ensure the generate_signature function is called with the expected
+        arguments as part of send_store.
+        """
+        mock.return_value = 'test'
+        contact = Contact(self.node.id, '127.0.0.1', 54321, self.version)
+        name = 'foo'
+        value = 'bar'
+        timestamp = 12345
+        expires = 12346
+        meta = {}
+        self.node.send_store(contact, PRIVATE_KEY, PUBLIC_KEY, name, value,
+                             timestamp, expires, meta)
+        mock.assert_called_once_with(value, timestamp, expires, name, meta,
+                                     PRIVATE_KEY)
+
+    @patch('drogulus.dht.node.construct_key')
+    def test_send_store_makes_compound_key(self, mock):
+        """
+        Ensure the construct_key function is called with the expected arguments
+        as part of send_store.
+        """
+        mock.return_value = 'test'
+        contact = Contact(self.node.id, '127.0.0.1', 54321, self.version)
+        name = 'foo'
+        value = 'bar'
+        timestamp = 12345
+        expires = 12346
+        meta = {}
+        self.node.send_store(contact, PRIVATE_KEY, PUBLIC_KEY, name, value,
+                             timestamp, expires, meta)
+        mock.assert_called_once_with(PUBLIC_KEY, name)
+
+    def test_send_store_calls_send_message(self):
+        """
+        Ensure send_message is called as part of send_store.
+        """
+        self.node.send_message = MagicMock()
+        contact = Contact(self.node.id, '127.0.0.1', 54321, self.version)
+        name = 'foo'
+        value = 'bar'
+        timestamp = 12345
+        expires = 12346
+        meta = {}
+        self.node.send_store(contact, PRIVATE_KEY, PUBLIC_KEY, name, value,
+                             timestamp, expires, meta)
+        self.assertEqual(1, self.node.send_message.call_count)
+
+    def test_send_store_creates_expected_store_message(self):
+        """
+        Ensure the message passed in to send_message looks correct.
+        """
+        self.node.send_message = MagicMock()
+        contact = Contact(self.node.id, '127.0.0.1', 54321, self.version)
+        name = 'foo'
+        value = 'bar'
+        timestamp = 12345
+        expires = 12346
+        meta = {}
+        self.node.send_store(contact, PRIVATE_KEY, PUBLIC_KEY, name, value,
+                             timestamp, expires, meta)
+        self.assertEqual(1, self.node.send_message.call_count)
+        called_contact = self.node.send_message.call_args[0][0]
+        self.assertEqual(contact, called_contact)
+        message_to_send = self.node.send_message.call_args[0][1]
+        self.assertIsInstance(message_to_send, Store)
+        self.assertTrue(message_to_send.uuid)
+        self.assertEqual(message_to_send.node, self.node.id)
+        self.assertEqual(message_to_send.key, construct_key(PUBLIC_KEY, name))
+        self.assertEqual(message_to_send.value, value)
+        self.assertEqual(message_to_send.timestamp, timestamp)
+        self.assertEqual(message_to_send.expires, expires)
+        self.assertEqual(message_to_send.public_key, PUBLIC_KEY)
+        self.assertEqual(message_to_send.name, name)
+        self.assertEqual(message_to_send.meta, meta)
+        expected_sig = generate_signature(value, timestamp, expires, name,
+                                          meta, PRIVATE_KEY)
+        self.assertEqual(message_to_send.sig, expected_sig)
+        self.assertEqual(message_to_send.version, self.node.version)

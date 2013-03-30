@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Contains code that defines the local node in the DHT network.
+Contains code that defines the behaviour of the local node in the DHT network.
 """
 
 # Copyright (C) 2012-2013 Nicholas H.Tollervey.
@@ -31,7 +31,7 @@ from drogulus.net.protocol import DHTFactory
 from routingtable import RoutingTable
 from datastore import DictDataStore
 from contact import Contact
-from drogulus.crypto import validate_message
+from drogulus.crypto import validate_message, construct_key, generate_signature
 from drogulus.version import get_version
 
 
@@ -84,7 +84,7 @@ class Node(object):
         Causes the Node to join the DHT network. This should be called before
         any other DHT operations. The seedNodes argument contains a list of
         tuples describing existing nodes on the network in the form of their
-        ID address and port.
+        IP address and port.
         """
         pass
 
@@ -283,15 +283,21 @@ class Node(object):
         ping = Ping(new_uuid, self.id, self.version)
         return self.send_message(contact, ping)
 
-    def send_store(self, contact, public_key, name, value, timestamp, expires,
-                   meta):
+    def send_store(self, contact, private_key, public_key, name, value,
+                   timestamp, expires, meta):
         """
         Sends a Store message to the given contact. The value contained within
         the message is stored against a key derived from the public_key and
         name. Furthermore, the message is cryptographically signed using the
         value, timestamp, expires, name and meta values.
         """
-        pass
+        new_uuid = str(uuid4())
+        signature = generate_signature(value, timestamp, expires, name, meta,
+                                       private_key)
+        compound_key = construct_key(public_key, name)
+        store = Store(new_uuid, self.id, compound_key, value, timestamp,
+                      expires, public_key, name, meta, signature, self.version)
+        return self.send_message(contact, store)
 
     def send_find_node(self, contact, id):
         """
