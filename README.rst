@@ -29,8 +29,8 @@ Quick Start
 -----------
 
 * Clone the repository: ``git clone git://github.com/ntoll/drogulus.git``
-* I suggest you create a virtualenv for development purposes (see: https://pypi.python.org/pypi/virtualenv)
-* Make sure you have a clean virtualenv. Then, within the resulting ``drogulus`` directory, type ``pip install -r requirements.txt``
-* Next, type ``make check`` to run various code quality checks and the test suite. You should see a bunch of green ``OK`` messages scroll past.
+* I suggest you create a virtualenv for development purposes (see: https://pypi.python.org/pypi/virtualenv).
+* Make sure you have a clean virtualenv. Then, within the resulting ``drogulus`` directory, type ``pip install -r requirements.txt`` to install all the project's requirements. This may take some minutes since the packages need to be downloaded from the internet.
+* Next, type ``make check`` to run various code quality checks and the test suite. You should see a bunch of green ``OK`` messages scroll past. If you see errors, just ask.
 * To build the documentation locally type ``make docs``. As the script will tell you, the resulting docs (as HTML) can be found in ``drogulus/docs/_build/html/index.html``.
 * A simple demo application is coming soon...
