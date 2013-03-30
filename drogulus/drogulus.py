@@ -17,3 +17,37 @@ Encapsulates a node in the Drogulus.
 #
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+from dht import node
+
+
+class Drogulus(node.Node):
+    """
+    Represents a node in the Drogulus distributed hash table. This is the
+    class that should generally be instantiated.
+    """
+
+    def __init__(self, alias=None):
+        if alias:
+            self.alias = alias
+        else:
+            self.alias = {}
+
+    def whois(self, public_key):
+        """
+        """
+        return self.get(public_key, None)
+
+    def get(self, peer, key):
+        """
+        """
+        pass
+
+    def store(self, key, value, meta=None, expires=None, spread=1):
+        """
+        """
+        pass
+
+    def run(self, key, *args):
+        """
+        """
+        pass
