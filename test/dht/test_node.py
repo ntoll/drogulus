@@ -10,7 +10,7 @@ from drogulus.version import get_version
 from drogulus.net.protocol import DHTFactory
 from drogulus.net.messages import (Error, Ping, Pong, Store, FindNode, Nodes,
                                    FindValue, Value)
-from drogulus.crypto import construct_key, generate_signature
+from drogulus.crypto import construct_key
 from twisted.trial import unittest
 from twisted.test import proto_helpers
 from twisted.python import log
@@ -900,15 +900,11 @@ class TestNode(unittest.TestCase):
         """
         mock.return_value = 'test'
         contact = Contact(self.node.id, '127.0.0.1', 54321, self.version)
-        name = 'foo'
-        value = 'bar'
-        timestamp = 12345
-        expires = 12346
-        meta = {}
-        self.node.send_store(contact, PRIVATE_KEY, PUBLIC_KEY, name, value,
-                             timestamp, expires, meta)
-        mock.assert_called_once_with(value, timestamp, expires, name, meta,
-                                     PRIVATE_KEY)
+        self.node.send_store(contact, PRIVATE_KEY, PUBLIC_KEY, self.name,
+                             self.value, self.timestamp, self.expires,
+                             self.meta)
+        mock.assert_called_once_with(self.value, self.timestamp, self.expires,
+                                     self.name, self.meta, PRIVATE_KEY)
 
     @patch('drogulus.dht.node.construct_key')
     def test_send_store_makes_compound_key(self, mock):
@@ -918,14 +914,10 @@ class TestNode(unittest.TestCase):
         """
         mock.return_value = 'test'
         contact = Contact(self.node.id, '127.0.0.1', 54321, self.version)
-        name = 'foo'
-        value = 'bar'
-        timestamp = 12345
-        expires = 12346
-        meta = {}
-        self.node.send_store(contact, PRIVATE_KEY, PUBLIC_KEY, name, value,
-                             timestamp, expires, meta)
-        mock.assert_called_once_with(PUBLIC_KEY, name)
+        self.node.send_store(contact, PRIVATE_KEY, PUBLIC_KEY, self.name,
+                             self.value, self.timestamp, self.expires,
+                             self.meta)
+        mock.assert_called_once_with(PUBLIC_KEY, self.name)
 
     def test_send_store_calls_send_message(self):
         """
@@ -933,13 +925,9 @@ class TestNode(unittest.TestCase):
         """
         self.node.send_message = MagicMock()
         contact = Contact(self.node.id, '127.0.0.1', 54321, self.version)
-        name = 'foo'
-        value = 'bar'
-        timestamp = 12345
-        expires = 12346
-        meta = {}
-        self.node.send_store(contact, PRIVATE_KEY, PUBLIC_KEY, name, value,
-                             timestamp, expires, meta)
+        self.node.send_store(contact, PRIVATE_KEY, PUBLIC_KEY, self.name,
+                             self.value, self.timestamp, self.expires,
+                             self.meta)
         self.assertEqual(1, self.node.send_message.call_count)
 
     def test_send_store_creates_expected_store_message(self):
@@ -948,13 +936,9 @@ class TestNode(unittest.TestCase):
         """
         self.node.send_message = MagicMock()
         contact = Contact(self.node.id, '127.0.0.1', 54321, self.version)
-        name = 'foo'
-        value = 'bar'
-        timestamp = 12345
-        expires = 12346
-        meta = {}
-        self.node.send_store(contact, PRIVATE_KEY, PUBLIC_KEY, name, value,
-                             timestamp, expires, meta)
+        self.node.send_store(contact, PRIVATE_KEY, PUBLIC_KEY, self.name,
+                             self.value, self.timestamp, self.expires,
+                             self.meta)
         self.assertEqual(1, self.node.send_message.call_count)
         called_contact = self.node.send_message.call_args[0][0]
         self.assertEqual(contact, called_contact)
@@ -962,14 +946,12 @@ class TestNode(unittest.TestCase):
         self.assertIsInstance(message_to_send, Store)
         self.assertTrue(message_to_send.uuid)
         self.assertEqual(message_to_send.node, self.node.id)
-        self.assertEqual(message_to_send.key, construct_key(PUBLIC_KEY, name))
-        self.assertEqual(message_to_send.value, value)
-        self.assertEqual(message_to_send.timestamp, timestamp)
-        self.assertEqual(message_to_send.expires, expires)
+        self.assertEqual(message_to_send.key, self.key)
+        self.assertEqual(message_to_send.value, self.value)
+        self.assertEqual(message_to_send.timestamp, self.timestamp)
+        self.assertEqual(message_to_send.expires, self.expires)
         self.assertEqual(message_to_send.public_key, PUBLIC_KEY)
-        self.assertEqual(message_to_send.name, name)
-        self.assertEqual(message_to_send.meta, meta)
-        expected_sig = generate_signature(value, timestamp, expires, name,
-                                          meta, PRIVATE_KEY)
-        self.assertEqual(message_to_send.sig, expected_sig)
+        self.assertEqual(message_to_send.name, self.name)
+        self.assertEqual(message_to_send.meta, self.meta)
+        self.assertEqual(message_to_send.sig, self.signature)
         self.assertEqual(message_to_send.version, self.node.version)
