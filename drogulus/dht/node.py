@@ -114,6 +114,8 @@ class Node(object):
             self.handle_error(message, protocol, other_node)
         elif isinstance(message, Value):
             self.handle_value(message, other_node)
+        elif isinstance(message, Nodes):
+            self.handle_nodes(message)
 
     def send_message(self, contact, message):
         """
@@ -286,7 +288,7 @@ class Node(object):
         Handles an incoming Nodes message containing information about other
         nodes on the network that are close to a requested key.
         """
-        pass
+        self.trigger_deferred(message)
 
     def send_ping(self, contact):
         """

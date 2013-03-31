@@ -329,6 +329,20 @@ class TestNode(unittest.TestCase):
         # Check it results in a call to the node's handle_value method.
         self.node.handle_value.assert_called_once_with(msg, contact)
 
+    def test_message_received_nodes(self):
+        """
+        Ensures a Nodes message is handled correctly.
+        """
+        self.node.handle_nodes = MagicMock()
+        # Create a nodes message.
+        msg = Nodes(self.uuid, self.node.id,
+                    ((self.node.id, '127.0.0.1', 1908, '0.1')),
+                    self.node.version)
+        # Receive it...
+        self.node.message_received(msg, self.protocol)
+        # Check it results in a call to the node's handle_nodes method.
+        self.node.handle_nodes.assert_called_once_with(msg)
+
     def test_handle_ping(self):
         """
         Ensures the handle_ping method returns a Pong message.
@@ -701,6 +715,18 @@ class TestNode(unittest.TestCase):
                               ValueError)
         # Tidy up.
         patcher.stop()
+
+    def test_handle_nodes(self):
+        """
+        Ensure a Nodes message merely results in the expected call to
+        trigger_deferred.
+        """
+        self.node.trigger_deferred = MagicMock()
+        msg = Nodes(self.uuid, self.node.id,
+                    ((self.node.id, '127.0.0.1', 1908, '0.1')),
+                    self.node.version)
+        self.node.handle_nodes(msg)
+        self.node.trigger_deferred.assert_called_once_with(msg)
 
     @patch('drogulus.dht.node.clientFromString')
     def test_send_message(self, mock_client):
