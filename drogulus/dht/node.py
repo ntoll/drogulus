@@ -112,6 +112,8 @@ class Node(object):
             self.handle_find_value(message, protocol)
         elif isinstance(message, Error):
             self.handle_error(message, protocol, other_node)
+        elif isinstance(message, Value):
+            self.handle_value(message, other_node)
 
     def send_message(self, contact, message):
         """
@@ -155,7 +157,8 @@ class Node(object):
         if message.uuid in self._pending:
             deferred = self._pending[message.uuid]
             if error:
-                deferred.errback(message)
+                error.message = message
+                deferred.errback(error)
             else:
                 deferred.callback(message)
             # Remove the called deferred from the _pending dictionary.
@@ -265,7 +268,18 @@ class Node(object):
 
         TODO: How to handle invalid messages and errback the deferred.
         """
-        pass
+        # Check provenance
+        is_valid, err_code = validate_message(message)
+        if is_valid:
+            self.trigger_deferred(message)
+        else:
+            log.msg('Problem with incoming Value: %d - %s' %
+                    (err_code, constants.ERRORS[err_code]))
+            log.msg(message)
+            # Remove the remote node from the routing table.
+            self._routing_table.remove_contact(sender.id, True)
+            error = ValueError(constants.ERRORS[err_code])
+            self.trigger_deferred(message, error)
 
     def handle_nodes(self, message):
         """

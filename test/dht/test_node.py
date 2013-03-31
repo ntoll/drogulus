@@ -312,6 +312,23 @@ class TestNode(unittest.TestCase):
         self.node.handle_error.assert_called_once_with(msg, self.protocol,
                                                        contact)
 
+    def test_message_received_value(self):
+        """
+        Ensures a Value message is handled correctly.
+        """
+        self.node.handle_value = MagicMock()
+        # Create a Value message.
+        uuid = str(uuid4())
+        msg = Value(uuid, self.node.id, self.key, self.value, self.timestamp,
+                    self.expires, PUBLIC_KEY, self.name, self.meta,
+                    self.signature, self.node.version)
+        # Receive it...
+        self.node.message_received(msg, self.protocol)
+        # Dummy contact.
+        contact = Contact(self.node.id, '192.168.1.1', 54321, self.version)
+        # Check it results in a call to the node's handle_value method.
+        self.node.handle_value.assert_called_once_with(msg, contact)
+
     def test_handle_ping(self):
         """
         Ensures the handle_ping method returns a Pong message.
@@ -343,6 +360,24 @@ class TestNode(unittest.TestCase):
         self.node.handle_ping(msg, self.protocol)
         # Ensure the loseConnection method was also called.
         self.protocol.transport.loseConnection.assert_called_once_with()
+
+    @patch('drogulus.dht.node.validate_message')
+    def test_handle_store_checks_with_validate_message(self, mock_validator):
+        """
+        Ensure that the validate_message function is called as part of
+        handle_store.
+        """
+        # Mock
+        mock_validator.return_value = (1, 2)
+        self.protocol.sendMessage = MagicMock()
+        # Create a fake contact and valid message.
+        msg = Store(self.uuid, self.node.id, self.key, self.value,
+                    self.timestamp, self.expires, PUBLIC_KEY, self.name,
+                    self.meta, self.signature, self.version)
+        other_node = Contact(self.node.id, '127.0.0.1', 1908,
+                             self.version, time.time())
+        self.node.handle_store(msg, self.protocol, other_node)
+        mock_validator.assert_called_once_with(msg)
 
     def test_handle_store(self):
         """
@@ -601,6 +636,72 @@ class TestNode(unittest.TestCase):
         # an error has happened, the other the actual error message).
         self.assertEqual(2, log.msg.call_count)
 
+    @patch('drogulus.dht.node.validate_message')
+    def test_handle_value_checks_with_validate_message(self, mock_validator):
+        """
+        Ensure that the validate_message function is called as part of
+        handle_value.
+        """
+        mock_validator.return_value = (1, 2)
+        # Create a fake contact and valid message.
+        other_node = Contact(self.node.id, '127.0.0.1', 1908,
+                             self.version, time.time())
+        msg = Value(self.uuid, self.node.id, self.key, self.value,
+                    self.timestamp, self.expires, PUBLIC_KEY, self.name,
+                    self.meta, self.signature, self.node.version)
+        # Handle it.
+        self.node.handle_value(msg, other_node)
+        mock_validator.assert_called_once_with(msg)
+
+    def test_handle_value_with_valid_message(self):
+        """
+        Ensure a valid Value is checked and results in the expected call to
+        trigger_deferred.
+        """
+        # Mock
+        self.node.trigger_deferred = MagicMock()
+        # Create a fake contact and valid message.
+        other_node = Contact(self.node.id, '127.0.0.1', 1908,
+                             self.version, time.time())
+        msg = Value(self.uuid, self.node.id, self.key, self.value,
+                    self.timestamp, self.expires, PUBLIC_KEY, self.name,
+                    self.meta, self.signature, self.node.version)
+        # Handle it.
+        self.node.handle_value(msg, other_node)
+        self.node.trigger_deferred.assert_called_once_with(msg)
+
+    def test_handle_value_with_bad_message(self):
+        """
+        Ensure a bad message results in an error sent to trigger_deferred along
+        with expected logging and removal or the other node from the local
+        node's routing table.
+        """
+        # Mocks
+        self.node._routing_table.remove_contact = MagicMock()
+        self.node.trigger_deferred = MagicMock()
+        patcher = patch('drogulus.dht.node.log.msg')
+        mockLog = patcher.start()
+        # Create a fake contact and valid message.
+        other_node = Contact(self.node.id, '127.0.0.1', 1908,
+                             self.version, time.time())
+        msg = Value(self.uuid, self.node.id, self.key, 'bad_value',
+                    self.timestamp, self.expires, PUBLIC_KEY, self.name,
+                    self.meta, self.signature, self.node.version)
+        # Handle it.
+        self.node.handle_value(msg, other_node)
+        # Logger was called twice.
+        self.assertEqual(2, mockLog.call_count)
+        # other node was removed from the routing table.
+        self.node._routing_table.remove_contact.\
+            assert_called_once_with(other_node.id, True)
+        # trigger_deferred called as expected.
+        self.assertEqual(1, self.node.trigger_deferred.call_count)
+        self.assertEqual(self.node.trigger_deferred.call_args[0][0], msg)
+        self.assertIsInstance(self.node.trigger_deferred.call_args[0][1],
+                              ValueError)
+        # Tidy up.
+        patcher.stop()
+
     @patch('drogulus.dht.node.clientFromString')
     def test_send_message(self, mock_client):
         """
@@ -795,11 +896,13 @@ class TestNode(unittest.TestCase):
         # Sanity check.
         self.assertEqual(1, len(self.node._pending))
         # Trigger.
-        self.node.trigger_deferred(msg, True)
+        error = ValueError('Information about the erroneous message')
+        self.node.trigger_deferred(msg, error)
         # The deferred has fired with an errback.
         self.assertTrue(deferred.called)
         self.assertEqual(1, handler.call_count)
-        self.assertEqual(handler.call_args[0][0].value, msg)
+        self.assertEqual(handler.call_args[0][0].value, error)
+        self.assertEqual(handler.call_args[0][0].value.message, msg)
         self.assertEqual(handler.call_args[0][0].__class__, Failure)
 
     def test_trigger_deferred_with_ok_message(self):
