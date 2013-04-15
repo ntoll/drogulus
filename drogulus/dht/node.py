@@ -350,7 +350,7 @@ class Node(object):
     def iterative_lookup(self, key, message_class):
         """
         A generic lookup function for finding nodes or values within the
-        distributed hash table. Takes a key that either refernces a value or
+        distributed hash table. Takes a key that either references a value or
         location in the hash-space. This function returns a deferred that will
         fire wth the found value or a set of peers in the DHT that are close to
         the key. The message class should be either FindNode or FindValue.
