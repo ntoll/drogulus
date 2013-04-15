@@ -50,6 +50,56 @@ def response_timeout(message, protocol, node):
         node._routing_table.remove_contact(message.node)
 
 
+class Lookup(defer.Deferred):
+    """
+    Encapsulates a lookup in the DHT given a particular key and message type.
+    Will callback when a result is found or errback otherwise.
+    """
+
+    def __init__(self, key, message_type, local_node, timeout=None,
+                 canceller=None):
+        """
+        Sets up the lookup to search for a certain key with a particular
+        message_type using the DHT state found in the local_node. If defined,
+        will cancel after timeout seconds. See the documentation for
+        twisted.internet.defer.Deferred for explanation of canceller.
+        """
+        defer.Deferred.__init__(self, canceller)
+        self.key = key
+        self.message_type = message_type
+        self.local_node = local_node
+        # The list of active queries.
+        self.active_probes = []
+        # The set of peers that have already been contacted as part of this
+        # lookup.
+        self.contacted = set()
+        # A set of active nodes that have been found during this lookup.
+        self.active_candidates = set()
+        # Will reference the deferred for the next iteration of the lookup if
+        # another iteration is required.
+        self.pending_iteration = None
+        self.slow_node_count = 0
+        if timeout:
+            reactor.callLater(timeout, self.cancel)
+        # To hold peers in the DHT that are known to the local node that are
+        # possibly close to the target key.
+        self.shortlist = self.local_node._routing_table.find_close_nodes(key)
+        if self.key != self.local_node.id:
+            # Update the last_accessed attribute of the affected k-bucket.
+            self.local_node._routing_table.touch_kbucket(key)
+        if not self.shortlist:
+            # The node knows of no other nodes within the DHT.
+            self.callback(None)
+
+    def cancel(self):
+        """
+        Cancels this lookup in a clean fashion.
+        """
+        if self.pending_iteration:
+            self.pending_iteration.cancel()
+        defer.Deferred.cancel(self)
+
+
 class Node(object):
     """
     This class represents a single local node in the DHT encapsulating its
@@ -79,7 +129,7 @@ class Node(object):
         self.version = get_version()
         log.msg('Initialised node with id: %r' % self.id)
 
-    def join(self, seedNodes=None):
+    def join(self, seed_nodes=None):
         """
         Causes the Node to join the DHT network. This should be called before
         any other DHT operations. The seedNodes argument contains a list of
@@ -184,7 +234,10 @@ class Node(object):
         """
         Handles an incoming Store message. Checks the provenance and timeliness
         of the message before storing locally. If there is a problem, removes
-        the untrustworthy peer from the routing table.
+        the untrustworthy peer from the routing table. Otherwise, at
+        REPLICATE_INTERVAL minutes in the future, the local node will attempt
+        to replicate the Store message elsewhere in the DHT if such time is
+        <= the message's expiry time.
 
         Sends a Pong message if successful otherwise replies with an
         appropriate Error.
@@ -208,6 +261,10 @@ class Node(object):
             # Reply with a pong so the other end updates its routing table.
             pong = Pong(message.uuid, self.id, self.version)
             protocol.sendMessage(pong, True)
+            # At some future time attempt to replicate the Store message
+            # around the network IF it is within the message's expiry time.
+            reactor.callLater(constants.REPLICATE_INTERVAL,
+                              self.send_replicate, message)
         else:
             # Remove from the routing table.
             log.msg('Problem with Store command: %d - %s' %
@@ -290,6 +347,16 @@ class Node(object):
         """
         self.trigger_deferred(message)
 
+    def iterative_lookup(self, key, message_class):
+        """
+        A generic lookup function for finding nodes or values within the
+        distributed hash table. Takes a key that either refernces a value or
+        location in the hash-space. This function returns a deferred that will
+        fire wth the found value or a set of peers in the DHT that are close to
+        the key. The message class should be either FindNode or FindValue.
+        """
+        pass
+
     def send_ping(self, contact):
         """
         Sends a ping request to the given contact and returns a deferred
@@ -299,7 +366,7 @@ class Node(object):
         ping = Ping(new_uuid, self.id, self.version)
         return self.send_message(contact, ping)
 
-    def send_store(self, contact, private_key, public_key, name, value,
+    def send_store(self, private_key, public_key, name, value,
                    timestamp, expires, meta):
         """
         Sends a Store message to the given contact. The value contained within
@@ -311,9 +378,27 @@ class Node(object):
         signature = generate_signature(value, timestamp, expires, name, meta,
                                        private_key)
         compound_key = construct_key(public_key, name)
-        store = Store(new_uuid, self.id, compound_key, value, timestamp,
-                      expires, public_key, name, meta, signature, self.version)
-        return self.send_message(contact, store)
+        new_store = Store(new_uuid, self.id, compound_key, value, timestamp,
+                          expires, public_key, name, meta, signature,
+                          self.version)
+        return self.send_replicate(new_store)
+
+    def send_replicate(self, store_message):
+        """
+        Sends an existing valid Store message (that will probably have
+        originated from a third party) to another peer on the network for the
+        purposes of replication / spreading popular values.
+        """
+        # Check for expiry time..?
+        # Find closest node...
+        """
+        new_uuid = str(uuid4())
+        store = Store(new_uuid, self.id, store_message.key,
+                      store_message.value, store_message.timestamp,
+                      store_message.expires, store_message.public_key,
+                      store_message.name, store_message.meta,
+                      store_message.sig, self.version)
+        return self.send_message(contact, store)"""
 
     def send_find_node(self, contact, id):
         """

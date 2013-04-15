@@ -5,4 +5,5 @@ msgpack-python
 sphinx
 pep8
 pyflakes
+mock
 coherence

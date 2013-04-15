@@ -3,8 +3,9 @@
 Ensures code that represents a local node in the DHT network works as
 expected
 """
-from drogulus.dht.node import response_timeout, Node
-from drogulus.constants import ERRORS, RPC_TIMEOUT, RESPONSE_TIMEOUT
+from drogulus.dht.node import response_timeout, Lookup, Node
+from drogulus.constants import (ERRORS, RPC_TIMEOUT, RESPONSE_TIMEOUT,
+                                REPLICATE_INTERVAL)
 from drogulus.dht.contact import Contact
 from drogulus.version import get_version
 from drogulus.net.protocol import DHTFactory
@@ -143,6 +144,116 @@ class TestTimeout(unittest.TestCase):
         msg = Ping(another_uuid, self.node_id, version)
         response_timeout(msg, self.protocol, self.node)
         self.assertIn(self.uuid, self.node._pending)
+
+
+class TestLookup(unittest.TestCase):
+    """
+    Ensures the Lookup class works as expected.
+    """
+
+    def setUp(self):
+        """
+        Following the pattern explained here:
+
+        http://twistedmatrix.com/documents/current/core/howto/trial.html
+        """
+        self.node_id = '1234567890abc'
+        self.node = Node(self.node_id)
+        self.factory = DHTFactory(self.node)
+        self.protocol = self.factory.buildProtocol(('127.0.0.1', 0))
+        self.transport = proto_helpers.StringTransport()
+        self.transport.abortConnection = fakeAbortConnection
+        self.protocol.makeConnection(self.transport)
+        self.clock = task.Clock()
+        reactor.callLater = self.clock.callLater
+        self.value = 'value'
+        self.signature = ('\x882f\xf9A\xcd\xf9\xb1\xcc\xdbl\x1c\xb2\xdb' +
+                          '\xa3UQ\x9a\x08\x96\x12\x83^d\xd8M\xc2`\x81Hz' +
+                          '\x84~\xf4\x9d\x0e\xbd\x81\xc4/\x94\x9dfg\xb2aq' +
+                          '\xa6\xf8!k\x94\x0c\x9b\xb5\x8e \xcd\xfb\x87' +
+                          '\x83`wu\xeb\xf2\x19\xd6X\xdd\xb3\x98\xb5\xbc#B' +
+                          '\xe3\n\x85G\xb4\x9c\x9b\xb0-\xd2B\x83W\xb8\xca' +
+                          '\xecv\xa9\xc4\x9d\xd8\xd0\xf1&\x1a\xfaw\xa0\x99' +
+                          '\x1b\x84\xdad$\xebO\x1a\x9e:w\x14d_\xe3\x03#\x95' +
+                          '\x9d\x10B\xe7\x13')
+        self.uuid = str(uuid4())
+        self.timestamp = 1350544046.084875
+        self.expires = 1352221970.14242
+        self.name = 'name'
+        self.meta = {'meta': 'value'}
+        self.version = get_version()
+        self.key = construct_key(PUBLIC_KEY, self.name)
+        self.timeout = 1000
+
+    def test_init(self):
+        """
+        The simplest case - ensure the object is set up correctly.
+        """
+        lookup = Lookup(self.key, FindNode, self.node)
+        self.assertIsInstance(lookup, defer.Deferred)
+        self.assertEqual(lookup.key, self.key)
+        self.assertEqual(lookup.message_type, FindNode)
+        self.assertEqual(lookup.local_node, self.node)
+        self.assertEqual(lookup.active_probes, [])
+        self.assertEqual(lookup.contacted, set())
+        self.assertEqual(lookup.active_candidates, set())
+        self.assertEqual(lookup.pending_iteration, None)
+        self.assertEqual(lookup.slow_node_count, 0)
+        self.assertEqual(lookup.shortlist, [])
+
+    def test_init_timeout_called(self):
+        """
+        Ensure the cancel method is called after timeout seconds.
+        """
+        lookup = Lookup(self.key, FindNode, self.node, self.timeout)
+        lookup.cancel = MagicMock()
+        self.clock.advance(self.timeout)
+        lookup.cancel.called_once_with(lookup)
+
+    def test_init_finds_close_nodes(self):
+        """
+        Ensure that __init__ attempts to call find_close_nodes on the routing
+        table.
+        """
+        self.node._routing_table.find_close_nodes = MagicMock()
+        lookup = Lookup(self.key, FindNode, self.node, self.timeout)
+        self.node._routing_table.find_close_nodes.\
+            assert_called_once_with(self.key)
+
+    def test_init_touches_kbucket(self):
+        """
+        If the target key is not the local node's id then touch_kbucket needs
+        to be called to update the last_accessed attribute of the K-bucket
+        containing the target key.
+        """
+        self.node._routing_table.touch_kbucket = MagicMock()
+        lookup = Lookup(self.key, FindNode, self.node, self.timeout)
+        self.node._routing_table.touch_kbucket.\
+            assert_called_once_with(self.key)
+
+    def test_iterative_lookup_skips_touch_kbucket_if_own_id(self):
+        """
+        The touch_kbucket operation only needs to happen if the target key is
+        NOT the local node's id.
+        """
+        self.node._routing_table.touch_kbucket = MagicMock()
+        lookup = Lookup(self.node.id, FindNode, self.node, self.timeout)
+        self.assertEqual(0, self.node._routing_table.touch_kbucket.call_count)
+
+    def test_init_no_known_nodes(self):
+        """
+        Checks that if the local node doesn't know of any other nodes then
+        the resulting lookup calls back with None.
+        """
+        lookup = Lookup(self.key, FindNode, self.node, self.timeout)
+        self.assertIsInstance(lookup, defer.Deferred)
+        self.assertTrue(lookup.called)
+
+        def callback_check(result):
+            self.assertEqual(None, result)
+
+        lookup.addCallback(callback_check)
+
 
 
 class TestNode(unittest.TestCase):
@@ -393,7 +504,8 @@ class TestNode(unittest.TestCase):
         self.node.handle_store(msg, self.protocol, other_node)
         mock_validator.assert_called_once_with(msg)
 
-    def test_handle_store(self):
+    @patch('drogulus.dht.node.reactor.callLater')
+    def test_handle_store(self, mock_call_later):
         """
         Ensures a correct Store message is handled correctly.
         """
@@ -408,6 +520,10 @@ class TestNode(unittest.TestCase):
         self.node.handle_store(msg, self.protocol, other_node)
         # Ensure the message is in local storage.
         self.assertIn(self.key, self.node._data_store)
+        # Ensure call_later has been called to replicate the value.
+        mock_call_later.assert_called_once_with(REPLICATE_INTERVAL,
+                                                self.node.send_replicate,
+                                                msg)
         # Ensure the response is a Pong message.
         result = Pong(self.uuid, self.node.id, self.version)
         self.protocol.sendMessage.assert_called_once_with(result, True)
@@ -1028,8 +1144,7 @@ class TestNode(unittest.TestCase):
         arguments as part of send_store.
         """
         mock.return_value = 'test'
-        contact = Contact(self.node.id, '127.0.0.1', 54321, self.version)
-        self.node.send_store(contact, PRIVATE_KEY, PUBLIC_KEY, self.name,
+        self.node.send_store(PRIVATE_KEY, PUBLIC_KEY, self.name,
                              self.value, self.timestamp, self.expires,
                              self.meta)
         mock.assert_called_once_with(self.value, self.timestamp, self.expires,
@@ -1042,36 +1157,31 @@ class TestNode(unittest.TestCase):
         as part of send_store.
         """
         mock.return_value = 'test'
-        contact = Contact(self.node.id, '127.0.0.1', 54321, self.version)
-        self.node.send_store(contact, PRIVATE_KEY, PUBLIC_KEY, self.name,
+        self.node.send_store(PRIVATE_KEY, PUBLIC_KEY, self.name,
                              self.value, self.timestamp, self.expires,
                              self.meta)
         mock.assert_called_once_with(PUBLIC_KEY, self.name)
 
-    def test_send_store_calls_send_message(self):
+    def test_send_store_calls_send_replicate(self):
         """
-        Ensure send_message is called as part of send_store.
+        Ensure send_replicate is called as part of send_store.
         """
-        self.node.send_message = MagicMock()
-        contact = Contact(self.node.id, '127.0.0.1', 54321, self.version)
-        self.node.send_store(contact, PRIVATE_KEY, PUBLIC_KEY, self.name,
+        self.node.send_replicate = MagicMock()
+        self.node.send_store(PRIVATE_KEY, PUBLIC_KEY, self.name,
                              self.value, self.timestamp, self.expires,
                              self.meta)
-        self.assertEqual(1, self.node.send_message.call_count)
+        self.assertEqual(1, self.node.send_replicate.call_count)
 
     def test_send_store_creates_expected_store_message(self):
         """
-        Ensure the message passed in to send_message looks correct.
+        Ensure the message passed in to send_replicate looks correct.
         """
-        self.node.send_message = MagicMock()
-        contact = Contact(self.node.id, '127.0.0.1', 54321, self.version)
-        self.node.send_store(contact, PRIVATE_KEY, PUBLIC_KEY, self.name,
+        self.node.send_replicate = MagicMock()
+        self.node.send_store(PRIVATE_KEY, PUBLIC_KEY, self.name,
                              self.value, self.timestamp, self.expires,
                              self.meta)
-        self.assertEqual(1, self.node.send_message.call_count)
-        called_contact = self.node.send_message.call_args[0][0]
-        self.assertEqual(contact, called_contact)
-        message_to_send = self.node.send_message.call_args[0][1]
+        self.assertEqual(1, self.node.send_replicate.call_count)
+        message_to_send = self.node.send_replicate.call_args[0][0]
         self.assertIsInstance(message_to_send, Store)
         self.assertTrue(message_to_send.uuid)
         self.assertEqual(message_to_send.node, self.node.id)

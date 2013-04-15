@@ -188,7 +188,7 @@ class RoutingTable(object):
                 can_go_higher = (bucket_index + (bucket_jump + 1) <
                                  number_of_buckets)
             bucket_jump += 1
-        # Ensure we only return K contacts (in certain circumstances 21
+        # Ensure we only return K contacts (in certain circumstances K+1
         # results are generated).
         return closest_nodes[:constants.K]
 
