@@ -216,7 +216,7 @@ class TestLookup(unittest.TestCase):
         table.
         """
         self.node._routing_table.find_close_nodes = MagicMock()
-        lookup = Lookup(self.key, FindNode, self.node, self.timeout)
+        Lookup(self.key, FindNode, self.node, self.timeout)
         self.node._routing_table.find_close_nodes.\
             assert_called_once_with(self.key)
 
@@ -227,7 +227,7 @@ class TestLookup(unittest.TestCase):
         containing the target key.
         """
         self.node._routing_table.touch_kbucket = MagicMock()
-        lookup = Lookup(self.key, FindNode, self.node, self.timeout)
+        Lookup(self.key, FindNode, self.node, self.timeout)
         self.node._routing_table.touch_kbucket.\
             assert_called_once_with(self.key)
 
@@ -237,7 +237,7 @@ class TestLookup(unittest.TestCase):
         NOT the local node's id.
         """
         self.node._routing_table.touch_kbucket = MagicMock()
-        lookup = Lookup(self.node.id, FindNode, self.node, self.timeout)
+        Lookup(self.node.id, FindNode, self.node, self.timeout)
         self.assertEqual(0, self.node._routing_table.touch_kbucket.call_count)
 
     def test_init_no_known_nodes(self):
@@ -253,7 +253,6 @@ class TestLookup(unittest.TestCase):
             self.assertEqual(None, result)
 
         lookup.addCallback(callback_check)
-
 
 
 class TestNode(unittest.TestCase):
