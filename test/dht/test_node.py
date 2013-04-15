@@ -231,7 +231,7 @@ class TestLookup(unittest.TestCase):
         self.node._routing_table.touch_kbucket.\
             assert_called_once_with(self.key)
 
-    def test_iterative_lookup_skips_touch_kbucket_if_own_id(self):
+    def test_init_skips_touch_kbucket_if_node_id_is_key(self):
         """
         The touch_kbucket operation only needs to happen if the target key is
         NOT the local node's id.
