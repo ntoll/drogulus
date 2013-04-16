@@ -22,7 +22,7 @@ from drogulus.constants import K
 
 
 class KBucketFull(Exception):
-    """ Raised when the bucket is full """
+    """ Raised when the bucket is full. """
     pass
 
 
@@ -43,7 +43,8 @@ class KBucket(object):
     hour of each other (for example k = 20)"
 
     Nota Bene: This implementation of Kademlia uses a 512 bit key space
-    based upon SHA512 rather than the original 160 bit SHA1 implementation.
+    based upon SHA512 rather than the original 160 bit SHA1 implementation, so
+    i will equal 512.
     """
 
     def __init__(self, range_min, range_max):
@@ -127,8 +128,9 @@ class KBucket(object):
 
     def key_in_range(self, key):
         """
-        Checks if a key is within the range covered by this k-bucket. Indicates
-        if a certain key should be placed within this k-bucket.
+        Checks if a key is within the range covered by this k-bucket. Returns 
+        a boolean to Indicate if a certain key should be placed within this 
+        k-bucket.
         """
         if isinstance(key, str):
             key = long(key.encode('hex'), 16)
