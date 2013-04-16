@@ -26,8 +26,9 @@ import msgpack
 
 def construct_hash(value, timestamp, expires, name, meta):
     """
-    The hash is a SHA512 hash of the SHA512 hashes of the msgpack encoded
-    'value', 'timetamp, 'expires', 'name' and 'meta' fields (in that order).
+    The hash is a SHA512 hash of the combined SHA512 hashes of the msgpack 
+    encoded 'value', 'timetamp, 'expires', 'name' and 'meta' fields (in 
+    that order).
 
     It ensures that the 'value', 'timestamp', 'expires', 'name' and 'meta'
     fields have not been tampered with.
@@ -43,12 +44,12 @@ def construct_hash(value, timestamp, expires, name, meta):
 
 def construct_key(public_key, name=''):
     """
-    Given a string representation of a user's public key and the meaningful
-    name of a key in the DHT this function will return a digest of the SHA512
-    hash to use as the actual key to use within the DHT.
+    Given a string representation of a user's public key and the human 
+    readable string to use as a key in the DHT this function will return a 
+    digest of the SHA512 hash to use as the actual key to use within the DHT.
 
-    This ensures that the provenance (public key) and meaning of the DHT key
-    determine its value.
+    This ensures that the provenance (public key) and meaning of the key
+    determine its value in the DHT.
     """
     # Simple normalisation: no spaces or newlines around the public key
     key_hash = SHA512.new(public_key.strip())
@@ -69,16 +70,14 @@ def generate_signature(value, timestamp, expires, name, meta, private_key):
     Given the value, timestamp, expires, name and meta values of an outgoing
     value carrying message will use the private key to generate a
     cryptographic hash to the message to be used to sign / validate the
-    message.
+    message. 
+    
+    This ensures that the 'value', 'timestamp', 'expires', 'name' and 'meta'
+    fields have not been tampered with.
 
     The hash is created with the private key of the person storing the
     key/value pair. It is, in turn, based upon the SHA512 hash of the SHA512
     hashes of the 'value', 'timestamp', 'expires', 'name' and 'meta' fields.
-
-    This mechanism ensures that the public_key used in the compound key is
-    valid (i.e. it creates the correct SHA512 hash) and also ensures that the
-    'value', 'timestamp', 'expires', 'name' and 'meta' fields have not been
-    tampered with.
     """
     compound_hash = construct_hash(value, timestamp, expires, name, meta)
     key = RSA.importKey(private_key)
@@ -90,8 +89,8 @@ def validate_signature(value, timestamp, expires, name, meta, signature,
                        public_key):
     """
     Uses the public key to validate the cryptographic signature based upon
-    a hash of the value, timestamp, expires, name and meta values of a value
-    carrying message.
+    a hash of the values in the 'value', 'timestamp', 'expires', 'name' and
+    'meta' fields of a value carrying message.
     """
     generated_hash = construct_hash(value, timestamp, expires, name, meta)
     try:
