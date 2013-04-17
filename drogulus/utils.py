@@ -22,7 +22,7 @@ Drogulus.
 
 def long_to_hex(raw):
     """
-    Given a raw numeric value (like a node's id for example) returns it
+    Given a raw numeric value (like a node's ID for example) returns it
     expressed as a hexadecimal string.
     """
     # Turn it into hex string (remembering to drop the '0x' at the start).
@@ -40,6 +40,6 @@ def long_to_hex(raw):
 def hex_to_long(raw):
     """
     Given a hexadecimal string representation of a number (like a key or
-    node's id for example) returns the numeric (long) value.
+    node's ID for example) returns the numeric (long) value.
     """
     return long(raw.encode('hex'), 16)
