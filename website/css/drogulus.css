@@ -10,14 +10,12 @@ body {
 }
 
 #logo {
-    display: block;
-    position: fixed;
     width: 140px;
-    height: 140px
+    height: 140px;
+    float: left;
 }
 
 nav {
-    position: fixed;
 }
 
 nav ul {
