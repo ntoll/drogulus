@@ -26,9 +26,9 @@ import msgpack
 
 def construct_hash(value, timestamp, expires, name, meta):
     """
-    The hash is a SHA512 hash of the combined SHA512 hashes of the msgpack 
-    encoded 'value', 'timetamp, 'expires', 'name' and 'meta' fields (in 
-    that order).
+    The hash is a SHA512 hash of the concatenated SHA512 hashes of the 
+    msgpack encoded 'value', 'timetamp, 'expires', 'name' and 'meta' 
+    fields (in that order).
 
     It ensures that the 'value', 'timestamp', 'expires', 'name' and 'meta'
     fields have not been tampered with.
