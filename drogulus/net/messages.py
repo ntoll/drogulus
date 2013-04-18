@@ -97,7 +97,7 @@ class Store(namedtuple('Store', ['uuid', 'node', 'key', 'value', 'timestamp',
                 key/value pair can be removed (expired) from the DHT. Expressed
                 as an integer representing the time in seconds since the Epoch
                 (so called POSIX time). If the value is less than or equal to 
-                0 (zero) then the key/value pair should never expire.
+                zero then the key/value pair should never expire.
     * public_key - the public key of the person storing the value.
     * name - the human-readable name of the key.
     * meta - a list of tuples containing key/value strings for user defined
@@ -188,7 +188,7 @@ class Value(namedtuple('Value', ['uuid', 'node', 'key', 'value', 'timestamp',
                 key/value pair can be removed (expired) from the DHT. Expressed
                 as an integer representing the time in seconds since the Epoch
                 (so called POSIX time). If the value is less than or equal to 
-                0 (zero) then the key/value pair should never expire.
+                zero then the key/value pair should never expire.
     * public_key - the public key of the person who stored the value.
     * name - the human-readable name of the key.
     * meta - a list of tuples containing key/value strings for user defined
