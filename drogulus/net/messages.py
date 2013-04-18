@@ -89,14 +89,14 @@ class Store(namedtuple('Store', ['uuid', 'node', 'key', 'value', 'timestamp',
     * key - the SHA512 value of the compound key used as the actual key on the
             DHT.
     * value - the value to be stored in the DHT.
-    * timestamp - a timestamp indicating when this key/value pair was 
-                  *originally* generated as an integer representing the time 
+    * timestamp - a timestamp indicating when this key/value pair was
+                  *originally* generated as an integer representing the time
                   in seconds since the Epoch (so called POSIX time, see
                   https://en.wikipedia.org/wiki/Unix_time).
-    * expires - a timestamp indicating a point in time after which this 
+    * expires - a timestamp indicating a point in time after which this
                 key/value pair can be removed (expired) from the DHT. Expressed
                 as an integer representing the time in seconds since the Epoch
-                (so called POSIX time). If the value is less than or equal to 
+                (so called POSIX time). If the value is less than or equal to
                 zero then the key/value pair should never expire.
     * public_key - the public key of the person storing the value.
     * name - the human-readable name of the key.
@@ -126,7 +126,7 @@ class Store(namedtuple('Store', ['uuid', 'node', 'key', 'value', 'timestamp',
 class FindNode(namedtuple('FindNode', ['uuid', 'node', 'key', 'version'])):
     """
     A "find node" message requests k nodes from the other nodes on the network
-    that are closest to the given key. The value k is the maximum number of 
+    that are closest to the given key. The value k is the maximum number of
     nodes that can be stored in a k-bucket and is set in the constants module.
     The original Kademlia paper names this variable and recommends its value
     as 20.
@@ -180,14 +180,14 @@ class Value(namedtuple('Value', ['uuid', 'node', 'key', 'value', 'timestamp',
     * key - the SHA512 value of the compound key used as the actual key on the
             DHT.
     * value - the value found in the DHT.
-    * timestamp - a timestamp indicating when this key/value pair was 
-                  *originally* generated as a floating point number 
-                  representing the time in seconds since the Epoch (so called 
+    * timestamp - a timestamp indicating when this key/value pair was
+                  *originally* generated as a floating point number
+                  representing the time in seconds since the Epoch (so called
                   POSIX time, see https://en.wikipedia.org/wiki/Unix_time).
-    * expires - a timestamp indicating a point in time after which this 
+    * expires - a timestamp indicating a point in time after which this
                 key/value pair can be removed (expired) from the DHT. Expressed
                 as an integer representing the time in seconds since the Epoch
-                (so called POSIX time). If the value is less than or equal to 
+                (so called POSIX time). If the value is less than or equal to
                 zero then the key/value pair should never expire.
     * public_key - the public key of the person who stored the value.
     * name - the human-readable name of the key.

@@ -26,8 +26,8 @@ import msgpack
 
 def construct_hash(value, timestamp, expires, name, meta):
     """
-    The hash is a SHA512 hash of the concatenated SHA512 hashes of the 
-    msgpack encoded 'value', 'timetamp, 'expires', 'name' and 'meta' 
+    The hash is a SHA512 hash of the concatenated SHA512 hashes of the
+    msgpack encoded 'value', 'timetamp, 'expires', 'name' and 'meta'
     fields (in that order).
 
     It ensures that the 'value', 'timestamp', 'expires', 'name' and 'meta'
@@ -44,8 +44,8 @@ def construct_hash(value, timestamp, expires, name, meta):
 
 def construct_key(public_key, name=''):
     """
-    Given a string representation of a user's public key and the human 
-    readable string to use as a key in the DHT this function will return a 
+    Given a string representation of a user's public key and the human
+    readable string to use as a key in the DHT this function will return a
     digest of the SHA512 hash to use as the actual key to use within the DHT.
 
     This ensures that the provenance (public key) and meaning of the key
@@ -70,8 +70,8 @@ def generate_signature(value, timestamp, expires, name, meta, private_key):
     Given the value, timestamp, expires, name and meta values of an outgoing
     value carrying message will use the private key to generate a
     cryptographic hash to the message to be used to sign / validate the
-    message. 
-    
+    message.
+
     This ensures that the 'value', 'timestamp', 'expires', 'name' and 'meta'
     fields have not been tampered with.
 

@@ -128,8 +128,8 @@ class KBucket(object):
 
     def key_in_range(self, key):
         """
-        Checks if a key is within the range covered by this k-bucket. Returns 
-        a boolean to indicate if a certain key should be placed within this 
+        Checks if a key is within the range covered by this k-bucket. Returns
+        a boolean to indicate if a certain key should be placed within this
         k-bucket.
         """
         if isinstance(key, str):
