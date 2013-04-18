@@ -125,7 +125,7 @@ class Store(namedtuple('Store', ['uuid', 'node', 'key', 'value', 'timestamp',
 
 class FindNode(namedtuple('FindNode', ['uuid', 'node', 'key', 'version'])):
     """
-    A "find node" message requests k nodes from the other node on the network
+    A "find node" message requests k nodes from the other nodes on the network
     that are closest to the given key. The value k is the maximum number of 
     nodes that can be stored in a k-bucket and is set in the constants module.
     The original Kademlia paper both names this variable and recommends its 
