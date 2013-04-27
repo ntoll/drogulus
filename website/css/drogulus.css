@@ -1,0 +1,115 @@
+/* Large desktop */
+body {
+  padding-top: 20px;
+}
+.jumbotron {
+  margin: 40px 0;
+  text-align: center;
+  clear: both;
+  display: block;
+}
+.jumbotron h1 {
+  font-size: 100px;
+  line-height: 1;
+}
+.jumbotron .lead {
+  font-size: 24px;
+  line-height: 1.25;
+}
+
+.nav-pills {
+  float: right;
+}
+
+/* Portrait tablet to landscape and desktop */
+@media (min-width: 768px) and (max-width: 979px) {
+    body {
+      padding-top: 20px;
+    }
+    .jumbotron {
+      margin: 40px 0;
+      text-align: center;
+      clear: both;
+      display: block;
+    }
+    .jumbotron h1 {
+      font-size: 100px;
+      line-height: 1;
+    }
+    .jumbotron .lead {
+      font-size: 24px;
+      line-height: 1.25;
+    }
+}
+
+/* Landscape phone to portrait tablet */
+@media (max-width: 767px) {
+    body {
+      padding-top: 10px;
+    }
+    .jumbotron {
+      text-align: center;
+      clear: both;
+    }
+    .jumbotron h1 {
+      font-size: 70px;
+      line-height: 1;
+    }
+    .jumbotron .lead {
+      font-size: 24px;
+      line-height: 1.25;
+    }
+    #logo img {
+        max-width: 200px;
+    }
+
+    .nav-pills {
+        margin-left: auto;
+        margin-right: auto;
+        float: none;
+        width: 420px;
+    }
+}
+
+/* Landscape phones and down */
+@media (max-width: 480px) {
+    body {
+      padding-top: 10px;
+    }
+    .jumbotron {
+      text-align: center;
+      clear: both;
+    }
+    .jumbotron h1 {
+      font-size: 50px;
+      line-height: 1;
+    }
+    .jumbotron .lead {
+      font-size: 24px;
+      line-height: 1.25;
+    }
+    #logo img {
+        max-width: 100px;
+    }
+
+    .nav-tabs>li>a, .nav-pills>li>a {
+        padding-right: 4px;
+        padding-left: 4px;
+        font-size: 12px;
+    }
+
+    .nav-pills {
+        margin-left: auto;
+        margin-right: auto;
+        float: none;
+        width: 280px;
+    }
+}
+
+.warning {
+  color: red;
+}
+.footer {
+  text-align: center;
+  font-size: 10px;
+}

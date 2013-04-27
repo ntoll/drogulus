@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Drogulus</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Homepage of the Drogulus project">
+    <meta name="author" content="Nicholas H.Tollervey">
+    <link href="css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="css/bootstrap-responsive.min.css" rel="stylesheet"
+      media="screen">
+    <link href="css/drogulus.css" rel="stylesheet" media="screen">
+    <!-- Fav and touch icons -->
+    <link rel="apple-touch-icon-precomposed" sizes="144x144" href="images/apple-touch-icon-144x144.png">
+    <link rel="apple-touch-icon-precomposed" sizes="114x114" href="images/apple-touch-icon-114x114..png">
+    <link rel="apple-touch-icon-precomposed" sizes="72x72" href="images/apple-touch-icon-72x72.png">
+    <link rel="apple-touch-icon-precomposed" href="images/apple-touch-icon-57x57.png">
+    <link rel="shortcut icon" href="images/favicon.ico">
+  </head>
+  <body>
+    <div class="container-fluid">
+
+      <div class="masthead">
+          <ul class="nav nav-pills">
+            <li><a href="/">Drogulus</a></li>
+            <li><a href="/what.html">What?</a></li>
+            <li><a href="/why.html">Why?</a></li>
+            <li><a href="/how.html">How?</a></li>
+            <li><a href="/code.html">Code</a></li>
+            <li><a href="/contact.html">Contact</a></li>
+          </ul>
+      </div><!-- masthead -->
+
+      <div class="row-fluid">
+        <div class="span8 offset2">
+
+          <!-- How? -->
+          <div id="how">
+            <h2>How?</h2>
+
+            <p>There are three core components in Drogulus:</p>
+
+            <ul>
+              <li>A distributed hash table (DHT) that provides the data
+              store and replaces DNS.</li>
+              <li>Trust and identity enforced via cryptographic
+              signing of digital assets.</li>
+              <li>Logos/λόγος (say "log-oss"), a simple implementation of a
+              Lisp like programming language for asynchronously working with
+              data stored in the DHT.</li>
+            </ul>
+
+            <p>Drogulus implements a version of the
+            <a href="https://en.wikipedia.org/wiki/Kademlia">Kademlia</a>
+            distributed hash table (Drogulus uses the
+            <a href="https://en.wikipedia.org/wiki/SHA-2">SHA512</a>
+            hash function rather than the
+            <a href="https://en.wikipedia.org/wiki/SHA-1">SHA1</a> function
+            used in the original version of Kademlia). The innovation
+            Drogulus brings to the table is that values (data) stored in
+            the DHT are cryptographically signed in such a way that their
+            provenance can be proven and content shown to be "intact"
+            (i.e. not tampered with). Values that do not pass the
+            cryptographic checks are ignored and nodes on the network that
+            attempt to propagate such values are blocked. Logos
+            programs are themselves values stored within the DHT, run in
+            asynchronous "ensembles" that arrive at a consensus and process
+            other items of data (including other programs) stored within
+            the DHT. They are intentionally limited in terms of time (how
+            long a computation may last) and space (how much memory may be
+            used).</p>
+
+            <p>Currently, the DHT is almost finished, the cryptographic
+            layer is done and Logos is in the planning stages.</p>
+          </div>
+
+          <div class="footer">
+            <p>&copy 2013 <a href="http://ntoll.org/">Nicholas
+            H.Tollervey</a></p>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- container -->
+    <script src="js/jquery-2.0.0.min.js"></script>
+    <script src="js/bootstrap.min.js"></script>
+  </body>
+</html>

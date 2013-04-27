@@ -1,6 +1,7 @@
 *.swp
 *.pyc
 *.bak
+*.tgz
 docs/_build/*
 build/*
 _trial_temp
