@@ -104,13 +104,17 @@
       .warning {
         color: red;
       }
+      .footer {
+        text-align: center;
+        font-size: 10px;
+      }
     </style>
     <!-- Fav and touch icons -->
-    <link rel="apple-touch-icon-precomposed" sizes="144x144" href="../assets/ico/apple-touch-icon-144-precomposed.png">
-    <link rel="apple-touch-icon-precomposed" sizes="114x114" href="../assets/ico/apple-touch-icon-114-precomposed.png">
-    <link rel="apple-touch-icon-precomposed" sizes="72x72" href="../assets/ico/apple-touch-icon-72-precomposed.png">
-    <link rel="apple-touch-icon-precomposed" href="../assets/ico/apple-touch-icon-57-precomposed.png">
-    <link rel="shortcut icon" href="../assets/ico/favicon.png">
+    <link rel="apple-touch-icon-precomposed" sizes="144x144" href="images/apple-touch-icon-144x144.png">
+    <link rel="apple-touch-icon-precomposed" sizes="114x114" href="images/apple-touch-icon-114x114..png">
+    <link rel="apple-touch-icon-precomposed" sizes="72x72" href="images/apple-touch-icon-72x72.png">
+    <link rel="apple-touch-icon-precomposed" href="images/apple-touch-icon-57x57.png">
+    <link rel="shortcut icon" href="images/favicon.ico">
   </head>
   <body>
     <div class="container-fluid">
@@ -129,7 +133,9 @@
       <!-- Jumbotron -->
       <div class="jumbotron section" id="drogulus">
         <h1>Drogulus</h1>
-        <p id="logo"><img src="img/logo.png" alt="Drogulus logo"/></p>
+        <p id="logo">
+          <img src="images/logo.png" alt="Drogulus logo"/>
+        </p>
         <p class="lead">A resilient data store &amp; computation platform built
         for simplicity, security, openness &amp; fun.</p>
         <p class="warning">Drogulus is currently an unfinished work in
@@ -245,7 +251,7 @@
               store and replaces DNS.</li>
               <li>Trust and identity enforced via cryptographic
               signing of digital assets.</li>
-              <li>Logos (say "log-oss"), a simple implementation of the
+              <li>Logos/λόγος (say "log-oss"), a simple implementation of the
               Lisp programming language for asynchronously working with
               data stored in the DHT.</li>
             </ul>
@@ -278,7 +284,10 @@
           <div class="section" id="code">
             <h2>Code</h2>
 
-            <p>Source code is currently hosted on
+            <p class="warning">Drogulus is currently an unfinished work in
+            progress.</p>
+
+            <p>Source code is hosted on
             <a href="https://github.com/ntoll/drogulus">Github</a>.
             Patches, pull requests, bug reports, comments, suggestions
             and good ideas most welcome!</p>
@@ -335,6 +344,11 @@
             <p>Nicholas also <a href="http://twitter.com/ntoll">uses
             Twitter</a></p>
           </div>
+
+          <div class="footer">
+            <p>&copy 2013 <a href="http://ntoll.org/">Nicholas
+            H.Tollervey</a></p>
+          </div>
         </div>
       </div>
 
@@ -345,10 +359,25 @@
         /* Handle the menu items */
         $('.nav a').click(function(e) {
             var target = e.target.attributes.href.nodeValue;
-            $('.section').hide();
-            $(target).fadeIn();
+            displaySection(target);
             return false;
         });
+
+        /* display the target section of the document */
+        function displaySection(target) {
+            $('.section').hide();
+            $(target).fadeIn();
+            window.location.hash=target;
+            window.scroll(0, 0);
+        }
+
+        /* Handle hash arguments in URL */
+        if(window.location.hash !== '') {
+            var content = $(window.location.hash);
+            if(content && content.is(':hidden')) {
+               displaySection(window.location.hash);
+            }
+        }
     </script>
   </body>
 </html>
