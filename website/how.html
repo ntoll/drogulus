@@ -38,7 +38,7 @@
           <div id="how">
             <h2>How?</h2>
 
-            <p>Drogulus has three core components:</p>
+            <p>The drogulus has three core components:</p>
 
             <ul>
               <li>A distributed hash table (DHT) that provides the data
@@ -50,25 +50,28 @@
               data stored in the DHT.</li>
             </ul>
 
-            <p>Drogulus implements a version of the
+            <p>The drogulus implements a version of the
             <a href="https://en.wikipedia.org/wiki/Kademlia">Kademlia</a>
-            distributed hash table (Drogulus uses the
-            <a href="https://en.wikipedia.org/wiki/SHA-2">SHA512</a>
-            hash function rather than the
-            <a href="https://en.wikipedia.org/wiki/SHA-1">SHA1</a> function
-            used in the original version of Kademlia). The innovation
-            Drogulus brings to the table is that values (data) stored in
-            the DHT are cryptographically signed in such a way that their
-            provenance can be proven and content shown to be "intact"
-            (i.e. not tampered with). Values that do not pass the
-            cryptographic checks are ignored and nodes on the network that
-            attempt to propagate such values are blocked. Logos
-            programs are themselves values stored within the DHT, run in
-            asynchronous "ensembles" that arrive at a consensus and process
-            other items of data (including other programs) stored within
-            the DHT. They are intentionally limited in terms of time (how
-            long a computation may last) and space (how much memory may be
-            used).</p>
+            distributed hash table. The innovation the drogulus brings is that
+            keys and values (items) are signed in such a way that their
+            provenance can be proven and content shown to be intact.
+            Furthermore, users cannot interfere with each other's items stored
+            within the distributed hash table unless they have access to the
+            same private key. Items are self contained and any that do not pass
+            the cryptographic checks are ignored and nodes on the network that
+            attempt to propagate such values are punished by being blocked by
+            their peers.</p>
+
+            <p>Logos programs are themselves values stored within the DHT, run
+            in asynchronous "ensembles" that arrive at a consensus and process
+            other items of data stored within the DHT. They are sandboxed and
+            intentionally limited in terms of time (how long a computation may
+            last) and space (how much memory may be used). Since Logos programs
+            are also data there is a mind-bending side effect that Logos
+            programs can rewrite other Logos programs in order to extend the
+            Logos programming language itself. This is an important property:
+            users have the autonomy to grow the Logos programming language to
+            suite their own needs.</p>
 
             <p>Currently, the DHT is almost finished, the cryptographic
             layer is done and Logos is in the planning stages.</p>
