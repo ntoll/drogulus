@@ -6,4 +6,4 @@ sphinx
 pep8
 pyflakes
 mock
-coherence
+# coherence - upnp helper

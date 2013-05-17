@@ -5,9 +5,8 @@ Drogulus
 
 Check out the project's website for more details: http://drogul.us
 
-Drogulus is a resilient federated data store and computation platform designed
-for simplicity, security, openness and fun. It's also an exercise in
-practical philosophy.
+Drogulus is a programmable peer-to-peer data store designed for simplicity,
+security, openness and fun. It's also an exercise in practical philosophy.
 
 It's influenced by ideas from Fluidinfo (an openly writable data store),
 Kademlia (a distributed hash table), Lisp, public/private key cryptography with
@@ -18,7 +17,7 @@ It'll probably all come to nothing. ;-)
 
 Current status: the distributed hash table is almost finished. Crypto based
 work is done. Lisp implementation is an (uncommitted) toy which requires
-further work.
+further work although the design is pretty much done.
 
 If in doubt, please ask. :-)
 
