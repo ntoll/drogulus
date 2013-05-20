@@ -30,7 +30,7 @@ class RoutingTable(object):
     From the original paper:
 
     "The routing table is a binary tree whose leaves are k-buckets. Each
-    k-bucket contains nodes with some common prefic in their ID. The prefix is
+    k-bucket contains nodes with some common prefix in their ID. The prefix is
     the k-bucket's position in the the binary tree. Thus, each k-bucket covers
     some range of the ID space, and together the k-buckets cover the entire
     512-bit ID space with no overlap."
