@@ -154,6 +154,9 @@ class RoutingTable(object):
         The result is a list of "K" node contacts of type dht.contact.Contact.
         Will only return fewer than "K" contacts if not enough contacts are
         known.
+
+        The result is ordered from closest to furthest away from the target
+        key.
         """
         bucket_index = self._kbucket_index(key)
         closest_nodes = self._buckets[bucket_index].get_contacts(
@@ -190,7 +193,20 @@ class RoutingTable(object):
             bucket_jump += 1
         # Ensure we only return K contacts (in certain circumstances K+1
         # results are generated).
-        return closest_nodes[:constants.K]
+        closest_nodes = closest_nodes[:constants.K]
+
+        # Order the nodes from closest to furthest away from the target key.
+
+        # Key function
+        def node_key(node):
+            """
+            Returns the node's distance to the target key.
+            """
+            return self.distance(node.id, key)
+
+        closest_nodes.sort(key=node_key)
+
+        return closest_nodes
 
     def get_contact(self, contact_id):
         """

@@ -7,6 +7,7 @@ from drogulus.dht.routingtable import RoutingTable
 from drogulus.dht.contact import Contact
 from drogulus.dht.kbucket import KBucket
 from drogulus import constants
+from drogulus.utils import long_to_hex
 from drogulus.version import get_version
 import unittest
 import time
@@ -329,7 +330,7 @@ class TestRoutingTable(unittest.TestCase):
         for i in range(40):
             contact = Contact(i, "192.168.0.%d" % i, self.version, 0)
             r.add_contact(contact)
-        result = r.find_close_nodes(1)
+        result = r.find_close_nodes(hex(1))
         self.assertEqual(20, len(result))
 
     def test_find_close_nodes_fewer_than_K(self):
@@ -342,7 +343,7 @@ class TestRoutingTable(unittest.TestCase):
         for i in range(10):
             contact = Contact(i, "192.168.0.%d" % i, self.version, 0)
             r.add_contact(contact)
-        result = r.find_close_nodes(1)
+        result = r.find_close_nodes(hex(1))
         self.assertEqual(10, len(result))
 
     def test_find_close_nodes_multiple_buckets(self):
@@ -356,7 +357,7 @@ class TestRoutingTable(unittest.TestCase):
         for i in range(512):
             contact = Contact(2 ** i, "192.168.0.%d" % i, self.version, 0)
             r.add_contact(contact)
-        result = r.find_close_nodes(2 ** 256)
+        result = r.find_close_nodes(long_to_hex(2 ** 256))
         self.assertEqual(20, len(result))
 
     def test_find_close_nodes_exclude_contact(self):
@@ -368,10 +369,34 @@ class TestRoutingTable(unittest.TestCase):
         r = RoutingTable(parent_node_id)
         # Fill up the bucket and replacement cache
         for i in range(20):
-            contact = Contact(str(i), "192.168.0.%d" % i, self.version, 0)
+            contact = Contact(i, "192.168.0.%d" % i, self.version, 0)
             r.add_contact(contact)
-        result = r.find_close_nodes("1", rpc_node_id=contact)
+        result = r.find_close_nodes(hex(1), rpc_node_id=contact.id)
         self.assertEqual(19, len(result))
+
+    def test_find_close_nodes_in_correct_order(self):
+        """
+        Ensures that the nearest nodes are returned in the correct order: from
+        the node closest to the target key to the node furthest away.
+        """
+        parent_node_id = 'abc'
+        r = RoutingTable(parent_node_id)
+        # Fill up the bucket and replacement cache
+        for i in range(512):
+            contact = Contact(2 ** i, "192.168.0.%d" % i, self.version, 0)
+            r.add_contact(contact)
+        target_key = long_to_hex(2 ** 256)
+        result = r.find_close_nodes(target_key)
+        self.assertEqual(20, len(result))
+
+        # Ensure results are in the correct order.
+        def key(node):
+            return r.distance(node.id, target_key)
+        sorted_nodes = sorted(result, key=key)
+        self.assertEqual(sorted_nodes, result)
+        # Ensure the order is from lowest to highest in terms of distance
+        distances = [r.distance(x.id, target_key) for x in result]
+        self.assertEqual(sorted(distances), distances)
 
     def test_get_contact(self):
         """
