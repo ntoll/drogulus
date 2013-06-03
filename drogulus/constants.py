@@ -25,6 +25,9 @@ ALPHA = 3
 #: The maximum number of contacts stored in a k-bucket. Must be an even number.
 K = 20
 
+#: The default maximum time a NodeLookup is allowed to take (in seconds).
+LOOKUP_TIMEOUT = 600
+
 #: The timeout for network connections (in seconds).
 RPC_TIMEOUT = 5
 
