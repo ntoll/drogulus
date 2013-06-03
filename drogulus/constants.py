@@ -36,9 +36,6 @@ RPC_TIMEOUT = 5
 #: dictionary.
 RESPONSE_TIMEOUT = 1800  # half an hour
 
-#: The delay between iterations of node lookups (in seconds).
-ITERATIVE_LOOKUP_DELAY = RPC_TIMEOUT / 2
-
 #: How long to wait before an unused k-bucket is refreshed (in seconds).
 REFRESH_TIMEOUT = 3600  # 1 hour
 
