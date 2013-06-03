@@ -1,5 +1,12 @@
 all:
-	@echo "There is no default Makefile target right now."
+	@echo "\nThere is no default Makefile target right now."
+	@echo "Try:\n"
+	@echo "make clean - reset the project and remove auto-generated assets."
+	@echo "make pyflakes - run the PyFlakes code checker."
+	@echo "make pep8 - run the PEP8 style checker."
+	@echo "make test - run the test suite."
+	@echo "make check - run all the checkers and tests."
+	@echo "make docs - run sphinx to create project documentation.\n"
 
 clean:
 	rm -rf dist
