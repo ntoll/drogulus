@@ -35,6 +35,14 @@ from drogulus.crypto import validate_message, construct_key, generate_signature
 from drogulus.version import get_version
 
 
+class RoutingTableEmpty(Exception):
+    """
+    Fired when a lookup is attempted without any peers in the local node's
+    routing table.
+    """
+    pass
+
+
 def response_timeout(message, protocol, node):
     """
     Called when a pending message (identified with a uuid) awaiting a response
@@ -50,54 +58,182 @@ def response_timeout(message, protocol, node):
         node._routing_table.remove_contact(message.node)
 
 
-class Lookup(defer.Deferred):
+class NodeLookup(defer.Deferred):
     """
-    Encapsulates a lookup in the DHT given a particular key and message type.
-    Will callback when a result is found or errback otherwise.
+    Encapsulates a lookup in the DHT given a particular target key and message
+    type. Will callback when a result is found or errback otherwise. If
+    defined, will timeout with an errback.
+
+    From the original Kademlia paper:
+
+    "The most important procedure a Kademlia participant must perform is to
+    locate the k closest nodes to some given node ID. We call this procedure a
+    node lookup. Kademlia employs a recursive algorithm for node lookups. The
+    lookup initiator starts by picking α nodes from its closest non-empty
+    k-bucket (or, if that bucket has fewer than α entries, it just takes the α
+    closest nodes it knows of). The initiator then sends parallel, asynchronous
+    FIND NODE RPCs to the α nodes it has chosen. α is a system-wide concurrency
+    parameter, such as 3.
+
+    In the recursive step, the initiator resends the FIND NODE to nodes it has
+    learned about from previous RPCs. (This recursion can begin before all α of
+    the previous RPCs have returned). Of the k nodes the initiator has heard of
+    closest to the target, it picks α that it has not yet queried and resends
+    the FIND NODE RPC to them. Nodes that fail to respond quickly are removed
+    from consideration until and unless they do respond. If a round of FIND
+    NODEs fails to return a node any closer than the closest already seen, the
+    initiator resends the FIND NODE to all of the k closest nodes it has not
+    already queried. The lookup terminates when the initiator has queried and
+    gotten responses from the k closest nodes it has seen. When α = 1 the
+    lookup algorithm resembles Chord’s in terms of message cost and the latency
+    of detecting failed nodes. However, Kademlia can route for lower latency
+    because it has the flexibility of choosing any one of k nodes to forward a
+    request to."
+
+    READ THIS CAREFULLY! Here's how the implementation works:
+
+    self.target - the target key for the lookup.
+    self.message_type - the message class (either FindNode or FindValue).
+    self.shortlist - an ordered list containing nodes close to the target.
+    self.contacted - a set of nodes that have been contacted for this lookup.
+    self.nearest_node - the node nearest to the target so far.
+    self.pending_requests - a list of currently pending requests.
+    constants.ALPHA - the number of concurrent asynchronous calls allowed.
+    constants.K - the number of closest nodes to return when complete.
+    constants.LOOKUP_TIMEOUT - the default maximum duration for a lookup.
+
+    0. If "timeout" number of seconds elapse before the lookup is finished
+       then cancel any pending requests and errback with an OutOfTime error.
+       The "timeout" value can be overridden but defaults to
+       constants.LOOKUP_TIMEOUT seconds.
+
+    1. Locally known nodes from the routing table seed self.shortlist.
+
+    2. The nearest node to the target in self.shortlist is set as
+       self.nearest_node.
+
+    3. No more than constants.ALPHA nearest nodes that are in self.shortlist
+       but not in self.contacted are sent a message that is an instance of
+       self.message_type. Each request is added to the self.pending_requests
+       list. The length of self.pending_requests must never be more than
+       constants.ALPHA.
+
+    4. As each node is contacted it is added to the self.contacted set.
+
+    5. If a node doesn't reply or an error is encountered it is removed from
+       self.shortlist and self.pending_requests. Start from step 3 again.
+
+    6. When a response to a request is returned successfully remove the request
+       from self.pending_requests.
+
+    7. If it's a FindValue message and a suitable value is returned (see note
+       at the end of these comments) cancel all the other pending calls in
+       self.pending_requests and fire a callback with with the returned value.
+       If the value is invalid remove the node from self.shortlist and start
+       from step 3 again without cancelling the other pending calls.
+
+    8. If a list of closer nodes is returned by a peer add them to
+       self.shortlist and sort - making sure nodes in self.contacted are not
+       mistakenly re-added to the shortlist.
+
+    7. If the nearest node in the newly sorted self.shortlist is closer to the
+       target than self.nearest_node then set self.nearest_node to the new
+       closer node and start from step 3 again.
+
+    8. If self.nearest_node remains unchanged DO NOT start a new call.
+
+    9. If there are no other requests in self.pending_requests then check that
+       the constants.K nearest nodes in the self.contacted set are all closer
+       than the nearest node in self.shortlist. If they are, and it's a
+       FindNode message call back with the constants.K nearest nodes in the
+       self.contacted set. If the message is a FindValue, errback with a
+       ValueNotFound error.
+
+    10. If there are still nearer nodes in self.shortlist to some of those in
+        the constants.K nearest nodes in the self.contacted set then start
+        from step 3 again.
+
+    Note on validating values: In the future there may be constraints added to
+    the FindValue query (such as only accepting values created after time T).
     """
 
-    def __init__(self, key, message_type, local_node, timeout=None,
+    def __init__(self, target, message_type, local_node, timeout=None,
                  canceller=None):
         """
-        Sets up the lookup to search for a certain key with a particular
+        Sets up the lookup to search for a certain target key with a particular
         message_type using the DHT state found in the local_node. If defined,
         will cancel after timeout seconds. See the documentation for
         twisted.internet.defer.Deferred for explanation of canceller.
         """
         defer.Deferred.__init__(self, canceller)
-        self.key = key
+        self.target = target
         self.message_type = message_type
         self.local_node = local_node
         # The list of active queries.
-        self.active_probes = []
+        self.active_queries = []
         # The set of peers that have already been contacted as part of this
         # lookup.
         self.contacted = set()
         # A set of active nodes that have been found during this lookup.
         self.active_candidates = set()
-        # Will reference the deferred for the next iteration of the lookup if
-        # another iteration is required.
-        self.pending_iteration = None
-        self.slow_node_count = 0
         if timeout:
             reactor.callLater(timeout, self.cancel)
         # To hold peers in the DHT that are known to the local node that are
-        # possibly close to the target key.
-        self.shortlist = self.local_node._routing_table.find_close_nodes(key)
-        if self.key != self.local_node.id:
+        # possibly close to the target key. Closest nodes come first.
+        self.shortlist = self.local_node._routing_table.\
+            find_close_nodes(target)
+        if self.target != self.local_node.id:
             # Update the last_accessed attribute of the affected k-bucket.
-            self.local_node._routing_table.touch_kbucket(key)
+            self.local_node._routing_table.touch_kbucket(target)
         if not self.shortlist:
             # The node knows of no other nodes within the DHT.
-            self.callback(None)
+            self.errback(RoutingTableEmpty())
+        # Holds the currently closest node to the target.
+        self.closest_node = self.shortlist[0]
+        # Start the lookup process
+        self._lookup()
 
     def cancel(self):
         """
         Cancels this lookup in a clean fashion.
         """
-        if self.pending_iteration:
-            self.pending_iteration.cancel()
         defer.Deferred.cancel(self)
+
+    def _extend_shortlist(self, response):
+        """
+        Given a valid response from a remote node will extend the shortlist
+        containing peers close to the target key.
+        """
+        if isinstance(response, Value) and isinstance(self.message_type,
+                                                      FindValue):
+            # A value response for the requested key has been returned so fire
+            # the lookup with the result.
+            defer.Deferred.callback(self, response)
+        elif isinstance(response, Nodes) and isinstance(self.message_type,
+                                                        FindNode):
+            # Candidate nodes have been returned.
+            pass
+
+    def _remove_from_shortlist(self, contact):
+        """
+        Removes the remote node that is the source of an error from the
+        shortlist containing peers close to the target key.
+        """
+        if contact in self.shortlist:
+            self.shortlist.remove(contact)
+
+    def _lookup(self):
+        """
+        Sends parallel lookup messages to the self.shortlist of contacts.
+        """
+        currently_contacted = 0
+        for contact in self.shortlist:
+            if contact not in self.contacted:
+                self.active_queries.append(contact.id)
+                self.contacted.add(contact)
+                currently_contacted += 1
+            if currently_contacted == constants.ALPHA:
+                break
 
 
 class Node(object):

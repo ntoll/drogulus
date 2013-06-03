@@ -3,7 +3,9 @@
 Ensures code that represents a local node in the DHT network works as
 expected
 """
-from drogulus.dht.node import response_timeout, Lookup, Node
+from drogulus.dht.node import (RoutingTableEmpty, response_timeout, NodeLookup,
+                               Node)
+from drogulus.dht.routingtable import RoutingTable
 from drogulus.constants import (ERRORS, RPC_TIMEOUT, RESPONSE_TIMEOUT,
                                 REPLICATE_INTERVAL)
 from drogulus.dht.contact import Contact
@@ -146,9 +148,9 @@ class TestTimeout(unittest.TestCase):
         self.assertIn(self.uuid, self.node._pending)
 
 
-class TestLookup(unittest.TestCase):
+class TestNodeLookup(unittest.TestCase):
     """
-    Ensures the Lookup class works as expected.
+    Ensures the NodeLookup class works as expected.
     """
 
     def setUp(self):
@@ -159,6 +161,10 @@ class TestLookup(unittest.TestCase):
         """
         self.node_id = '1234567890abc'
         self.node = Node(self.node_id)
+        self.remote_node_count = 20
+        for i in range(self.remote_node_count):
+            contact = Contact(i, '192.168.0.%d' % i, self.node.version, 0)
+            self.node._routing_table.add_contact(contact)
         self.factory = DHTFactory(self.node)
         self.protocol = self.factory.buildProtocol(('127.0.0.1', 0))
         self.transport = proto_helpers.StringTransport()
@@ -189,26 +195,26 @@ class TestLookup(unittest.TestCase):
         """
         The simplest case - ensure the object is set up correctly.
         """
-        lookup = Lookup(self.key, FindNode, self.node)
+        lookup = NodeLookup(self.key, FindNode, self.node)
         self.assertIsInstance(lookup, defer.Deferred)
         self.assertEqual(lookup.key, self.key)
         self.assertEqual(lookup.message_type, FindNode)
         self.assertEqual(lookup.local_node, self.node)
-        self.assertEqual(lookup.active_probes, [])
-        self.assertEqual(lookup.contacted, set())
+        self.assertEqual(3, len(lookup.contacted))
+        self.assertIsInstance(lookup.contacted, set)
         self.assertEqual(lookup.active_candidates, set())
-        self.assertEqual(lookup.pending_iteration, None)
-        self.assertEqual(lookup.slow_node_count, 0)
-        self.assertEqual(lookup.shortlist, [])
+        self.assertEqual(self.remote_node_count, len(lookup.shortlist))
+        self.assertIsInstance(lookup.shortlist, list)
 
     def test_init_timeout_called(self):
         """
         Ensure the cancel method is called after timeout seconds.
         """
-        lookup = Lookup(self.key, FindNode, self.node, self.timeout)
+        lookup = NodeLookup(self.key, FindNode, self.node, self.timeout)
         lookup.cancel = MagicMock()
         self.clock.advance(self.timeout)
         lookup.cancel.called_once_with(lookup)
+        self.failureResultOf(lookup).trap(defer.CancelledError)
 
     def test_init_finds_close_nodes(self):
         """
@@ -216,7 +222,7 @@ class TestLookup(unittest.TestCase):
         table.
         """
         self.node._routing_table.find_close_nodes = MagicMock()
-        Lookup(self.key, FindNode, self.node, self.timeout)
+        NodeLookup(self.key, FindNode, self.node)
         self.node._routing_table.find_close_nodes.\
             assert_called_once_with(self.key)
 
@@ -227,7 +233,7 @@ class TestLookup(unittest.TestCase):
         containing the target key.
         """
         self.node._routing_table.touch_kbucket = MagicMock()
-        Lookup(self.key, FindNode, self.node, self.timeout)
+        NodeLookup(self.key, FindNode, self.node)
         self.node._routing_table.touch_kbucket.\
             assert_called_once_with(self.key)
 
@@ -237,7 +243,7 @@ class TestLookup(unittest.TestCase):
         NOT the local node's id.
         """
         self.node._routing_table.touch_kbucket = MagicMock()
-        Lookup(self.node.id, FindNode, self.node, self.timeout)
+        NodeLookup(self.node.id, FindNode, self.node)
         self.assertEqual(0, self.node._routing_table.touch_kbucket.call_count)
 
     def test_init_no_known_nodes(self):
@@ -245,14 +251,27 @@ class TestLookup(unittest.TestCase):
         Checks that if the local node doesn't know of any other nodes then
         the resulting lookup calls back with None.
         """
-        lookup = Lookup(self.key, FindNode, self.node, self.timeout)
+        self.node._routing_table = RoutingTable(self.node.id)
+        lookup = NodeLookup(self.key, FindNode, self.node)
         self.assertIsInstance(lookup, defer.Deferred)
         self.assertTrue(lookup.called)
 
-        def callback_check(result):
-            self.assertEqual(None, result)
+        def errback_check(result):
+            self.assertIsInstance(result.value, RoutingTableEmpty)
 
-        lookup.addCallback(callback_check)
+        lookup.addErrback(errback_check)
+
+    def test_cancel(self):
+        """
+        Ensures the cancel function attempts to tidy up.
+        """
+        errback = MagicMock()
+        lookup = NodeLookup(self.key, FindNode, self.node)
+        lookup.addErrback(errback)
+        lookup.cancel()
+        self.assertEqual(1, errback.call_count)
+        self.assertIsInstance(errback.call_args[0][0].value,
+                              defer.CancelledError)
 
 
 class TestNode(unittest.TestCase):
