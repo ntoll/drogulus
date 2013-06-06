@@ -150,7 +150,9 @@ class TestTimeout(unittest.TestCase):
 
 class TestNodeLookup(unittest.TestCase):
     """
-    Ensures the NodeLookup class works as expected.
+    Ensures the NodeLookup class works as expected. See the NodeLookup class's
+    documentation for a relatively simple explanation of how the class is
+    supposed to function.
     """
 
     def setUp(self):
@@ -257,7 +259,7 @@ class TestNodeLookup(unittest.TestCase):
     def test_init_no_known_nodes(self):
         """
         Checks that if the local node doesn't know of any other nodes then
-        the resulting lookup calls back with None.
+        the resulting lookup calls back with a RoutingTableEmpty exception.
         """
         self.node._routing_table = RoutingTable(self.node.id)
         lookup = NodeLookup(self.key, FindNode, self.node)
