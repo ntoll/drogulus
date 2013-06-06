@@ -197,14 +197,22 @@ class TestNodeLookup(unittest.TestCase):
         """
         lookup = NodeLookup(self.key, FindNode, self.node)
         self.assertIsInstance(lookup, defer.Deferred)
-        self.assertEqual(lookup.key, self.key)
+        self.assertEqual(lookup.target, self.key)
         self.assertEqual(lookup.message_type, FindNode)
         self.assertEqual(lookup.local_node, self.node)
-        self.assertEqual(3, len(lookup.contacted))
         self.assertIsInstance(lookup.contacted, set)
-        self.assertEqual(lookup.active_candidates, set())
-        self.assertEqual(self.remote_node_count, len(lookup.shortlist))
+        self.assertIsInstance(lookup.pending_requests, dict)
         self.assertIsInstance(lookup.shortlist, list)
+        self.assertEqual(lookup.nearest_node, lookup.shortlist[0])
+
+    def test_lookup_called_by_init(self):
+        """
+        Ensure that the __init__ method kicks off the lookup by calling the
+        NodeLookup's _lookup method.
+        """
+        NodeLookup._lookup = MagicMock()
+        lookup = NodeLookup(self.key, FindNode, self.node, self.timeout)
+        self.assertEqual(1, lookup._lookup.call_count)
 
     def test_init_timeout_called(self):
         """
@@ -261,14 +269,45 @@ class TestNodeLookup(unittest.TestCase):
 
         lookup.addErrback(errback_check)
 
+    def test_cancel_pending_requests(self):
+        """
+        Ensures any deferreds stored in self.pending_requests are cancelled.
+        """
+        lookup = NodeLookup(self.key, FindNode, self.node)
+        d1 = defer.Deferred()
+        d2 = defer.Deferred()
+        d3 = defer.Deferred()
+        errback1 = MagicMock()
+        errback2 = MagicMock()
+        errback3 = MagicMock()
+        d1.addErrback(errback1)
+        d2.addErrback(errback2)
+        d3.addErrback(errback3)
+        lookup.pending_requests[1] = d1
+        lookup.pending_requests[2] = d2
+        lookup.pending_requests[3] = d3
+        lookup.cancel()
+        self.assertEqual(1, errback1.call_count)
+        self.assertIsInstance(errback1.call_args[0][0].value,
+                              defer.CancelledError)
+        self.assertEqual(1, errback2.call_count)
+        self.assertIsInstance(errback2.call_args[0][0].value,
+                              defer.CancelledError)
+        self.assertEqual(1, errback3.call_count)
+        self.assertIsInstance(errback3.call_args[0][0].value,
+                              defer.CancelledError)
+        self.assertEqual(0, len(lookup.pending_requests))
+
     def test_cancel(self):
         """
-        Ensures the cancel function attempts to tidy up.
+        Ensures the cancel function attempts to tidy up correctly.
         """
         errback = MagicMock()
         lookup = NodeLookup(self.key, FindNode, self.node)
+        lookup._cancel_pending_requests = MagicMock()
         lookup.addErrback(errback)
         lookup.cancel()
+        self.assertEqual(1, lookup._cancel_pending_requests.call_count)
         self.assertEqual(1, errback.call_count)
         self.assertIsInstance(errback.call_args[0][0].value,
                               defer.CancelledError)

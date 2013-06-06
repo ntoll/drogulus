@@ -90,21 +90,22 @@ class NodeLookup(defer.Deferred):
     because it has the flexibility of choosing any one of k nodes to forward a
     request to."
 
-    READ THIS CAREFULLY! Here's how the implementation works:
+    READ THIS CAREFULLY! Here's how this implementation works:
 
     self.target - the target key for the lookup.
     self.message_type - the message class (either FindNode or FindValue).
+    self.local_node - the local node that created the NodeLookup.
     self.shortlist - an ordered list containing nodes close to the target.
     self.contacted - a set of nodes that have been contacted for this lookup.
     self.nearest_node - the node nearest to the target so far.
-    self.pending_requests - a list of currently pending requests.
+    self.pending_requests - a dictionary of currently pending requests.
     constants.ALPHA - the number of concurrent asynchronous calls allowed.
     constants.K - the number of closest nodes to return when complete.
     constants.LOOKUP_TIMEOUT - the default maximum duration for a lookup.
 
-    0. If "timeout" number of seconds elapse before the lookup is finished
-       then cancel any pending requests and errback with an OutOfTime error.
-       The "timeout" value can be overridden but defaults to
+    0. If "timeout" number of seconds elapse before the lookup is finished then
+       cancel any pending requests and errback with an OutOfTime error. The
+       "timeout" value can be overridden but defaults to
        constants.LOOKUP_TIMEOUT seconds.
 
     1. Locally known nodes from the routing table seed self.shortlist.
@@ -157,25 +158,22 @@ class NodeLookup(defer.Deferred):
     the FindValue query (such as only accepting values created after time T).
     """
 
-    def __init__(self, target, message_type, local_node, timeout=None,
-                 canceller=None):
+    def __init__(self, target, message_type, local_node,
+                 timeout=constants.LOOKUP_TIMEOUT, canceller=None):
         """
         Sets up the lookup to search for a certain target key with a particular
-        message_type using the DHT state found in the local_node. If defined,
-        will cancel after timeout seconds. See the documentation for
+        message_type using the DHT state found in the local_node. Will cancel
+        after timeout seconds. See the documentation for
         twisted.internet.defer.Deferred for explanation of canceller.
         """
         defer.Deferred.__init__(self, canceller)
         self.target = target
         self.message_type = message_type
         self.local_node = local_node
-        # The list of active queries.
-        self.active_queries = []
-        # The set of peers that have already been contacted as part of this
-        # lookup.
+        # A set of nodes that have been contacted for this lookup.
         self.contacted = set()
-        # A set of active nodes that have been found during this lookup.
-        self.active_candidates = set()
+        # Holds currently pending requests.
+        self.pending_requests = {}
         if timeout:
             reactor.callLater(timeout, self.cancel)
         # To hold peers in the DHT that are known to the local node that are
@@ -188,15 +186,28 @@ class NodeLookup(defer.Deferred):
         if not self.shortlist:
             # The node knows of no other nodes within the DHT.
             self.errback(RoutingTableEmpty())
+            return
         # Holds the currently closest node to the target.
-        self.closest_node = self.shortlist[0]
+        self.nearest_node = self.shortlist[0]
         # Start the lookup process
         self._lookup()
 
+    def _cancel_pending_requests(self):
+        """
+        Causes the deferreds waiting on pending requests to be cancelled in
+        a clean fashion.
+        """
+        for key, request in self.pending_requests.iteritems():
+            request.cancel()
+        self.pending_requests = {}
+
     def cancel(self):
         """
-        Cancels this lookup in a clean fashion.
+        Cancels this lookup in a clean fashion. This function is dedicated to
+        @terrycojones whose efforts at cancelling deferreds deserve some sort
+        of tribute. ;-)
         """
+        self._cancel_pending_requests()
         defer.Deferred.cancel(self)
 
     def _extend_shortlist(self, response):
@@ -204,36 +215,20 @@ class NodeLookup(defer.Deferred):
         Given a valid response from a remote node will extend the shortlist
         containing peers close to the target key.
         """
-        if isinstance(response, Value) and isinstance(self.message_type,
-                                                      FindValue):
-            # A value response for the requested key has been returned so fire
-            # the lookup with the result.
-            defer.Deferred.callback(self, response)
-        elif isinstance(response, Nodes) and isinstance(self.message_type,
-                                                        FindNode):
-            # Candidate nodes have been returned.
-            pass
+        pass
 
     def _remove_from_shortlist(self, contact):
         """
         Removes the remote node that is the source of an error from the
         shortlist containing peers close to the target key.
         """
-        if contact in self.shortlist:
-            self.shortlist.remove(contact)
+        pass
 
     def _lookup(self):
         """
         Sends parallel lookup messages to the self.shortlist of contacts.
         """
-        currently_contacted = 0
-        for contact in self.shortlist:
-            if contact not in self.contacted:
-                self.active_queries.append(contact.id)
-                self.contacted.add(contact)
-                currently_contacted += 1
-            if currently_contacted == constants.ALPHA:
-                break
+        pass
 
 
 class Node(object):
