@@ -210,25 +210,55 @@ class NodeLookup(defer.Deferred):
         self._cancel_pending_requests()
         defer.Deferred.cancel(self)
 
-    def _extend_shortlist(self, response):
+    def _handle_error(self, response):
         """
-        Given a valid response from a remote node will extend the shortlist
-        containing peers close to the target key.
+        Callback to handle error conditions.
         """
         pass
 
-    def _remove_from_shortlist(self, contact):
+    def _handle_result(self, result):
         """
-        Removes the remote node that is the source of an error from the
-        shortlist containing peers close to the target key.
+        Callback to handle expected results.
         """
         pass
 
     def _lookup(self):
         """
         Sends parallel lookup messages to the self.shortlist of contacts.
+
+        No more than constants.ALPHA nearest nodes that are in self.shortlist
+        but not in self.contacted are sent a message that is an instance of
+        self.message_type. Each request is added to the self.pending_requests
+        list. The length of self.pending_requests must never be more than
+        constants.ALPHA.
+
+        As each node is contacted it is added to the self.contacted set.
         """
-        pass
+
+        def callback(result):
+            """
+            Passes the result to the NodeLookup instance to handle.
+            """
+            self._handle_result(self, result)
+
+        def errback(error):
+            """
+            Passes the error to the NodeLookup instance to handle.
+            """
+            self._handle_error(self, error)
+
+        for contact in self.shortlist:
+            if contact not in self.contacted:
+                # Guard to ensure only ALPHA requests are ever active at any
+                # one time
+                if len(self.pending_requests) >= constants.ALPHA:
+                    break
+                uuid, deferred = self.local_node.send_find(contact,
+                                                           self.target,
+                                                           self.message_type)
+                deferred.addCallbacks(callback, errback)
+                self.pending_requests[uuid] = deferred
+                self.contacted.add(contact)
 
 
 class Node(object):
@@ -531,16 +561,13 @@ class Node(object):
                       store_message.sig, self.version)
         return self.send_message(contact, store)"""
 
-    def send_find_node(self, contact, id):
+    def send_find(self, contact, target, message_type):
         """
-        Sends a FindNode message to the given contact with the intention of
-        obtaining contact information about the node with the specified id.
+        Sends a Find[Node|Value] message to the given contact with the
+        intention of obtaining information at the given target key. The type of
+        find message is specified by message_type.
         """
-        pass
-
-    def send_find_value(self, contact, key):
-        """
-        Sends a FindValue message to the given contact with the intention of
-        obtaining the value associated with the specified key.
-        """
-        pass
+        new_uuid = str(uuid4())
+        find_message = message_type(new_uuid, self.id, target, self.version)
+        deferred = self.send_message(contact, find_message)
+        return (new_uuid, deferred)

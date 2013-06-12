@@ -6,8 +6,8 @@ expected
 from drogulus.dht.node import (RoutingTableEmpty, response_timeout, NodeLookup,
                                Node)
 from drogulus.dht.routingtable import RoutingTable
-from drogulus.constants import (ERRORS, RPC_TIMEOUT, RESPONSE_TIMEOUT,
-                                REPLICATE_INTERVAL)
+from drogulus.constants import (ERRORS, RPC_TIMEOUT, RESPONSE_TIMEOUT, K,
+                                REPLICATE_INTERVAL, ALPHA)
 from drogulus.dht.contact import Contact
 from drogulus.version import get_version
 from drogulus.net.protocol import DHTFactory
@@ -165,7 +165,8 @@ class TestNodeLookup(unittest.TestCase):
         self.node = Node(self.node_id)
         self.remote_node_count = 20
         for i in range(self.remote_node_count):
-            contact = Contact(i, '192.168.0.%d' % i, self.node.version, 0)
+            contact = Contact(i, '192.168.0.%d' % i, 9999, self.node.version,
+                              0)
             self.node._routing_table.add_contact(contact)
         self.factory = DHTFactory(self.node)
         self.protocol = self.factory.buildProtocol(('127.0.0.1', 0))
@@ -207,14 +208,18 @@ class TestNodeLookup(unittest.TestCase):
         self.assertIsInstance(lookup.shortlist, list)
         self.assertEqual(lookup.nearest_node, lookup.shortlist[0])
 
-    def test_lookup_called_by_init(self):
+    def test_lookup_called_by_init(self, ):
         """
         Ensure that the __init__ method kicks off the lookup by calling the
         NodeLookup's _lookup method.
         """
-        NodeLookup._lookup = MagicMock()
-        lookup = NodeLookup(self.key, FindNode, self.node, self.timeout)
-        self.assertEqual(1, lookup._lookup.call_count)
+        # Patch NodeLookup._lookup
+        patcher = patch('drogulus.dht.node.NodeLookup._lookup')
+        mock_lookup = patcher.start()
+        NodeLookup(self.key, FindNode, self.node, self.timeout)
+        self.assertEqual(1, mock_lookup.call_count)
+        # Tidy up.
+        patcher.stop()
 
     def test_init_timeout_called(self):
         """
@@ -313,6 +318,176 @@ class TestNodeLookup(unittest.TestCase):
         self.assertEqual(1, errback.call_count)
         self.assertIsInstance(errback.call_args[0][0].value,
                               defer.CancelledError)
+
+    def test_lookup_none_pending_none_contacted(self):
+        """
+        Ensures the lookup method works with no pending requests nor any nodes
+        previously contacted.
+        """
+
+        def side_effect(*args):
+            """
+            Ensures the mock returns something useful.
+            """
+            uuid = str(uuid4())
+            deferred = defer.Deferred()
+            return (uuid, deferred)
+
+        self.node.send_find = MagicMock(side_effect=side_effect)
+
+        lookup = NodeLookup(self.key, FindNode, self.node)
+        # The _lookup method is called by __init__ from the state being checked
+        # by this test (i.e. no pending requests or any previously contacted
+        # nodes).
+        self.assertEqual(ALPHA, self.node.send_find.call_count)
+        self.assertEqual(ALPHA, len(lookup.pending_requests))
+        self.assertEqual(ALPHA, len(lookup.contacted))
+
+    def test_lookup_some_pending_some_contacted(self):
+        """
+        Ensures the lookup method works with some pending slots available and
+        some nodes previously contacted.
+        """
+        def side_effect(*args):
+            """
+            Ensures the mock returns something useful.
+            """
+            uuid = str(uuid4())
+            deferred = defer.Deferred()
+            return (uuid, deferred)
+
+        self.node.send_find = MagicMock(side_effect=side_effect)
+
+        lookup = NodeLookup(self.key, FindNode, self.node)
+        # Reset the state of lookup.
+        lookup.pending_requests = {}
+        lookup.contacted = set()
+        self.node.send_find.call_count = 0
+
+        # Add a single pending request.
+        pending_uuid = str(uuid4())
+        pending_deferred = defer.Deferred()
+        lookup.pending_requests[pending_uuid] = pending_deferred
+        # Add a single contact to the contacted list.
+        lookup.contacted.add(lookup.shortlist[0])
+        # Test the state.
+        self.assertEqual(1, len(lookup.pending_requests))
+        self.assertEqual(1, len(lookup.contacted))
+
+        # Re-run _lookup and test.
+        lookup._lookup()
+        self.assertEqual(ALPHA - 1, self.node.send_find.call_count)
+        self.assertEqual(ALPHA, len(lookup.pending_requests))
+        self.assertEqual(ALPHA, len(lookup.contacted))
+
+    def test_lookup_all_pending_some_contacted(self):
+        """
+        Ensures the lookup method works as expected with no more pending slots
+        left available and some nodes previously contacted.
+
+        This situation should never occur but I'm testing it to ensure the
+        guard against sending surplus expensive network calls works.
+        """
+        def side_effect(*args):
+            """
+            Ensures the mock returns something useful.
+            """
+            uuid = str(uuid4())
+            deferred = defer.Deferred()
+            return (uuid, deferred)
+
+        self.node.send_find = MagicMock(side_effect=side_effect)
+
+        lookup = NodeLookup(self.key, FindNode, self.node)
+        # Ensure we have a good starting state (all [ALPHA] pending_requests
+        # slots are taken, only ALPHA nodes have been contacted, there are
+        # still [K] candidate nodes in the shortlist).
+        self.assertEqual(ALPHA, self.node.send_find.call_count)
+        self.assertEqual(ALPHA, len(lookup.pending_requests))
+        self.assertEqual(ALPHA, len(lookup.contacted))
+        self.assertEqual(K, len(lookup.shortlist))
+
+        # Re-run _lookup and ensure no further network calls are made.
+        lookup._lookup()
+        self.assertEqual(ALPHA, self.node.send_find.call_count)
+
+    def test_lookup_none_pending_all_contacted(self):
+        """
+        Ensures the lookup method works with no pending requests and all known
+        nodes having previously been contacted.
+        """
+        def side_effect(*args):
+            """
+            Ensures the mock returns something useful.
+            """
+            uuid = str(uuid4())
+            deferred = defer.Deferred()
+            return (uuid, deferred)
+
+        self.node.send_find = MagicMock(side_effect=side_effect)
+
+        lookup = NodeLookup(self.key, FindNode, self.node)
+        # Put lookup in the state to test.
+        lookup.pending_requests = {}
+        for contact in lookup.shortlist:
+            lookup.contacted.add(contact)
+        self.node.send_find.call_count = 0
+
+        # Re-run _lookup and test
+        lookup._lookup()
+        self.assertEqual(0, self.node.send_find.call_count)
+
+    def test_lookup_adds_callback(self):
+        """
+        Ensures the lookup method adds the expected callback to the deferreds
+        that represent requests to other nodes in the DHT.
+        """
+        patcher = patch('drogulus.dht.node.NodeLookup._handle_result')
+        mock_handle_result = patcher.start()
+
+        def side_effect(*args):
+            """
+            Ensures the mock returns something useful.
+            """
+            uuid = str(uuid4())
+            deferred = defer.Deferred()
+            deferred.callback("result")
+            return (uuid, deferred)
+
+        self.node.send_find = MagicMock(side_effect=side_effect)
+        lookup = NodeLookup(self.key, FindNode, self.node)
+        # Check the expected callbacks have been called correctly
+        self.assertEqual(ALPHA, mock_handle_result.call_count)
+        mock_handle_result.assert_called_with(lookup, "result")
+        # Tidy up.
+        patcher.stop()
+
+    def test_lookup_adds_errback(self):
+        """
+        Ensures the lookup method adds the expected errback to the deferreds
+        that represent requests to other nodes in the DHT.
+        """
+        patcher = patch('drogulus.dht.node.NodeLookup._handle_error')
+        mock_handle_error = patcher.start()
+
+        def side_effect(*args):
+            """
+            Ensures the mock returns something useful.
+            """
+            uuid = str(uuid4())
+            deferred = defer.Deferred()
+            deferred.errback(Exception('Error'))
+            return (uuid, deferred)
+
+        self.node.send_find = MagicMock(side_effect=side_effect)
+        lookup = NodeLookup(self.key, FindNode, self.node)
+        # Check the expected errbacks have been called correctly
+        self.assertEqual(ALPHA, mock_handle_error.call_count)
+        # Ensure the errback was called with the expected values
+        self.assertEqual(lookup, mock_handle_error.call_args[0][0])
+        self.assertEqual(Failure, mock_handle_error.call_args[0][1].__class__)
+        # Tidy up.
+        patcher.stop()
 
 
 class TestNode(unittest.TestCase):
@@ -723,7 +898,8 @@ class TestNode(unittest.TestCase):
         self.protocol.sendMessage = MagicMock()
         # Populate the routing table with contacts.
         for i in range(512):
-            contact = Contact(2 ** i, "192.168.0.%d" % i, self.version, 0)
+            contact = Contact(2 ** i, "192.168.0.%d" % i, 9999, self.version,
+                              0)
             self.node._routing_table.add_contact(contact)
         # Incoming FindNode message
         msg = FindNode(self.uuid, self.node.id, self.key, self.version)
@@ -743,7 +919,8 @@ class TestNode(unittest.TestCase):
         self.protocol.transport.loseConnection = MagicMock()
         # Populate the routing table with contacts.
         for i in range(512):
-            contact = Contact(2 ** i, "192.168.0.%d" % i, self.version, 0)
+            contact = Contact(2 ** i, "192.168.0.%d" % i, 9999, self.version,
+                              0)
             self.node._routing_table.add_contact(contact)
         # Incoming FindNode message
         msg = FindNode(self.uuid, self.node.id, self.key, self.version)
@@ -1253,3 +1430,57 @@ class TestNode(unittest.TestCase):
         self.assertEqual(message_to_send.meta, self.meta)
         self.assertEqual(message_to_send.sig, self.signature)
         self.assertEqual(message_to_send.version, self.node.version)
+
+    @patch('drogulus.dht.node.clientFromString')
+    def test_send_find_returns_uuid_and_deferred(self, mock_client):
+        """
+        Ensures that sending a Find[Node|Value] message returns a deferred.
+        """
+        mock_client.return_value = FakeClient(self.protocol)
+        # Dummy contact.
+        contact = Contact(self.node.id, '127.0.0.1', 54321, self.version)
+        target = '123456'
+        find_class = FindNode
+        uuid, deferred = self.node.send_find(contact, target, find_class)
+        self.assertIsInstance(uuid, str)
+        self.assertIsInstance(deferred, defer.Deferred)
+        # Tidy up.
+        self.clock.advance(RPC_TIMEOUT)
+
+    def test_send_find_as_findnode_calls_send_message(self):
+        """
+        Ensures that sending a FindNode message causes the node's send_message
+        method to be called with the expected message.
+        """
+        # Mock
+        self.node.send_message = MagicMock()
+        # Dummy contact.
+        contact = Contact(self.node.id, '127.0.0.1', 54321, self.version)
+        target = '123456'
+        find_class = FindNode
+        uuid, deferred = self.node.send_find(contact, target, find_class)
+        self.assertEqual(1, self.node.send_message.call_count)
+        called_contact = self.node.send_message.call_args[0][0]
+        self.assertEqual(contact, called_contact)
+        message_to_send = self.node.send_message.call_args[0][1]
+        self.assertIsInstance(message_to_send, FindNode)
+        self.assertEqual(target, message_to_send.key)
+
+    def test_send_find_as_findvalue_calls_send_message(self):
+        """
+        Ensures that sending a FindValue message causes the node's send_message
+        method to be called with the expected message.
+        """
+        # Mock
+        self.node.send_message = MagicMock()
+        # Dummy contact.
+        contact = Contact(self.node.id, '127.0.0.1', 54321, self.version)
+        target = '123456'
+        find_class = FindValue
+        uuid, deferred = self.node.send_find(contact, target, find_class)
+        self.assertEqual(1, self.node.send_message.call_count)
+        called_contact = self.node.send_message.call_args[0][0]
+        self.assertEqual(contact, called_contact)
+        message_to_send = self.node.send_message.call_args[0][1]
+        self.assertIsInstance(message_to_send, FindValue)
+        self.assertEqual(target, message_to_send.key)
