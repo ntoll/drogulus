@@ -224,9 +224,39 @@ class NodeLookup(defer.Deferred):
             del self.pending_requests[uuid]
         self._lookup()
 
-    def _handle_result(self, uuid, contact, result):
+    def _handle_response(self, uuid, contact, response):
         """
         Callback to handle expected results.
+
+        When a response to a request is returned successfully remove the
+        request from self.pending_requests.
+
+        If it's a FindValue message and a suitable value is returned (see note
+        at the end of these comments) cancel all the other pending calls in
+        self.pending_requests and fire a callback with with the returned value.
+        If the value is invalid remove the node from self.shortlist and start
+        from step 3 again without cancelling the other pending calls.
+
+        If a list of closer nodes is returned by a peer add them to
+        self.shortlist and sort - making sure nodes in self.contacted are not
+        mistakenly re-added to the shortlist.
+
+        If the nearest node in the newly sorted self.shortlist is closer to the
+        target than self.nearest_node then set self.nearest_node to the new
+        closer node and start from step 3 again.
+
+        If self.nearest_node remains unchanged DO NOT start a new call.
+
+        If there are no other requests in self.pending_requests then check that
+        the constants.K nearest nodes in the self.contacted set are all closer
+        than the nearest node in self.shortlist. If they are, and it's a
+        FindNode message call back with the constants.K nearest nodes in the
+        self.contacted set. If the message is a FindValue, errback with a
+        ValueNotFound error.
+
+        If there are still nearer nodes in self.shortlist to some of those in
+        the constants.K nearest nodes in the self.contacted set then start
+        from step 3 again.
         """
         pass
 
@@ -258,7 +288,7 @@ class NodeLookup(defer.Deferred):
                     """
                     Passes the result to the NodeLookup instance to handle.
                     """
-                    self._handle_result(uuid, contact, result)
+                    self._handle_response(uuid, contact, result)
 
                 def errback(error):
                     """

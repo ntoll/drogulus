@@ -451,8 +451,8 @@ class TestNodeLookup(unittest.TestCase):
         Ensures the lookup method adds the expected callback to the deferreds
         that represent requests to other nodes in the DHT.
         """
-        patcher = patch('drogulus.dht.node.NodeLookup._handle_result')
-        mock_handle_result = patcher.start()
+        patcher = patch('drogulus.dht.node.NodeLookup._handle_response')
+        mock_handle_response = patcher.start()
 
         def side_effect(*args):
             """
@@ -466,14 +466,15 @@ class TestNodeLookup(unittest.TestCase):
         self.node.send_find = MagicMock(side_effect=side_effect)
         NodeLookup(self.key, FindNode, self.node)
         # Check the expected callbacks have been called correctly
-        self.assertEqual(ALPHA, mock_handle_result.call_count)
+        self.assertEqual(ALPHA, mock_handle_response.call_count)
         # Ensure the errback was called with the expected values
         # Arg 1 = string (uuid).
-        self.assertEqual(str, mock_handle_result.call_args[0][0].__class__)
+        self.assertEqual(str, mock_handle_response.call_args[0][0].__class__)
         # Arg 2 = Contact instance.
-        self.assertEqual(Contact, mock_handle_result.call_args[0][1].__class__)
+        self.assertEqual(Contact,
+                         mock_handle_response.call_args[0][1].__class__)
         # Arg 3 = result.
-        self.assertEqual("result", mock_handle_result.call_args[0][2])
+        self.assertEqual("result", mock_handle_response.call_args[0][2])
         # Tidy up.
         patcher.stop()
 
