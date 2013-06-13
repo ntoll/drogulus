@@ -197,7 +197,8 @@ class NodeLookup(defer.Deferred):
         Causes the deferreds waiting on pending requests to be cancelled in
         a clean fashion.
         """
-        for key, request in self.pending_requests.iteritems():
+        requests = self.pending_requests.values()
+        for request in requests:
             request.cancel()
         self.pending_requests = {}
 
@@ -210,13 +211,20 @@ class NodeLookup(defer.Deferred):
         self._cancel_pending_requests()
         defer.Deferred.cancel(self)
 
-    def _handle_error(self, response):
+    def _handle_error(self, uuid, contact, error):
         """
         Callback to handle error conditions.
-        """
-        pass
 
-    def _handle_result(self, result):
+        If a node doesn't reply or an error is encountered it is removed from
+        self.shortlist and self.pending_requests. Start the _lookup again.
+        """
+        if contact in self.shortlist:
+            self.shortlist.remove(contact)
+        if uuid in self.pending_requests:
+            del self.pending_requests[uuid]
+        self._lookup()
+
+    def _handle_result(self, uuid, contact, result):
         """
         Callback to handle expected results.
         """
@@ -235,27 +243,29 @@ class NodeLookup(defer.Deferred):
         As each node is contacted it is added to the self.contacted set.
         """
 
-        def callback(result):
-            """
-            Passes the result to the NodeLookup instance to handle.
-            """
-            self._handle_result(self, result)
-
-        def errback(error):
-            """
-            Passes the error to the NodeLookup instance to handle.
-            """
-            self._handle_error(self, error)
-
         for contact in self.shortlist:
             if contact not in self.contacted:
                 # Guard to ensure only ALPHA requests are ever active at any
                 # one time
                 if len(self.pending_requests) >= constants.ALPHA:
                     break
+
                 uuid, deferred = self.local_node.send_find(contact,
                                                            self.target,
                                                            self.message_type)
+
+                def callback(result):
+                    """
+                    Passes the result to the NodeLookup instance to handle.
+                    """
+                    self._handle_result(uuid, contact, result)
+
+                def errback(error):
+                    """
+                    Passes the error to the NodeLookup instance to handle.
+                    """
+                    self._handle_error(uuid, contact, error)
+
                 deferred.addCallbacks(callback, errback)
                 self.pending_requests[uuid] = deferred
                 self.contacted.add(contact)
