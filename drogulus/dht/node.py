@@ -258,7 +258,22 @@ class NodeLookup(defer.Deferred):
         the constants.K nearest nodes in the self.contacted set then start
         from step 3 again.
         """
-        pass
+        # Ensure the response is of the expected type[s]
+        if not (isinstance(response, Value) or isinstance(response, Nodes)):
+            # Remove the problem contact from the routing table (since it
+            # doesn't behave).
+            self.node._routing_table.blacklist(contact)
+            raise TypeError("Unexpected response type from %r." % contact)
+
+        # Remove originating request from pending requests.
+        del self.pending_requests[uuid]
+
+        if self.message_type == FindValue and isinstance(response, Value):
+            # Check if it's a suitable value.
+            # Cancel outstanding requests.
+            self._cancel_pending_requests()
+            # Fire the instance with the result.
+            self.callback(response)
 
     def _lookup(self):
         """
@@ -296,7 +311,8 @@ class NodeLookup(defer.Deferred):
                     """
                     self._handle_error(uuid, contact, error)
 
-                deferred.addCallbacks(callback, errback)
+                deferred.addCallback(callback)
+                deferred.addErrback(errback)
                 self.pending_requests[uuid] = deferred
                 self.contacted.add(contact)
 
@@ -470,10 +486,10 @@ class Node(object):
             # Remove from the routing table.
             log.msg('Problem with Store command: %d - %s' %
                     (err_code, constants.ERRORS[err_code]))
-            self._routing_table.remove_contact(sender.id, True)
+            self._routing_table.blacklist(sender)
             # Return an error.
             details = {
-                'message': 'You have been removed from remote routing table.'
+                'message': 'You have been blacklisted.'
             }
             raise ValueError(err_code, constants.ERRORS[err_code], details,
                              message.uuid)

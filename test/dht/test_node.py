@@ -974,7 +974,7 @@ class TestNode(unittest.TestCase):
         self.assertEqual(ex.args[0], 6)
         self.assertEqual(ex.args[1], ERRORS[6])
         details = {
-            'message': 'You have been removed from remote routing table.'
+            'message': 'You have been blacklisted.'
         }
         self.assertEqual(ex.args[2], details)
         self.assertEqual(ex.args[3], self.uuid)
@@ -982,6 +982,8 @@ class TestNode(unittest.TestCase):
         self.assertNotIn(self.key, self.node._data_store)
         # Ensure the contact is not in the routing table
         self.assertEqual(0, len(self.node._routing_table._buckets[0]))
+        # Ensure the contact is not in the replacement cache
+        self.assertEqual(0, len(self.node._routing_table._replacement_cache))
 
     def test_handle_store_loses_connection(self):
         """

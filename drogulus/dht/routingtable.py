@@ -47,6 +47,9 @@ class RoutingTable(object):
         self._parent_node_id = parent_node_id
         # Cache containing nodes eligible to replace stale k-bucket entries
         self._replacement_cache = {}
+        # Set of nodes (contact ids) that have been blacklisted due to "bad"
+        # behaviour.
+        self._blacklist = set()
 
     def _kbucket_index(self, key):
         """
@@ -96,11 +99,24 @@ class RoutingTable(object):
         for contact in new_bucket._contacts:
             old_bucket.remove_contact(contact)
 
+    def blacklist(self, contact):
+        """
+        Marks the referenced contact as blacklisted because it has misbehaved
+        in some way. For example, it may have attempted to propagate a non
+        valid value or responded to a node lookup with an incorrect response.
+        Once blacklisted a contact is never allowed to be in the routing
+        table or replacement cache.
+        """
+        self.remove_contact(contact.id, forced=True)
+        self._blacklist.add(contact.id)
+
     def add_contact(self, contact):
         """
         Add the given contact to the correct k-bucket; if it already exists,
         its status will be updated.
         """
+        if contact.id in self._blacklist:
+            return
         if contact.id == self._parent_node_id:
             return
         # Initialize/reset the "failed RPC" counter since adding it to the
@@ -238,8 +254,8 @@ class RoutingTable(object):
 
     def remove_contact(self, contact_id, forced=False):
         """
-        Attempt to remove the contact with the specified contactID string from
-        the routing table.
+        Attempt to remove the contact with the specified contactID from the
+        routing table.
 
         The operation will only succeed if either the number of failed RPCs
         made against the contact is >= constants.ALLOWED_RPC_FAILS or the
@@ -258,10 +274,15 @@ class RoutingTable(object):
             return
         contact.failed_RPCs += 1
         if forced or contact.failed_RPCs >= constants.ALLOWED_RPC_FAILS:
+            # Remove the contact from the bucket.
             self._buckets[bucket_index].remove_contact(contact_id)
-            # If possible, replace the stale contact with the most recent
-            # contact stored in the replacement cache.
             if bucket_index in self._replacement_cache:
+                # If required, remove the old contact from the replacement
+                # cache.
+                if contact in self._replacement_cache[bucket_index]:
+                    self._replacement_cache[bucket_index].remove(contact)
+                # If possible, replace the stale contact with the most recent
+                # contact stored in the replacement cache.
                 if len(self._replacement_cache[bucket_index]) > 0:
                     self._buckets[bucket_index].add_contact(
                         self._replacement_cache[bucket_index].pop())

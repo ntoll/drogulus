@@ -11,6 +11,7 @@ from drogulus.utils import long_to_hex
 from drogulus.version import get_version
 import unittest
 import time
+from mock import MagicMock
 
 
 class TestRoutingTable(unittest.TestCase):
@@ -187,6 +188,19 @@ class TestRoutingTable(unittest.TestCase):
         self.assertEqual(1, len(bucket4._contacts))
         self.assertEqual(contact4, bucket4._contacts[0])
 
+    def test_blacklist(self):
+        """
+        Ensures a misbehaving peer is correctly blacklisted. The remove_contact
+        method is called and the contact's id is added to the _blacklist set.
+        """
+        parent_node_id = 'abc'
+        r = RoutingTable(parent_node_id)
+        contact = Contact('abc', '192.168.0.1', 9999, 0)
+        r.remove_contact = MagicMock()
+        r.blacklist(contact)
+        r.remove_contact.called_once_with(contact, True)
+        self.assertIn(contact.id, r._blacklist)
+
     def test_add_contact_with_parent_node_id(self):
         """
         If the newly discovered contact is, in fact, this node then it's not
@@ -197,6 +211,21 @@ class TestRoutingTable(unittest.TestCase):
         contact = Contact('abc', '192.168.0.1', 9999, 0)
         r.add_contact(contact)
         self.assertEqual(len(r._buckets[0]), 0)
+
+    def test_add_contact_with_blacklisted_contact(self):
+        """
+        If the newly discovered contact is, in fact, already in the local
+        node's blacklist then ensure it doesn't get re-added.
+        """
+        parent_node_id = 'abc'
+        r = RoutingTable(parent_node_id)
+        contact1 = Contact(2, '192.168.0.1', 9999, 0)
+        contact2 = Contact(4, '192.168.0.2', 9999, 0)
+        r.blacklist(contact2)
+        r.add_contact(contact1)
+        self.assertEqual(len(r._buckets[0]), 1)
+        r.add_contact(contact2)
+        self.assertEqual(len(r._buckets[0]), 1)
 
     def test_add_contact_simple(self):
         """
@@ -560,6 +589,28 @@ class TestRoutingTable(unittest.TestCase):
 
         r.remove_contact('b', forced=True)
         self.assertEqual(len(r._buckets[0]), 1)
+
+    def test_remove_contact_removes_from_replacement_cache(self):
+        """
+        Ensures that if a contact is signalled to be removed it is also cleared
+        from the replacement_cache that would otherwise be another route for
+        it to be re-added to the routing table.
+        """
+        parent_node_id = 'abc'
+        r = RoutingTable(parent_node_id)
+        contact1 = Contact('a', '192.168.0.1', 9999, self.version, 0)
+        contact2 = Contact('b', '192.168.0.2', 9999, self.version, 0)
+        r.add_contact(contact1)
+        r.add_contact(contact2)
+        r._replacement_cache[0] = []
+        r._replacement_cache[0].append(contact2)
+        # Sanity check
+        self.assertEqual(len(r._buckets[0]), 2)
+        self.assertEqual(len(r._replacement_cache[0]), 1)
+
+        r.remove_contact('b', forced=True)
+        self.assertEqual(len(r._buckets[0]), 1)
+        self.assertNotIn(contact2, r._replacement_cache)
 
     def test_touch_kbucket(self):
         """
