@@ -226,7 +226,8 @@ class NodeLookup(defer.Deferred):
 
     def _handle_response(self, uuid, contact, response):
         """
-        Callback to handle expected responses.
+        Callback to handle expected responses (unexpected responses result in
+        the remote node being blacklisted and a TypeError being thrown).
 
         When a response to a request is returned successfully remove the
         request from self.pending_requests.
