@@ -599,6 +599,34 @@ class TestNodeLookup(unittest.TestCase):
         self.assertEqual(shortlist_length - 1, len(lookup.shortlist))
         self.assertEqual(1, lookup._lookup.call_count)
 
+    def test_handle_response_wrong_message_type(self):
+        """
+        Ensure that something that's not a Find[Node|Value] message results in
+        the responding contact being blacklisted and an exception being thrown.
+        """
+        def side_effect(*args):
+            """
+            Ensures the mock returns something useful.
+            """
+            uuid = str(uuid4())
+            deferred = defer.Deferred()
+            return (uuid, deferred)
+
+        self.node.send_find = MagicMock(side_effect=side_effect)
+        lookup = NodeLookup(self.key, FindNode, self.node)
+
+        uuid = str(uuid4())
+        contact = Contact(self.node.id, '192.168.1.1', 54321, self.version)
+        version = get_version()
+        msg = Ping(self.uuid, self.node_id, version)
+
+        self.node._routing_table.blacklist = MagicMock()
+        ex = self.assertRaises(TypeError, lookup._handle_response, uuid,
+                               contact, msg)
+        self.assertEqual('Unexpected response type from %r' % contact,
+                         ex.message)
+        self.node._routing_table.blacklist.assert_called_once_with(contact)
+
 
 class TestNode(unittest.TestCase):
     """

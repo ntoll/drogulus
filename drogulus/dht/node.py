@@ -262,12 +262,13 @@ class NodeLookup(defer.Deferred):
         if not (isinstance(response, Value) or isinstance(response, Nodes)):
             # Remove the problem contact from the routing table (since it
             # doesn't behave).
-            self.node._routing_table.blacklist(contact)
-            raise TypeError("Unexpected response type from %r." % contact)
+            self.local_node._routing_table.blacklist(contact)
+            raise TypeError("Unexpected response type from %r" % contact)
 
         # Remove originating request from pending requests.
         del self.pending_requests[uuid]
 
+        # Is the response the expected Value we're looking for..?
         if self.message_type == FindValue and isinstance(response, Value):
             # Check if it's a suitable value.
             # Cancel outstanding requests.
