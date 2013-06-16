@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Contains functions for cryptographically signing / verifying.
+Contains functions for cryptographically signing / verifying items stored in
+the DHT.
 """
 
 # Copyright (C) 2012-2013 Nicholas H.Tollervey.
