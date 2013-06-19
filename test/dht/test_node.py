@@ -13,7 +13,7 @@ from drogulus.version import get_version
 from drogulus.net.protocol import DHTFactory
 from drogulus.net.messages import (Error, Ping, Pong, Store, FindNode, Nodes,
                                    FindValue, Value)
-from drogulus.crypto import construct_key
+from drogulus.crypto import construct_key, generate_signature
 from twisted.trial import unittest
 from twisted.test import proto_helpers
 from twisted.python import log
@@ -176,20 +176,14 @@ class TestNodeLookup(unittest.TestCase):
         self.clock = task.Clock()
         reactor.callLater = self.clock.callLater
         self.value = 'value'
-        self.signature = ('\x882f\xf9A\xcd\xf9\xb1\xcc\xdbl\x1c\xb2\xdb' +
-                          '\xa3UQ\x9a\x08\x96\x12\x83^d\xd8M\xc2`\x81Hz' +
-                          '\x84~\xf4\x9d\x0e\xbd\x81\xc4/\x94\x9dfg\xb2aq' +
-                          '\xa6\xf8!k\x94\x0c\x9b\xb5\x8e \xcd\xfb\x87' +
-                          '\x83`wu\xeb\xf2\x19\xd6X\xdd\xb3\x98\xb5\xbc#B' +
-                          '\xe3\n\x85G\xb4\x9c\x9b\xb0-\xd2B\x83W\xb8\xca' +
-                          '\xecv\xa9\xc4\x9d\xd8\xd0\xf1&\x1a\xfaw\xa0\x99' +
-                          '\x1b\x84\xdad$\xebO\x1a\x9e:w\x14d_\xe3\x03#\x95' +
-                          '\x9d\x10B\xe7\x13')
         self.uuid = str(uuid4())
-        self.timestamp = 1350544046.084875
-        self.expires = 1352221970.14242
+        self.timestamp = time.time()
+        self.expires = self.timestamp + 1000
         self.name = 'name'
         self.meta = {'meta': 'value'}
+        self.signature = generate_signature(self.value, self.timestamp,
+                                            self.expires, self.name, self.meta,
+                                            PRIVATE_KEY)
         self.version = get_version()
         self.key = construct_key(PUBLIC_KEY, self.name)
         self.timeout = 1000
@@ -626,6 +620,161 @@ class TestNodeLookup(unittest.TestCase):
         self.assertEqual('Unexpected response type from %r' % contact,
                          ex.message)
         self.node._routing_table.blacklist.assert_called_once_with(contact)
+
+    def test_handle_response_wrong_value_for_findnode_message(self):
+        """
+        Ensures that if a Value response is returned for a FindNode request
+        then the misbehaving peer is blacklisted and an exception is thrown.
+        """
+        def side_effect(*args):
+            """
+            Ensures the mock returns something useful.
+            """
+            uuid = str(uuid4())
+            deferred = defer.Deferred()
+            return (uuid, deferred)
+
+        self.node.send_find = MagicMock(side_effect=side_effect)
+        lookup = NodeLookup(self.key, FindNode, self.node)
+
+        uuid = lookup.pending_requests.keys()[0]
+        contact = Contact(self.node.id, '192.168.1.1', 54321, self.version)
+        msg = Value(uuid, self.node.id, self.key, self.value, self.timestamp,
+                    self.expires, PUBLIC_KEY, self.name, self.meta,
+                    self.signature, self.node.version)
+        self.node._routing_table.blacklist = MagicMock()
+        ex = self.assertRaises(TypeError, lookup._handle_response, uuid,
+                               contact, msg)
+        self.assertEqual('Unexpected response type from %r' % contact,
+                         ex.message)
+        self.node._routing_table.blacklist.assert_called_once_with(contact)
+
+    def test_handle_response_request_removed_from_pending_requests(self):
+        """
+        Ensure the pending request that triggered the response being handled by
+        the callback is removed from the pending_requests.
+        """
+        def side_effect(*args):
+            """
+            Ensures the mock returns something useful.
+            """
+            uuid = str(uuid4())
+            deferred = defer.Deferred()
+            return (uuid, deferred)
+
+        self.node.send_find = MagicMock(side_effect=side_effect)
+        lookup = NodeLookup(self.key, FindValue, self.node)
+
+        uuid = lookup.pending_requests.keys()[0]
+        contact = Contact(self.node.id, '192.168.1.1', 54321, self.version)
+        msg = Value(uuid, self.node.id, self.key, self.value, self.timestamp,
+                    self.expires, PUBLIC_KEY, self.name, self.meta,
+                    self.signature, self.node.version)
+        lookup._handle_response(uuid, contact, msg)
+        self.assertNotIn(uuid, lookup.pending_requests.keys())
+
+    def test_handle_response_value_results_in_node_lookup_callback(self):
+        """
+        Ensures that if a valid Value message is being handled then all other
+        pending requests are cancelled and the NodeLookup object calls back
+        with the passed in Value object.
+        """
+        def side_effect(*args):
+            """
+            Ensures the mock returns something useful.
+            """
+            uuid = str(uuid4())
+            deferred = defer.Deferred()
+            return (uuid, deferred)
+
+        self.node.send_find = MagicMock(side_effect=side_effect)
+        lookup = NodeLookup(self.key, FindValue, self.node)
+
+        uuid = lookup.pending_requests.keys()[0]
+        other_request1 = lookup.pending_requests.values()[1]
+        other_request2 = lookup.pending_requests.values()[2]
+        other_request1.cancel = MagicMock()
+        other_request2.cancel = MagicMock()
+        contact = Contact(self.node.id, '192.168.1.1', 54321, self.version)
+        msg = Value(uuid, self.node.id, self.key, self.value, self.timestamp,
+                    self.expires, PUBLIC_KEY, self.name, self.meta,
+                    self.signature, self.node.version)
+        lookup._handle_response(uuid, contact, msg)
+        # Ensure the lookup has fired.
+        self.assertTrue(lookup.called)
+        # Check the pending requests have been cancelled.
+        self.assertEqual(1, other_request1.cancel.call_count)
+        self.assertEqual(1, other_request2.cancel.call_count)
+        # Make sure the pending_requests dict is empty.
+        self.assertEqual(0, len(lookup.pending_requests))
+
+        # Ensure the result of the callback is the returned Value object.
+        def callback(result):
+            self.assertEqual(msg, result)
+        lookup.addCallback(callback)
+
+    def test_handle_response_value_message_wrong_key(self):
+        """
+        Ensures that if we get a valid Value response but the key doesn't match
+        the one being requested then the misbehaving node is blacklisted and
+        an exception is thrown.
+        """
+        def side_effect(*args):
+            """
+            Ensures the mock returns something useful.
+            """
+            uuid = str(uuid4())
+            deferred = defer.Deferred()
+            return (uuid, deferred)
+
+        self.node.send_find = MagicMock(side_effect=side_effect)
+        lookup = NodeLookup(self.key, FindValue, self.node)
+
+        uuid = lookup.pending_requests.keys()[0]
+        contact = Contact(self.node.id, '192.168.1.1', 54321, self.version)
+        key = construct_key(PUBLIC_KEY, 'foo')
+        signature = generate_signature(self.value, self.timestamp,
+                                       self.expires, 'foo', self.meta,
+                                       PRIVATE_KEY)
+        msg = Value(uuid, self.node.id, key, self.value, self.timestamp,
+                    self.expires, PUBLIC_KEY, self.name, self.meta,
+                    signature, self.node.version)
+        self.node._routing_table.blacklist = MagicMock()
+        ex = self.assertRaises(ValueError, lookup._handle_response, uuid,
+                               contact, msg)
+        self.assertEqual('Value with wrong key returned by %r' % contact,
+                         ex.message)
+        self.node._routing_table.blacklist.assert_called_once_with(contact)
+
+    def test_handle_response_value_message_expired(self):
+        """
+        Ensures the NodeLookup errbacks given an expired value response.
+        """
+        def side_effect(*args):
+            """
+            Ensures the mock returns something useful.
+            """
+            uuid = str(uuid4())
+            deferred = defer.Deferred()
+            return (uuid, deferred)
+
+        self.node.send_find = MagicMock(side_effect=side_effect)
+        lookup = NodeLookup(self.key, FindValue, self.node)
+
+        uuid = lookup.pending_requests.keys()[0]
+        contact = Contact(self.node.id, '192.168.1.1', 54321, self.version)
+        timestamp = time.time() - 1000
+        expires = timestamp + 10
+        signature = generate_signature(self.value, self.timestamp,
+                                       self.expires, 'foo', self.meta,
+                                       PRIVATE_KEY)
+        msg = Value(uuid, self.node.id, self.key, self.value, timestamp,
+                    expires, PUBLIC_KEY, self.name, self.meta, signature,
+                    self.node.version)
+        ex = self.assertRaises(ValueError, lookup._handle_response, uuid,
+                               contact, msg)
+        self.assertEqual('Expired value returned by %r' % contact,
+                         ex.message)
 
 
 class TestNode(unittest.TestCase):

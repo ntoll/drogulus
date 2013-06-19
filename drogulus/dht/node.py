@@ -258,10 +258,16 @@ class NodeLookup(defer.Deferred):
         If there are still nearer nodes in self.shortlist to some of those in
         the constants.K nearest nodes in the self.contacted set then start
         from step 3 again.
+
+        Note on validating values: In the future there may be constraints added
+        to the FindValue query (such as only accepting values created after
+        time T).
         """
         # Ensure the response is of the expected type[s]
-        if not (isinstance(response, Value) or isinstance(response, Nodes)):
-            # Remove the problem contact from the routing table (since it
+        if not ((isinstance(response, Value) and
+                 self.message_type == FindValue) or
+                isinstance(response, Nodes)):
+            # Blacklist the problem contact from the routing table (since it
             # doesn't behave).
             self.local_node._routing_table.blacklist(contact)
             raise TypeError("Unexpected response type from %r" % contact)
@@ -270,12 +276,22 @@ class NodeLookup(defer.Deferred):
         del self.pending_requests[uuid]
 
         # Is the response the expected Value we're looking for..?
-        if self.message_type == FindValue and isinstance(response, Value):
-            # Check if it's a suitable value.
-            # Cancel outstanding requests.
-            self._cancel_pending_requests()
-            # Fire the instance with the result.
-            self.callback(response)
+        if isinstance(response, Value):
+            # Check if it's a suitable value (the key matches)
+            if response.key == self.target:
+                # Ensure the Value has not expired.
+                if response.expires < time.time():
+                    raise ValueError("Expired value returned by %r" % contact)
+                # Cancel outstanding requests.
+                self._cancel_pending_requests()
+                # Fire the instance with the result.
+                self.callback(response)
+            else:
+                # Blacklist the problem contact from the routing table since
+                # it's not behaving properly.
+                self.local_node._routing_table.blacklist(contact)
+                raise ValueError("Value with wrong key returned by %r" %
+                                 contact)
 
     def _lookup(self):
         """
