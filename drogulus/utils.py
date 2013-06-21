@@ -43,3 +43,13 @@ def hex_to_long(raw):
     node's ID for example) returns the numeric (long) value.
     """
     return long(raw.encode('hex'), 16)
+
+
+def distance(key_one, key_two):
+    """
+    Calculate the XOR result between two string variables returned as a long
+    type value.
+    """
+    val_key_one = hex_to_long(key_one)
+    val_key_two = hex_to_long(key_two)
+    return val_key_one ^ val_key_two

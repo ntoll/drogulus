@@ -22,7 +22,7 @@ import time
 import random
 import kbucket
 from drogulus import constants
-from drogulus.utils import long_to_hex, hex_to_long
+from drogulus.utils import long_to_hex, hex_to_long, distance
 
 
 class RoutingTable(object):
@@ -152,15 +152,6 @@ class RoutingTable(object):
                     self._replacement_cache[bucket_index].pop(0)
                 self._replacement_cache[bucket_index].append(contact)
 
-    def distance(self, key_one, key_two):
-        """
-        Calculate the XOR result between two string variables returned as a
-        long type value.
-        """
-        val_key_one = hex_to_long(key_one)
-        val_key_two = hex_to_long(key_two)
-        return val_key_one ^ val_key_two
-
     def find_close_nodes(self, key, rpc_node_id=None):
         """
         Finds up to "K" number of known nodes closest to the node/value with
@@ -218,7 +209,7 @@ class RoutingTable(object):
             """
             Returns the node's distance to the target key.
             """
-            return self.distance(node.id, key)
+            return distance(node.id, key)
 
         closest_nodes.sort(key=node_key)
 

@@ -7,7 +7,7 @@ from drogulus.dht.routingtable import RoutingTable
 from drogulus.dht.contact import Contact
 from drogulus.dht.kbucket import KBucket
 from drogulus import constants
-from drogulus.utils import long_to_hex
+from drogulus.utils import long_to_hex, distance
 from drogulus.version import get_version
 import unittest
 import time
@@ -340,18 +340,6 @@ class TestRoutingTable(unittest.TestCase):
             contact = Contact(big_id, '192.168.0.1', 9999, self.version, 0)
             r.add_contact(contact)
 
-    def test_distance(self):
-        """
-        Sanity check to ensure the XOR'd values return the correct distance.
-        """
-        parent_node_id = 'abc'
-        r = RoutingTable(parent_node_id)
-        key1 = 'abc'
-        key2 = 'xyz'
-        expected = 1645337L
-        actual = r.distance(key1, key2)
-        self.assertEqual(expected, actual)
-
     def test_find_close_nodes_single_kbucket(self):
         """
         Ensures K number of closest nodes get returned.
@@ -425,11 +413,11 @@ class TestRoutingTable(unittest.TestCase):
 
         # Ensure results are in the correct order.
         def key(node):
-            return r.distance(node.id, target_key)
+            return distance(node.id, target_key)
         sorted_nodes = sorted(result, key=key)
         self.assertEqual(sorted_nodes, result)
         # Ensure the order is from lowest to highest in terms of distance
-        distances = [r.distance(x.id, target_key) for x in result]
+        distances = [distance(x.id, target_key) for x in result]
         self.assertEqual(sorted(distances), distances)
 
     def test_get_contact(self):

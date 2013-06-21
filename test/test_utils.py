@@ -3,7 +3,7 @@
 Ensures the generic functions used in various places within the DHT
 implementation work as expected.
 """
-from drogulus.utils import long_to_hex, hex_to_long
+from drogulus.utils import long_to_hex, hex_to_long, distance
 import unittest
 
 
@@ -27,3 +27,13 @@ class TestUtils(unittest.TestCase):
         raw = 'abcdef0123456789'
         result = hex_to_long(raw)
         self.assertEqual(raw, long_to_hex(result))
+
+    def test_distance(self):
+        """
+        Sanity check to ensure the XOR'd values return the correct distance.
+        """
+        key1 = 'abc'
+        key2 = 'xyz'
+        expected = 1645337L
+        actual = distance(key1, key2)
+        self.assertEqual(expected, actual)
