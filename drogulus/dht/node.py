@@ -152,7 +152,8 @@ class NodeLookup(defer.Deferred):
 
     10. If there are still nearer nodes in self.shortlist to some of those in
         the constants.K nearest nodes in the self.contacted set then start
-        from step 3 again.
+        from step 3 again (forcing the local node to contact the close nodes
+        that have yet to be contacted).
 
     Note on validating values: In the future there may be constraints added to
     the FindValue query (such as only accepting values created after time T).
@@ -222,7 +223,19 @@ class NodeLookup(defer.Deferred):
             self.shortlist.remove(contact)
         if uuid in self.pending_requests:
             del self.pending_requests[uuid]
+        log.msg('Error during interaction with %r' % contact)
+        log.msg(error)
         self._lookup()
+
+    def _blacklist(self, contact):
+        """
+        Removes a contact from the shortlist and routing table while adding it
+        to the global blacklist of misbehaving peers.
+        """
+        if contact in self.shortlist:
+            self.shortlist.remove(contact)
+        self.local_node._routing_table.blacklist(contact)
+        log.msg('Blacklisting %r' % contact)
 
     def _handle_response(self, uuid, contact, response):
         """
@@ -235,8 +248,9 @@ class NodeLookup(defer.Deferred):
         If it's a FindValue message and a suitable value is returned (see note
         at the end of these comments) cancel all the other pending calls in
         self.pending_requests and fire a callback with with the returned value.
-        If the value is invalid remove the node from self.shortlist and start
-        from step 3 again without cancelling the other pending calls.
+        If the value is invalid blacklist the node, remove it from
+        self.shortlist and start from step 3 again without cancelling the other
+        pending calls.
 
         If a list of closer nodes is returned by a peer add them to
         self.shortlist and sort - making sure nodes in self.contacted are not
@@ -257,23 +271,24 @@ class NodeLookup(defer.Deferred):
 
         If there are still nearer nodes in self.shortlist to some of those in
         the constants.K nearest nodes in the self.contacted set then start
-        from step 3 again.
+        from step 3 again (forcing the local node to contact the close nodes
+        that have yet to be contacted).
 
         Note on validating values: In the future there may be constraints added
         to the FindValue query (such as only accepting values created after
         time T).
         """
+        # Remove originating request from pending requests.
+        del self.pending_requests[uuid]
+
         # Ensure the response is of the expected type[s]
         if not ((isinstance(response, Value) and
                  self.message_type == FindValue) or
                 isinstance(response, Nodes)):
             # Blacklist the problem contact from the routing table (since it
             # doesn't behave).
-            self.local_node._routing_table.blacklist(contact)
+            self._blacklist(contact)
             raise TypeError("Unexpected response type from %r" % contact)
-
-        # Remove originating request from pending requests.
-        del self.pending_requests[uuid]
 
         # Is the response the expected Value we're looking for..?
         if isinstance(response, Value):
@@ -281,6 +296,8 @@ class NodeLookup(defer.Deferred):
             if response.key == self.target:
                 # Ensure the Value has not expired.
                 if response.expires < time.time():
+                    # Do not blacklist expired nodes but simply remove them
+                    # from the shortlist (handled by the errback).
                     raise ValueError("Expired value returned by %r" % contact)
                 # Cancel outstanding requests.
                 self._cancel_pending_requests()
@@ -289,7 +306,7 @@ class NodeLookup(defer.Deferred):
             else:
                 # Blacklist the problem contact from the routing table since
                 # it's not behaving properly.
-                self.local_node._routing_table.blacklist(contact)
+                self._blacklist(contact)
                 raise ValueError("Value with wrong key returned by %r" %
                                  contact)
 
