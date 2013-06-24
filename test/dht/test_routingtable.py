@@ -351,7 +351,7 @@ class TestRoutingTable(unittest.TestCase):
             contact = Contact(i, "192.168.0.%d" % i, 9999, self.version, 0)
             r.add_contact(contact)
         result = r.find_close_nodes(hex(1))
-        self.assertEqual(20, len(result))
+        self.assertEqual(constants.K, len(result))
 
     def test_find_close_nodes_fewer_than_K(self):
         """
@@ -379,7 +379,7 @@ class TestRoutingTable(unittest.TestCase):
                               0)
             r.add_contact(contact)
         result = r.find_close_nodes(long_to_hex(2 ** 256))
-        self.assertEqual(20, len(result))
+        self.assertEqual(constants.K, len(result))
 
     def test_find_close_nodes_exclude_contact(self):
         """
@@ -393,7 +393,7 @@ class TestRoutingTable(unittest.TestCase):
             contact = Contact(i, "192.168.0.%d" % i, 9999, self.version, 0)
             r.add_contact(contact)
         result = r.find_close_nodes(hex(1), rpc_node_id=contact.id)
-        self.assertEqual(19, len(result))
+        self.assertEqual(constants.K - 1, len(result))
 
     def test_find_close_nodes_in_correct_order(self):
         """
@@ -409,7 +409,7 @@ class TestRoutingTable(unittest.TestCase):
             r.add_contact(contact)
         target_key = long_to_hex(2 ** 256)
         result = r.find_close_nodes(target_key)
-        self.assertEqual(20, len(result))
+        self.assertEqual(constants.K, len(result))
 
         # Ensure results are in the correct order.
         def key(node):

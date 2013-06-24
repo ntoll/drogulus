@@ -22,7 +22,7 @@ import time
 import random
 import kbucket
 from drogulus import constants
-from drogulus.utils import long_to_hex, hex_to_long, distance
+from drogulus.utils import long_to_hex, hex_to_long, distance, sort_contacts
 
 
 class RoutingTable(object):
@@ -198,22 +198,11 @@ class RoutingTable(object):
                 can_go_higher = (bucket_index + (bucket_jump + 1) <
                                  number_of_buckets)
             bucket_jump += 1
-        # Ensure we only return K contacts (in certain circumstances K+1
+
+        # Order the nodes from closest to furthest away from the target key and
+        # ensure we only return K contacts (in certain circumstances K+1
         # results are generated).
-        closest_nodes = closest_nodes[:constants.K]
-
-        # Order the nodes from closest to furthest away from the target key.
-
-        # Key function
-        def node_key(node):
-            """
-            Returns the node's distance to the target key.
-            """
-            return distance(node.id, key)
-
-        closest_nodes.sort(key=node_key)
-
-        return closest_nodes
+        return sort_contacts(closest_nodes, key)
 
     def get_contact(self, contact_id):
         """

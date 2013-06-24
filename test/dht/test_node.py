@@ -14,6 +14,7 @@ from drogulus.net.protocol import DHTFactory
 from drogulus.net.messages import (Error, Ping, Pong, Store, FindNode, Nodes,
                                    FindValue, Value)
 from drogulus.crypto import construct_key, generate_signature
+from drogulus.utils import long_to_hex, sort_contacts
 from twisted.trial import unittest
 from twisted.test import proto_helpers
 from twisted.python import log
@@ -187,6 +188,18 @@ class TestNodeLookup(unittest.TestCase):
         self.version = get_version()
         self.key = construct_key(PUBLIC_KEY, self.name)
         self.timeout = 1000
+        self.target_key = long_to_hex(100)
+        node_list = []
+        for i in range(101, 121):
+            contact_id = long_to_hex(i)
+            contact_address = '192.168.1.%d' % i
+            contact_port = 9999
+            contact_version = self.version
+            contact_last_seen = self.timestamp - (i * 100)
+            contact = Contact(contact_id, contact_address, contact_port,
+                              contact_version, contact_last_seen)
+            node_list.append(contact)
+        self.nodes = tuple(sort_contacts(node_list, self.target_key))
 
     def test_init(self):
         """
@@ -798,6 +811,44 @@ class TestNodeLookup(unittest.TestCase):
                                contact, msg)
         self.assertEqual('Expired value returned by %r' % contact,
                          ex.message)
+
+    def test_handle_response_nodes_message_adds_to_shortlist(self):
+        """
+        Ensures that a Nodes message adds the returned nodes to the shortlist
+        in the correct order (closest to target at the head of the list).
+        """
+        def side_effect(*args):
+            """
+            Ensures the mock returns something useful.
+            """
+            uuid = str(uuid4())
+            deferred = defer.Deferred()
+            return (uuid, deferred)
+
+        self.node.send_find = MagicMock(side_effect=side_effect)
+        lookup = NodeLookup(self.key, FindNode, self.node)
+
+        uuid = lookup.pending_requests.keys()[0]
+        contact = Contact(self.node.id, '192.168.1.1', 54321, self.version)
+        msg = Nodes(self.uuid, self.node.id, self.nodes, self.node.version)
+        assert False
+
+    def test_handle_response_nodes_message_shortlist_no_longer_than_k(self):
+        """
+        Ensure that, despite adding new nodes from the result of a Nodes
+        response, the shortlist never gets longer than K.
+        """
+        assert False
+
+    def test_handle_response_nodes_message_update_nearest_node(self):
+        """
+        """
+        assert False
+
+    def test_handle_response_nodes_message_do_not_update_nearest_node(self):
+        """
+        """
+        assert False
 
 
 class TestNode(unittest.TestCase):

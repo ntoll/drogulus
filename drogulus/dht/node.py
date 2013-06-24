@@ -281,7 +281,7 @@ class NodeLookup(defer.Deferred):
         # Remove originating request from pending requests.
         del self.pending_requests[uuid]
 
-        # Ensure the response is of the expected type[s]
+        # Ensure the response is of the expected type[s].
         if not ((isinstance(response, Value) and
                  self.message_type == FindValue) or
                 isinstance(response, Nodes)):
@@ -301,7 +301,8 @@ class NodeLookup(defer.Deferred):
                     raise ValueError("Expired value returned by %r" % contact)
                 # Cancel outstanding requests.
                 self._cancel_pending_requests()
-                # Fire the instance with the result.
+                # The correct Value has been found. Fire the instance with the
+                # result.
                 self.callback(response)
             else:
                 # Blacklist the problem contact from the routing table since
@@ -309,6 +310,16 @@ class NodeLookup(defer.Deferred):
                 self._blacklist(contact)
                 raise ValueError("Value with wrong key returned by %r" %
                                  contact)
+        else:
+            # Otherwise it must be a Nodes message containing closer nodes.
+            # Add the returned nodes to the shortlist.
+            pass
+            # Sort the shortlist in order of closeness to the target.
+            pass
+            # Ensure the shortlist never gets longer than K.
+            pass
+            # Check the nearest_node.
+            pass
 
     def _lookup(self):
         """
