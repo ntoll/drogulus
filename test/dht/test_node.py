@@ -166,8 +166,8 @@ class TestNodeLookup(unittest.TestCase):
         self.node = Node(self.node_id)
         self.remote_node_count = 20
         for i in range(self.remote_node_count):
-            contact = Contact(i, '192.168.0.%d' % i, 9999, self.node.version,
-                              0)
+            contact = Contact(long_to_hex(i), '192.168.0.%d' % i, 9999,
+                              self.node.version, 0)
             self.node._routing_table.add_contact(contact)
         self.factory = DHTFactory(self.node)
         self.protocol = self.factory.buildProtocol(('127.0.0.1', 0))
@@ -812,7 +812,8 @@ class TestNodeLookup(unittest.TestCase):
         self.assertEqual('Expired value returned by %r' % contact,
                          ex.message)
 
-    def test_handle_response_nodes_message_adds_to_shortlist(self):
+    @patch('drogulus.dht.node.sort_contacts')
+    def test_handle_response_nodes_message_adds_to_shortlist(self, mock_sort):
         """
         Ensures that a Nodes message adds the returned nodes to the shortlist
         in the correct order (closest to target at the head of the list).
@@ -826,19 +827,16 @@ class TestNodeLookup(unittest.TestCase):
             return (uuid, deferred)
 
         self.node.send_find = MagicMock(side_effect=side_effect)
-        lookup = NodeLookup(self.key, FindNode, self.node)
+        target_key = long_to_hex(999)
+        lookup = NodeLookup(target_key, FindNode, self.node)
+        shortlist = lookup.shortlist
 
         uuid = lookup.pending_requests.keys()[0]
         contact = Contact(self.node.id, '192.168.1.1', 54321, self.version)
         msg = Nodes(self.uuid, self.node.id, self.nodes, self.node.version)
-        assert False
-
-    def test_handle_response_nodes_message_shortlist_no_longer_than_k(self):
-        """
-        Ensure that, despite adding new nodes from the result of a Nodes
-        response, the shortlist never gets longer than K.
-        """
-        assert False
+        lookup._handle_response(uuid, contact, msg)
+        mock_sort.assert_called_once_with(list(self.nodes) + shortlist,
+                                          target_key)
 
     def test_handle_response_nodes_message_update_nearest_node(self):
         """

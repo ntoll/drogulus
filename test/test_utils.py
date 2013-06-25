@@ -60,6 +60,7 @@ class TestUtils(unittest.TestCase):
             contacts.append(contact)
         target_key = long_to_hex(2 ** 256)
         result = sort_contacts(contacts, target_key)
+
         # Ensure results are in the correct order.
         def key(node):
             return distance(node.id, target_key)

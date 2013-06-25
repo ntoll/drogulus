@@ -25,6 +25,7 @@ import time
 from uuid import uuid4
 
 from drogulus import constants
+from drogulus.utils import sort_contacts
 from drogulus.net.messages import (Error, Ping, Pong, Store, FindNode, Nodes,
                                    FindValue, Value)
 from drogulus.net.protocol import DHTFactory
@@ -312,12 +313,11 @@ class NodeLookup(defer.Deferred):
                                  contact)
         else:
             # Otherwise it must be a Nodes message containing closer nodes.
-            # Add the returned nodes to the shortlist.
-            pass
-            # Sort the shortlist in order of closeness to the target.
-            pass
-            # Ensure the shortlist never gets longer than K.
-            pass
+            # Add the returned nodes to the shortlist. Sort the shortlist in
+            # order of closeness to the target and ensure the shortlist never
+            # gets longer than K.
+            self.shortlist = sort_contacts(list(response.nodes) +
+                                           self.shortlist, self.target)
             # Check the nearest_node.
             pass
 

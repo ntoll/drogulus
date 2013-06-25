@@ -22,7 +22,7 @@ import time
 import random
 import kbucket
 from drogulus import constants
-from drogulus.utils import long_to_hex, hex_to_long, distance, sort_contacts
+from drogulus.utils import long_to_hex, hex_to_long, sort_contacts
 
 
 class RoutingTable(object):

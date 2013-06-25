@@ -56,6 +56,7 @@ def distance(key_one, key_two):
     val_key_two = hex_to_long(key_two)
     return val_key_one ^ val_key_two
 
+
 def sort_contacts(contacts, target_key):
     """
     Given a list of contacts, efficiently sorts it so that the contacts closest
