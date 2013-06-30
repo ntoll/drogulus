@@ -44,6 +44,14 @@ class RoutingTableEmpty(Exception):
     pass
 
 
+class ValueNotFound(Exception):
+    """
+    Fired when a NodeLookup cannot find a value associated with a specified
+    key.
+    """
+    pass
+
+
 def response_timeout(message, protocol, node):
     """
     Called when a pending message (identified with a uuid) awaiting a response
@@ -261,13 +269,13 @@ class NodeLookup(defer.Deferred):
         target than self.nearest_node then set self.nearest_node to the new
         closer node and start from step 3 again.
 
-        If self.nearest_node remains unchanged DO NOT start a new call.
+        If self.nearest_node remains unchanged DO NOT start a new lookup call.
 
         If there are no other requests in self.pending_requests then check that
         the constants.K nearest nodes in the self.contacted set are all closer
         than the nearest node in self.shortlist. If they are, and it's a
-        FindNode message call back with the constants.K nearest nodes in the
-        self.contacted set. If the message is a FindValue, errback with a
+        FindNode message call back with the constants.K nearest nodes found in
+        the self.contacted set. If the message is a FindValue, errback with a
         ValueNotFound error.
 
         If there are still nearer nodes in self.shortlist to some of those in
@@ -302,8 +310,8 @@ class NodeLookup(defer.Deferred):
                     raise ValueError("Expired value returned by %r" % contact)
                 # Cancel outstanding requests.
                 self._cancel_pending_requests()
-                # The correct Value has been found. Fire the instance with the
-                # result.
+                # Success! The correct Value has been found. Fire the instance
+                # with the result.
                 self.callback(response)
             else:
                 # Blacklist the problem contact from the routing table since
@@ -318,8 +326,39 @@ class NodeLookup(defer.Deferred):
             # gets longer than K.
             self.shortlist = sort_contacts(list(response.nodes) +
                                            self.shortlist, self.target)
-            # Check the nearest_node.
-            pass
+            # Check if the nearest_node remains unchanged.
+            if self.nearest_node == self.shortlist[0]:
+                # Check for remaining pending requests.
+                if not self.pending_requests:
+                    # Check all the candidates in the shortlist have been
+                    # contacted.
+                    candidates = [candidate for candidate in self.shortlist if
+                                  candidate in self.contacted]
+                    if len(candidates) == len(self.shortlist):
+                        # There is a result.
+                        if self.message_type == FindValue:
+                            # Can't find a value at the key.
+                            msg = ("Unable to find value for key: %r" %
+                                   self.target)
+                            self.errback(ValueNotFound(msg))
+                        else:
+                            # Success! Found nodes close to the specified
+                            # target key.
+                            self.callback(self.shortlist)
+                    else:
+                        # There are still un-contacted peers in the shortlist
+                        # so restart the lookup in order to check them.
+                        self._lookup()
+                else:
+                    # There are still pending requests to complete but do not
+                    # restart the lookup
+                    pass
+            else:
+                # There is a new nearest node.
+                self.nearest_node = self.shortlist[0]
+                # Restart the lookup given the newly found nodes in the
+                # shortlist.
+                self._lookup()
 
     def _lookup(self):
         """
