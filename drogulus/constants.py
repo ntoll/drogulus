@@ -25,6 +25,9 @@ ALPHA = 3
 #: The maximum number of contacts stored in a k-bucket. Must be an even number.
 K = 20
 
+#: The default maximum time a NodeLookup is allowed to take (in seconds).
+LOOKUP_TIMEOUT = 600
+
 #: The timeout for network connections (in seconds).
 RPC_TIMEOUT = 5
 
@@ -32,9 +35,6 @@ RPC_TIMEOUT = 5
 #: seconds). Ensures there are no stale deferreds in the node's _pending
 #: dictionary.
 RESPONSE_TIMEOUT = 1800  # half an hour
-
-#: The delay between iterations of node lookups (in seconds).
-ITERATIVE_LOOKUP_DELAY = RPC_TIMEOUT / 2
 
 #: How long to wait before an unused k-bucket is refreshed (in seconds).
 REFRESH_TIMEOUT = 3600  # 1 hour

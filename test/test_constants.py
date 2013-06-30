@@ -37,14 +37,13 @@ class TestConstants(unittest.TestCase):
         self.assertIsInstance(constants.RPC_TIMEOUT, int,
                               "constants.RPC_TIMEOUT must be an integer.")
 
-    def test_ITERATIVE_LOOKUP_DELAY(self):
+    def test_LOOKUP_TIMEOUT(self):
         """
-        The iterative lookup delay defines the delay (in seconds) between
-        iterations of iterative node lookups for loose parallelism.
+        The lookup timeout defines the default maximum amount of time a node
+        lookup is allowed to take.
         """
-        self.assertIsInstance(constants.ITERATIVE_LOOKUP_DELAY, int,
-                              "constants.ITERATIVE_LOOKUP_DELAY must be an " +
-                              "integer.")
+        self.assertIsInstance(constants.LOOKUP_TIMEOUT, int,
+                              "constants.LOOKUP_TIMEOUT must be an integer.")
 
     def test_REFRESH_TIMEOUT(self):
         """
