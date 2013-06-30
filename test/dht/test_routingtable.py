@@ -7,10 +7,11 @@ from drogulus.dht.routingtable import RoutingTable
 from drogulus.dht.contact import Contact
 from drogulus.dht.kbucket import KBucket
 from drogulus import constants
-from drogulus.utils import long_to_hex
+from drogulus.utils import long_to_hex, distance
 from drogulus.version import get_version
 import unittest
 import time
+from mock import MagicMock
 
 
 class TestRoutingTable(unittest.TestCase):
@@ -91,7 +92,8 @@ class TestRoutingTable(unittest.TestCase):
         r = RoutingTable(parent_node_id)
         # Populate the routing table with contacts.
         for i in range(512):
-            contact = Contact(2 ** i, "192.168.0.%d" % i, self.version, 0)
+            contact = Contact(2 ** i, "192.168.0.%d" % i, 9999, self.version,
+                              0)
             r.add_contact(contact)
         with self.assertRaises(ValueError):
             # Incoming id that's too small.
@@ -186,6 +188,19 @@ class TestRoutingTable(unittest.TestCase):
         self.assertEqual(1, len(bucket4._contacts))
         self.assertEqual(contact4, bucket4._contacts[0])
 
+    def test_blacklist(self):
+        """
+        Ensures a misbehaving peer is correctly blacklisted. The remove_contact
+        method is called and the contact's id is added to the _blacklist set.
+        """
+        parent_node_id = 'abc'
+        r = RoutingTable(parent_node_id)
+        contact = Contact('abc', '192.168.0.1', 9999, 0)
+        r.remove_contact = MagicMock()
+        r.blacklist(contact)
+        r.remove_contact.called_once_with(contact, True)
+        self.assertIn(contact.id, r._blacklist)
+
     def test_add_contact_with_parent_node_id(self):
         """
         If the newly discovered contact is, in fact, this node then it's not
@@ -196,6 +211,21 @@ class TestRoutingTable(unittest.TestCase):
         contact = Contact('abc', '192.168.0.1', 9999, 0)
         r.add_contact(contact)
         self.assertEqual(len(r._buckets[0]), 0)
+
+    def test_add_contact_with_blacklisted_contact(self):
+        """
+        If the newly discovered contact is, in fact, already in the local
+        node's blacklist then ensure it doesn't get re-added.
+        """
+        parent_node_id = 'abc'
+        r = RoutingTable(parent_node_id)
+        contact1 = Contact(2, '192.168.0.1', 9999, 0)
+        contact2 = Contact(4, '192.168.0.2', 9999, 0)
+        r.blacklist(contact2)
+        r.add_contact(contact1)
+        self.assertEqual(len(r._buckets[0]), 1)
+        r.add_contact(contact2)
+        self.assertEqual(len(r._buckets[0]), 1)
 
     def test_add_contact_simple(self):
         """
@@ -219,11 +249,11 @@ class TestRoutingTable(unittest.TestCase):
         parent_node_id = 'abc'
         r = RoutingTable(parent_node_id)
         for i in range(20):
-            contact = Contact(i, '192.168.0.%d' % i, self.version, 0)
+            contact = Contact(i, '192.168.0.%d' % i, 9999, self.version, 0)
             r.add_contact(contact)
         # This id will be just over the max range for the bucket in position 0
         large_id = ((2 ** 512) / 2) + 1
-        contact = Contact(large_id, '192.168.0.33', self.version, 0)
+        contact = Contact(large_id, '192.168.0.33', 9999, self.version, 0)
         r.add_contact(contact)
         self.assertEqual(len(r._buckets), 2)
         self.assertEqual(len(r._buckets[0]), 20)
@@ -238,10 +268,10 @@ class TestRoutingTable(unittest.TestCase):
         r = RoutingTable(parent_node_id)
         # Fill up the bucket
         for i in range(20):
-            contact = Contact(i, '192.168.0.%d' % i, self.version, 0)
+            contact = Contact(i, '192.168.0.%d' % i, 9999, self.version, 0)
             r.add_contact(contact)
         # Create a new contact that will be added to the replacement cache.
-        contact = Contact(20, '192.168.0.20', self.version, 0)
+        contact = Contact(20, '192.168.0.20', 9999, self.version, 0)
         r.add_contact(contact)
         self.assertEqual(len(r._buckets[0]), 20)
         self.assertTrue(0 in r._replacement_cache)
@@ -257,13 +287,14 @@ class TestRoutingTable(unittest.TestCase):
         r = RoutingTable(parent_node_id)
         # Fill up the bucket and replacement cache
         for i in range(40):
-            contact = Contact(str(i), "192.168.0.%d" % i, self.version, 0)
+            contact = Contact(str(i), "192.168.0.%d" % i, 9999, self.version,
+                              0)
             r.add_contact(contact)
         # Sanity check of the replacement cache.
         self.assertEqual(len(r._replacement_cache[0]), 20)
         self.assertEqual('20', r._replacement_cache[0][0].id)
         # Create a new contact that will be added to the replacement cache.
-        new_contact = Contact('40', "192.168.0.20", self.version, 0)
+        new_contact = Contact('40', "192.168.0.20", 9999, self.version, 0)
         r.add_contact(new_contact)
         self.assertEqual(len(r._replacement_cache[0]), 20)
         self.assertEqual(new_contact, r._replacement_cache[0][19])
@@ -279,13 +310,14 @@ class TestRoutingTable(unittest.TestCase):
         r = RoutingTable(parent_node_id)
         # Fill up the bucket and replacement cache
         for i in range(40):
-            contact = Contact(str(i), '192.168.0.%d' % i, self.version, 0)
+            contact = Contact(str(i), '192.168.0.%d' % i, 9999, self.version,
+                              0)
             r.add_contact(contact)
         # Sanity check of the replacement cache.
         self.assertEqual(len(r._replacement_cache[0]), 20)
         self.assertEqual('20', r._replacement_cache[0][0].id)
         # Create a new contact that will be added to the replacement cache.
-        new_contact = Contact('20', '192.168.0.20', self.version, 0)
+        new_contact = Contact('20', '192.168.0.20', 9999, self.version, 0)
         r.add_contact(new_contact)
         self.assertEqual(len(r._replacement_cache[0]), 20)
         self.assertEqual(new_contact, r._replacement_cache[0][19])
@@ -300,25 +332,13 @@ class TestRoutingTable(unittest.TestCase):
         r = RoutingTable(parent_node_id)
         with self.assertRaises(TypeError):
             # id too small
-            contact = Contact(-1, '192.168.0.1', self.version, 0)
+            contact = Contact(-1, '192.168.0.1', 9999, self.version, 0)
             r.add_contact(contact)
         with self.assertRaises(ValueError):
             # id too big
             big_id = (2 ** 512)
-            contact = Contact(big_id, '192.168.0.1', self.version, 0)
+            contact = Contact(big_id, '192.168.0.1', 9999, self.version, 0)
             r.add_contact(contact)
-
-    def test_distance(self):
-        """
-        Sanity check to ensure the XOR'd values return the correct distance.
-        """
-        parent_node_id = 'abc'
-        r = RoutingTable(parent_node_id)
-        key1 = 'abc'
-        key2 = 'xyz'
-        expected = 1645337L
-        actual = r.distance(key1, key2)
-        self.assertEqual(expected, actual)
 
     def test_find_close_nodes_single_kbucket(self):
         """
@@ -328,10 +348,10 @@ class TestRoutingTable(unittest.TestCase):
         r = RoutingTable(parent_node_id)
         # Fill up the bucket and replacement cache
         for i in range(40):
-            contact = Contact(i, "192.168.0.%d" % i, self.version, 0)
+            contact = Contact(i, "192.168.0.%d" % i, 9999, self.version, 0)
             r.add_contact(contact)
         result = r.find_close_nodes(hex(1))
-        self.assertEqual(20, len(result))
+        self.assertEqual(constants.K, len(result))
 
     def test_find_close_nodes_fewer_than_K(self):
         """
@@ -341,7 +361,7 @@ class TestRoutingTable(unittest.TestCase):
         r = RoutingTable(parent_node_id)
         # Fill up the bucket and replacement cache
         for i in range(10):
-            contact = Contact(i, "192.168.0.%d" % i, self.version, 0)
+            contact = Contact(i, "192.168.0.%d" % i, 9999, self.version, 0)
             r.add_contact(contact)
         result = r.find_close_nodes(hex(1))
         self.assertEqual(10, len(result))
@@ -355,10 +375,11 @@ class TestRoutingTable(unittest.TestCase):
         r = RoutingTable(parent_node_id)
         # Fill up the bucket and replacement cache
         for i in range(512):
-            contact = Contact(2 ** i, "192.168.0.%d" % i, self.version, 0)
+            contact = Contact(2 ** i, "192.168.0.%d" % i, 9999, self.version,
+                              0)
             r.add_contact(contact)
         result = r.find_close_nodes(long_to_hex(2 ** 256))
-        self.assertEqual(20, len(result))
+        self.assertEqual(constants.K, len(result))
 
     def test_find_close_nodes_exclude_contact(self):
         """
@@ -369,10 +390,10 @@ class TestRoutingTable(unittest.TestCase):
         r = RoutingTable(parent_node_id)
         # Fill up the bucket and replacement cache
         for i in range(20):
-            contact = Contact(i, "192.168.0.%d" % i, self.version, 0)
+            contact = Contact(i, "192.168.0.%d" % i, 9999, self.version, 0)
             r.add_contact(contact)
         result = r.find_close_nodes(hex(1), rpc_node_id=contact.id)
-        self.assertEqual(19, len(result))
+        self.assertEqual(constants.K - 1, len(result))
 
     def test_find_close_nodes_in_correct_order(self):
         """
@@ -383,19 +404,20 @@ class TestRoutingTable(unittest.TestCase):
         r = RoutingTable(parent_node_id)
         # Fill up the bucket and replacement cache
         for i in range(512):
-            contact = Contact(2 ** i, "192.168.0.%d" % i, self.version, 0)
+            contact = Contact(2 ** i, "192.168.0.%d" % i, 9999, self.version,
+                              0)
             r.add_contact(contact)
         target_key = long_to_hex(2 ** 256)
         result = r.find_close_nodes(target_key)
-        self.assertEqual(20, len(result))
+        self.assertEqual(constants.K, len(result))
 
         # Ensure results are in the correct order.
         def key(node):
-            return r.distance(node.id, target_key)
+            return distance(node.id, target_key)
         sorted_nodes = sorted(result, key=key)
         self.assertEqual(sorted_nodes, result)
         # Ensure the order is from lowest to highest in terms of distance
-        distances = [r.distance(x.id, target_key) for x in result]
+        distances = [distance(x.id, target_key) for x in result]
         self.assertEqual(sorted(distances), distances)
 
     def test_get_contact(self):
@@ -555,6 +577,28 @@ class TestRoutingTable(unittest.TestCase):
 
         r.remove_contact('b', forced=True)
         self.assertEqual(len(r._buckets[0]), 1)
+
+    def test_remove_contact_removes_from_replacement_cache(self):
+        """
+        Ensures that if a contact is signalled to be removed it is also cleared
+        from the replacement_cache that would otherwise be another route for
+        it to be re-added to the routing table.
+        """
+        parent_node_id = 'abc'
+        r = RoutingTable(parent_node_id)
+        contact1 = Contact('a', '192.168.0.1', 9999, self.version, 0)
+        contact2 = Contact('b', '192.168.0.2', 9999, self.version, 0)
+        r.add_contact(contact1)
+        r.add_contact(contact2)
+        r._replacement_cache[0] = []
+        r._replacement_cache[0].append(contact2)
+        # Sanity check
+        self.assertEqual(len(r._buckets[0]), 2)
+        self.assertEqual(len(r._replacement_cache[0]), 1)
+
+        r.remove_contact('b', forced=True)
+        self.assertEqual(len(r._buckets[0]), 1)
+        self.assertNotIn(contact2, r._replacement_cache)
 
     def test_touch_kbucket(self):
         """

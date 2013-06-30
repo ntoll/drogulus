@@ -19,6 +19,8 @@ Drogulus.
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from constants import K
+
 
 def long_to_hex(raw):
     """
@@ -43,3 +45,30 @@ def hex_to_long(raw):
     node's ID for example) returns the numeric (long) value.
     """
     return long(raw.encode('hex'), 16)
+
+
+def distance(key_one, key_two):
+    """
+    Calculate the XOR result between two string variables returned as a long
+    type value.
+    """
+    val_key_one = hex_to_long(key_one)
+    val_key_two = hex_to_long(key_two)
+    return val_key_one ^ val_key_two
+
+
+def sort_contacts(contacts, target_key):
+    """
+    Given a list of contacts, efficiently sorts it so that the contacts closest
+    to the target key are at the head. If the list is longer than K then only
+    the K closest contacts will be returned.
+    """
+    # Key function
+    def node_key(node):
+        """
+        Returns the node's distance to the target key.
+        """
+        return distance(node.id, target_key)
+
+    contacts.sort(key=node_key)
+    return contacts[:K]
