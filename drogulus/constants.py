@@ -50,6 +50,9 @@ REFRESH_INTERVAL = REFRESH_TIMEOUT / 6  # Every 10 minutes.
 #: is equalled or exceeded then the contact is removed from the routing table.
 ALLOWED_RPC_FAILS = 5
 
+#: The number of nodes to attempt to use to store a value in the DHT.
+DUPLICATION_COUNT = 3
+
 #: Defines the errors that can be reported between nodes in the DHT.
 ERRORS = {
     # The request simply didn't make any sense.

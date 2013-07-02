@@ -29,14 +29,6 @@ class TestConstants(unittest.TestCase):
                               "constants.K must be an integer.")
         self.assertEqual(0, constants.K % 2)
 
-    def test_RPC_TIMEOUT(self):
-        """
-        The rpc timeout number defines the timeout for network operations in
-        seconds.
-        """
-        self.assertIsInstance(constants.RPC_TIMEOUT, int,
-                              "constants.RPC_TIMEOUT must be an integer.")
-
     def test_LOOKUP_TIMEOUT(self):
         """
         The lookup timeout defines the default maximum amount of time a node
@@ -44,6 +36,14 @@ class TestConstants(unittest.TestCase):
         """
         self.assertIsInstance(constants.LOOKUP_TIMEOUT, int,
                               "constants.LOOKUP_TIMEOUT must be an integer.")
+
+    def test_RPC_TIMEOUT(self):
+        """
+        The rpc timeout number defines the timeout for network operations in
+        seconds.
+        """
+        self.assertIsInstance(constants.RPC_TIMEOUT, int,
+                              "constants.RPC_TIMEOUT must be an integer.")
 
     def test_REFRESH_TIMEOUT(self):
         """
@@ -70,6 +70,25 @@ class TestConstants(unittest.TestCase):
         """
         self.assertIsInstance(constants.REFRESH_INTERVAL, int,
                               "constants.REFRESH_INTERVAL must be an integer.")
+
+    def test_ALLOWED_RPC_FAILS(self):
+        """
+        The allowed number of rpc failures defines the number of failed
+        communication attempts are allowed to a peer before it is removed from
+        the routing table.
+        """
+        self.assertIsInstance(constants.ALLOWED_RPC_FAILS, int,
+                              "constants.ALLOWED_RPC_FAILS must be an " +
+                              "integer.")
+
+    def test_DUPLICATION_COUNT(self):
+        """
+        The duplication count defines the number of nodes to attempt to use to
+        initially store a value in the DHT.
+        """
+        self.assertIsInstance(constants.DUPLICATION_COUNT, int,
+                              "constants.DUPLICATION_COUNT must be an " +
+                              "integer.")
 
     def test_ERRORS(self):
         """
