@@ -372,7 +372,6 @@ class NodeLookup(defer.Deferred):
 
         As each node is contacted it is added to the self.contacted set.
         """
-
         for contact in self.shortlist:
             if contact not in self.contacted:
                 # Guard to ensure only ALPHA requests are ever active at any
@@ -566,7 +565,7 @@ class Node(object):
             # At some future time attempt to replicate the Store message
             # around the network IF it is within the message's expiry time.
             reactor.callLater(constants.REPLICATE_INTERVAL,
-                              self.send_replicate, message)
+                              self.replicate, message)
         else:
             # Remove from the routing table.
             log.msg('Problem with Store command: %d - %s' %
@@ -649,16 +648,6 @@ class Node(object):
         """
         self.trigger_deferred(message)
 
-    def iterative_lookup(self, key, message_class):
-        """
-        A generic lookup function for finding nodes or values within the
-        distributed hash table. Takes a key that either references a value or
-        location in the hash-space. This function returns a deferred that will
-        fire wth the found value or a set of peers in the DHT that are close to
-        the key. The message class should be either FindNode or FindValue.
-        """
-        pass
-
     def send_ping(self, contact):
         """
         Sends a ping request to the given contact and returns a deferred
@@ -668,7 +657,7 @@ class Node(object):
         ping = Ping(new_uuid, self.id, self.version)
         return self.send_message(contact, ping)
 
-    def send_store(self, private_key, public_key, name, value,
+    def send_store(self, contact, private_key, public_key, name, value,
                    timestamp, expires, meta):
         """
         Sends a Store message to the given contact. The value contained within
@@ -676,31 +665,13 @@ class Node(object):
         name. Furthermore, the message is cryptographically signed using the
         value, timestamp, expires, name and meta values.
         """
-        new_uuid = str(uuid4())
+        uuid = str(uuid4())
         signature = generate_signature(value, timestamp, expires, name, meta,
                                        private_key)
         compound_key = construct_key(public_key, name)
-        new_store = Store(new_uuid, self.id, compound_key, value, timestamp,
-                          expires, public_key, name, meta, signature,
-                          self.version)
-        return self.send_replicate(new_store)
-
-    def send_replicate(self, store_message):
-        """
-        Sends an existing valid Store message (that will probably have
-        originated from a third party) to another peer on the network for the
-        purposes of replication / spreading popular values.
-        """
-        # Check for expiry time..?
-        # Find closest node...
-        """
-        new_uuid = str(uuid4())
-        store = Store(new_uuid, self.id, store_message.key,
-                      store_message.value, store_message.timestamp,
-                      store_message.expires, store_message.public_key,
-                      store_message.name, store_message.meta,
-                      store_message.sig, self.version)
-        return self.send_message(contact, store)"""
+        store = Store(uuid, self.id, compound_key, value, timestamp, expires,
+                      public_key, name, meta, signature, self.version)
+        return self.send_message(contact, store)
 
     def send_find(self, contact, target, message_type):
         """
@@ -712,3 +683,19 @@ class Node(object):
         find_message = message_type(new_uuid, self.id, target, self.version)
         deferred = self.send_message(contact, find_message)
         return (new_uuid, deferred)
+
+    def replicate(self, item, duplicate):
+        """
+        Given an item will replicate it to duplicate number of nodes in the
+        distributed hash table. Returns a deferred that will fire when the
+        operation is complete or failed.
+        """
+        pass
+
+    def retrieve(self, key):
+        """
+        Given a key, will try to retrieve associated value from the distributed
+        hash table. Returns a deferred that will fire when the operation is
+        complete or failed.
+        """
+        return NodeLookup(key, FindValue, self)

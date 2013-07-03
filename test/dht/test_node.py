@@ -1315,7 +1315,7 @@ class TestNode(unittest.TestCase):
         self.assertIn(self.key, self.node._data_store)
         # Ensure call_later has been called to replicate the value.
         mock_call_later.assert_called_once_with(REPLICATE_INTERVAL,
-                                                self.node.send_replicate,
+                                                self.node.replicate,
                                                 msg)
         # Ensure the response is a Pong message.
         result = Pong(self.uuid, self.node.id, self.version)
@@ -1941,7 +1941,8 @@ class TestNode(unittest.TestCase):
         arguments as part of send_store.
         """
         mock.return_value = 'test'
-        self.node.send_store(PRIVATE_KEY, PUBLIC_KEY, self.name,
+        contact = Contact(self.node.id, '127.0.0.1', 54321, self.version)
+        self.node.send_store(contact, PRIVATE_KEY, PUBLIC_KEY, self.name,
                              self.value, self.timestamp, self.expires,
                              self.meta)
         mock.assert_called_once_with(self.value, self.timestamp, self.expires,
@@ -1954,31 +1955,36 @@ class TestNode(unittest.TestCase):
         as part of send_store.
         """
         mock.return_value = 'test'
-        self.node.send_store(PRIVATE_KEY, PUBLIC_KEY, self.name,
+        contact = Contact(self.node.id, '127.0.0.1', 54321, self.version)
+        self.node.send_store(contact, PRIVATE_KEY, PUBLIC_KEY, self.name,
                              self.value, self.timestamp, self.expires,
                              self.meta)
         mock.assert_called_once_with(PUBLIC_KEY, self.name)
 
-    def test_send_store_calls_send_replicate(self):
+    def test_send_store_calls_send_message(self):
         """
-        Ensure send_replicate is called as part of send_store.
+        Ensure send_message is called as part of send_store.
         """
-        self.node.send_replicate = MagicMock()
-        self.node.send_store(PRIVATE_KEY, PUBLIC_KEY, self.name,
+        self.node.send_message = MagicMock()
+        contact = Contact(self.node.id, '127.0.0.1', 54321, self.version)
+        self.node.send_store(contact, PRIVATE_KEY, PUBLIC_KEY, self.name,
                              self.value, self.timestamp, self.expires,
                              self.meta)
-        self.assertEqual(1, self.node.send_replicate.call_count)
+        self.assertEqual(1, self.node.send_message.call_count)
 
     def test_send_store_creates_expected_store_message(self):
         """
-        Ensure the message passed in to send_replicate looks correct.
+        Ensure the message passed in to send_message looks correct.
         """
-        self.node.send_replicate = MagicMock()
-        self.node.send_store(PRIVATE_KEY, PUBLIC_KEY, self.name,
+        self.node.send_message = MagicMock()
+        contact = Contact(self.node.id, '127.0.0.1', 54321, self.version)
+        self.node.send_store(contact, PRIVATE_KEY, PUBLIC_KEY, self.name,
                              self.value, self.timestamp, self.expires,
                              self.meta)
-        self.assertEqual(1, self.node.send_replicate.call_count)
-        message_to_send = self.node.send_replicate.call_args[0][0]
+        self.assertEqual(1, self.node.send_message.call_count)
+        called_contact = self.node.send_message.call_args[0][0]
+        self.assertEqual(called_contact, contact)
+        message_to_send = self.node.send_message.call_args[0][1]
         self.assertIsInstance(message_to_send, Store)
         self.assertTrue(message_to_send.uuid)
         self.assertEqual(message_to_send.node, self.node.id)
@@ -2045,3 +2051,24 @@ class TestNode(unittest.TestCase):
         message_to_send = self.node.send_message.call_args[0][1]
         self.assertIsInstance(message_to_send, FindValue)
         self.assertEqual(target, message_to_send.key)
+
+    def test_retrieve(self):
+        """
+        Ensures that the Node instance's retrieve method returns the expected
+        NodeLookup object.
+        """
+        for i in range(K):
+            contact = Contact(long_to_hex(i), '192.168.0.%d' % i, 9999,
+                              self.node.version, 0)
+            self.node._routing_table.add_contact(contact)
+        patcher = patch('drogulus.dht.node.NodeLookup._lookup')
+        mock_lookup = patcher.start()
+        key = construct_key(PUBLIC_KEY, 'key_name')
+        lookup = self.node.retrieve(key)
+        self.assertIsInstance(lookup, NodeLookup)
+        self.assertEqual(lookup.target, key)
+        self.assertEqual(lookup.message_type, FindValue)
+        self.assertEqual(lookup.local_node, self.node)
+        self.assertEqual(1, mock_lookup.call_count)
+        # Tidy up.
+        patcher.stop()

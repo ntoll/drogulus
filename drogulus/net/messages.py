@@ -100,7 +100,7 @@ class Store(namedtuple('Store', ['uuid', 'node', 'key', 'value', 'timestamp',
                 zero then the key/value pair should never expire.
     * public_key - the public key of the person storing the value.
     * name - the human-readable name of the key.
-    * meta - a list of tuples containing key/value strings for user defined
+    * meta - a dictionary containing key/value strings for user defined
              metadata.
     * sig - the cryptographic signature for the value, timestamp, expires, name
             and meta fields.
@@ -191,7 +191,7 @@ class Value(namedtuple('Value', ['uuid', 'node', 'key', 'value', 'timestamp',
                 zero then the key/value pair should never expire.
     * public_key - the public key of the person who stored the value.
     * name - the human-readable name of the key.
-    * meta - a list of tuples containing key/value strings for user defined
+    * meta - a dictionary containing key/value strings for user defined
              metadata.
     * sig - the cryptographic signature for the value, timestamp, expires, name
             and meta fields.
