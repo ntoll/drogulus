@@ -1,3 +1,6 @@
+XARGS := xargs -0 $(shell test $$(uname) = Linux && echo -r)
+GREP_T_FLAG := $(shell test $$(uname) = Linux && echo -T)
+
 all:
 	@echo "\nThere is no default Makefile target right now."
 	@echo "Try:\n"
@@ -9,26 +12,25 @@ all:
 	@echo "make docs - run sphinx to create project documentation.\n"
 
 clean:
-	rm -rf dist
-	rm -rf docs/_build
-	find . \( -name '*.py[co]' -o -name dropin.cache \) -print0 | xargs -0 -r rm
-	find . -name _trial_temp -type d -print0 | xargs -0 -r rm -r
+	rm -rf dist docs/_build
+	find . \( -name '*.py[co]' -o -name dropin.cache \) -print0 | $(XARGS) rm
+	find . -name _trial_temp -type d -print0 | $(XARGS) rm -r
 
 pyflakes:
-	find . \( -name _build -o -name var \) -type d -prune -o -name '*.py' -print0 | $(shell which parallel || which xargs) -0 pyflakes
+	find . \( -name _build -o -name var \) -type d -prune -o -name '*.py' -print0 | $(XARGS) pyflakes
 
 pep8:
-	find . \( -name _build -o -name var \) -type d -prune -o -name '*.py' -print0 | $(shell which parallel || which xargs) -0 -n 1 pep8 --repeat
+	find . \( -name _build -o -name var \) -type d -prune -o -name '*.py' -print0 | $(XARGS) -n 1 pep8 --repeat
 
 test: clean
 	trial --rterrors --coverage test
 	@echo "\nMissing test coverage:"
-	@cd _trial_temp/coverage; grep -n -T '>>>>>' drogulus.*
+	@cd _trial_temp/coverage; grep -n $(GREP_T_FLAG) '>>>>>' drogulus.*
 
 check: pep8 pyflakes test
 
 docs: clean
-	cd docs; make html
+	$(MAKE) -C docs html
 	@echo "\nDocumentation can be viewed in your browser here:"
 	@echo file://`pwd`/docs/_build/html/index.html
 	@echo "\n"
