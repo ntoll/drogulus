@@ -90,6 +90,14 @@ class TestConstants(unittest.TestCase):
                               "constants.DUPLICATION_COUNT must be an " +
                               "integer.")
 
+    def test_EXPIRY_DURATION(self):
+        """
+        The expiry duration is the number of seconds that added to a value's
+        creation time in order to work out its expiry timestamp.
+        """
+        self.assertIsInstance(constants.EXPIRY_DURATION, int,
+                              "constants.EXPIRY_DURATION must be an integer.")
+
     def test_ERRORS(self):
         """
         The ERRORS dictionary defines the error codes (keys) and associated

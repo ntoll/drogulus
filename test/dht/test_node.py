@@ -731,7 +731,7 @@ class TestNodeLookup(unittest.TestCase):
         other_request2 = lookup.pending_requests.values()[2]
         other_request1.cancel = MagicMock()
         other_request2.cancel = MagicMock()
-        contact = Contact(self.node.id, '192.168.1.1', 54321, self.version)
+        contact = Contact(self.node.id, '192.168.0.1', 54321, self.version)
         msg = Value(uuid, self.node.id, self.key, self.value, self.timestamp,
                     self.expires, PUBLIC_KEY, self.name, self.meta,
                     self.signature, self.node.version)
@@ -743,6 +743,8 @@ class TestNodeLookup(unittest.TestCase):
         self.assertEqual(1, other_request2.cancel.call_count)
         # Make sure the pending_requests dict is empty.
         self.assertEqual(0, len(lookup.pending_requests))
+        # Ensure the contact that provided the result is NOT in the shortlist.
+        self.assertNotIn(contact, lookup.shortlist)
 
         # Ensure the result of the callback is the returned Value object.
         def callback(result):
@@ -1775,13 +1777,14 @@ class TestNode(unittest.TestCase):
         self.clock.advance(RPC_TIMEOUT)
 
     @patch('drogulus.dht.node.clientFromString')
-    def test_send_message_fires_errback_in_case_of_errors(self, mock_client):
+    def test_send_message_errback_if_connection_errors(self, mock_client):
         """
-        Ensure that if there's an error during connection or sending of the
-        message then the errback is fired.
+        Ensure that if there's an error during connection of the message then
+        the errback is fired.
         """
         mock_client.return_value = FakeClient(self.protocol, success=False)
         errback = MagicMock()
+        self.node._routing_table.remove_contact = MagicMock()
         patcher = patch('drogulus.dht.node.log.msg')
         mockLog = patcher.start()
         # Create a simple Ping message.
@@ -1795,6 +1798,9 @@ class TestNode(unittest.TestCase):
         # The errback is called and the error is logged automatically.
         self.assertEqual(1, errback.call_count)
         self.assertEqual(2, mockLog.call_count)
+        # Clean up occurs as expected.
+        self.assertEqual(1, self.node._routing_table.remove_contact.call_count)
+        self.assertNotIn(uuid, self.node._pending)
         # Tidy up.
         patcher.stop()
         self.clock.advance(RPC_TIMEOUT)
@@ -1934,20 +1940,6 @@ class TestNode(unittest.TestCase):
         message_to_send = self.node.send_message.call_args[0][1]
         self.assertIsInstance(message_to_send, Ping)
 
-    @patch('drogulus.dht.node.generate_signature')
-    def test_send_store_generates_signature(self, mock):
-        """
-        Ensure the generate_signature function is called with the expected
-        arguments as part of send_store.
-        """
-        mock.return_value = 'test'
-        contact = Contact(self.node.id, '127.0.0.1', 54321, self.version)
-        self.node.send_store(contact, PRIVATE_KEY, PUBLIC_KEY, self.name,
-                             self.value, self.timestamp, self.expires,
-                             self.meta)
-        mock.assert_called_once_with(self.value, self.timestamp, self.expires,
-                                     self.name, self.meta, PRIVATE_KEY)
-
     @patch('drogulus.dht.node.construct_key')
     def test_send_store_makes_compound_key(self, mock):
         """
@@ -1956,9 +1948,9 @@ class TestNode(unittest.TestCase):
         """
         mock.return_value = 'test'
         contact = Contact(self.node.id, '127.0.0.1', 54321, self.version)
-        self.node.send_store(contact, PRIVATE_KEY, PUBLIC_KEY, self.name,
-                             self.value, self.timestamp, self.expires,
-                             self.meta)
+        self.node.send_store(contact, PUBLIC_KEY, self.name, self.value,
+                             self.timestamp, self.expires, self.meta,
+                             self.signature)
         mock.assert_called_once_with(PUBLIC_KEY, self.name)
 
     def test_send_store_calls_send_message(self):
@@ -1967,9 +1959,9 @@ class TestNode(unittest.TestCase):
         """
         self.node.send_message = MagicMock()
         contact = Contact(self.node.id, '127.0.0.1', 54321, self.version)
-        self.node.send_store(contact, PRIVATE_KEY, PUBLIC_KEY, self.name,
-                             self.value, self.timestamp, self.expires,
-                             self.meta)
+        self.node.send_store(contact, PUBLIC_KEY, self.name, self.value,
+                             self.timestamp, self.expires, self.meta,
+                             self.signature)
         self.assertEqual(1, self.node.send_message.call_count)
 
     def test_send_store_creates_expected_store_message(self):
@@ -1978,9 +1970,9 @@ class TestNode(unittest.TestCase):
         """
         self.node.send_message = MagicMock()
         contact = Contact(self.node.id, '127.0.0.1', 54321, self.version)
-        self.node.send_store(contact, PRIVATE_KEY, PUBLIC_KEY, self.name,
-                             self.value, self.timestamp, self.expires,
-                             self.meta)
+        self.node.send_store(contact, PUBLIC_KEY, self.name, self.value,
+                             self.timestamp, self.expires, self.meta,
+                             self.signature)
         self.assertEqual(1, self.node.send_message.call_count)
         called_contact = self.node.send_message.call_args[0][0]
         self.assertEqual(called_contact, contact)
@@ -2072,3 +2064,45 @@ class TestNode(unittest.TestCase):
         self.assertEqual(1, mock_lookup.call_count)
         # Tidy up.
         patcher.stop()
+
+    def test_retrieve_fires_cache(self):
+        """
+        Ensures that the retrieval of a value causes the caching of the found
+        value to the node closest to the key that did not return the value.
+        """
+        for i in range(K):
+            contact = Contact(long_to_hex(i), '192.168.0.%d' % i, 9999,
+                              self.node.version, 0)
+            self.node._routing_table.add_contact(contact)
+
+        def side_effect(*args):
+            """
+            Ensures the mock returns something useful.
+            """
+            uuid = str(uuid4())
+            deferred = defer.Deferred()
+            return (uuid, deferred)
+
+        self.node.send_find = MagicMock(side_effect=side_effect)
+        key = long_to_hex(0)
+        lookup = self.node.retrieve(key)
+
+        self.node.send_store = MagicMock()
+        msg = Value(str(uuid4()), key, self.key, self.value, self.timestamp,
+                    self.expires, PUBLIC_KEY, self.name, self.meta,
+                    self.signature, self.node.version)
+        lookup.callback(msg)
+        self.assertEqual(1, self.node.send_store.call_count)
+        closest_contact = lookup.shortlist[0]
+        self.node.send_store.assert_called_once_with(closest_contact,
+                                                     msg.public_key, msg.name,
+                                                     msg.value, msg.timestamp,
+                                                     msg.expires, msg.meta,
+                                                     msg.sig)
+
+        def callback_checker(result):
+            """
+            Ensures the result is as expected.
+            """
+            self.assertEqual(msg, result)
+        lookup.addCallback(callback_checker)

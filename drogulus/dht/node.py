@@ -32,7 +32,7 @@ from drogulus.net.protocol import DHTFactory
 from routingtable import RoutingTable
 from datastore import DictDataStore
 from contact import Contact
-from drogulus.crypto import validate_message, construct_key, generate_signature
+from drogulus.crypto import validate_message, construct_key
 from drogulus.version import get_version
 
 
@@ -310,6 +310,11 @@ class NodeLookup(defer.Deferred):
                     raise ValueError("Expired value returned by %r" % contact)
                 # Cancel outstanding requests.
                 self._cancel_pending_requests()
+                # Ensure the returning contact is removed from the shortlist
+                # (so it's possible to discern the closest non-returning node)
+                if contact in self.shortlist:
+                    self.shortlist.remove(contact)
+
                 # Success! The correct Value has been found. Fire the instance
                 # with the result.
                 self.callback(response)
@@ -494,12 +499,15 @@ class Node(object):
                               message, protocol, self)
 
         def on_error(error):
-            log.msg('***** ERROR ***** connecting to %s' % contact)
+            log.msg('***** ERROR ***** interacting with %s' % contact)
             log.msg(error)
             self._routing_table.remove_contact(message.node)
+            if message.uuid in self._pending:
+                del self._pending[message.uuid]
             d.errback(error)
 
-        connection.addCallbacks(on_connect, on_error)
+        connection.addCallback(on_connect)
+        connection.addErrback(on_error)
         return d
 
     def trigger_deferred(self, message, error=False):
@@ -657,8 +665,8 @@ class Node(object):
         ping = Ping(new_uuid, self.id, self.version)
         return self.send_message(contact, ping)
 
-    def send_store(self, contact, private_key, public_key, name, value,
-                   timestamp, expires, meta):
+    def send_store(self, contact, public_key, name, value, timestamp, expires,
+                   meta, signature):
         """
         Sends a Store message to the given contact. The value contained within
         the message is stored against a key derived from the public_key and
@@ -666,8 +674,6 @@ class Node(object):
         value, timestamp, expires, name and meta values.
         """
         uuid = str(uuid4())
-        signature = generate_signature(value, timestamp, expires, name, meta,
-                                       private_key)
         compound_key = construct_key(public_key, name)
         store = Store(uuid, self.id, compound_key, value, timestamp, expires,
                       public_key, name, meta, signature, self.version)
@@ -684,18 +690,49 @@ class Node(object):
         deferred = self.send_message(contact, find_message)
         return (new_uuid, deferred)
 
-    def replicate(self, item, duplicate):
+    def replicate(self, public_key, name, value, timestamp, expires, meta,
+                  signature, duplicate):
         """
-        Given an item will replicate it to duplicate number of nodes in the
+        Given data, will replicate it to duplicate number of nodes in the
         distributed hash table. Returns a deferred that will fire when the
         operation is complete or failed.
         """
-        pass
+        result = defer.Deferred()
+
+        return result
 
     def retrieve(self, key):
         """
         Given a key, will try to retrieve associated value from the distributed
         hash table. Returns a deferred that will fire when the operation is
         complete or failed.
+
+        As the original Kademlia explains:
+
+        "For caching purposes, once a lookup succeeds, the requesting node
+        stores the <key, value> pair at the closest node it observed to the
+        key that did not return the value."
+
+        This method adds a callback to the NodeLookup to achieve this end.
         """
-        return NodeLookup(key, FindValue, self)
+        lookup = NodeLookup(key, FindValue, self)
+
+        def cache(result):
+            """
+            Called once the lookup succeeds in order to store the item at the
+            node closest to the key that did not return the value.
+            """
+            caching_contact = None
+            for candidate in lookup.shortlist:
+                if candidate in lookup.contacted:
+                    caching_contact = candidate
+                    break
+            if caching_contact:
+                log.msg("Caching to %r" % caching_contact)
+                self.send_store(caching_contact, result.public_key,
+                                result.name, result.value, result.timestamp,
+                                result.expires, result.meta, result.sig)
+            return result
+
+        lookup.addCallback(cache)
+        return lookup

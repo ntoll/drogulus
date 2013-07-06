@@ -96,5 +96,5 @@ class TestContact(unittest.TestCase):
         version = get_version()
         last_seen = 123
         contact = Contact(id, address, port, version, last_seen)
-        expected = "('12345', '192.168.0.1', 9999, '%s')" % version
+        expected = "('12345', '192.168.0.1', 9999, '%s', 123, 0)" % version
         self.assertEqual(expected, str(contact))

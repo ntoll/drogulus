@@ -66,10 +66,10 @@ class Contact(object):
 
     def __repr__(self):
         """
-        Returns a tuple containing the id, ip address and port number for this
-        contact.
+        Returns a tuple containing information about this contact.
         """
-        return str((self.id, self.address, self.port, self.version))
+        return str((self.id, self.address, self.port, self.version,
+                    self.last_seen, self.failed_RPCs))
 
     def __str__(self):
         """

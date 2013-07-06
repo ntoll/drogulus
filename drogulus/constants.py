@@ -53,6 +53,10 @@ ALLOWED_RPC_FAILS = 5
 #: The number of nodes to attempt to use to store a value in the DHT.
 DUPLICATION_COUNT = 3
 
+#: The duration (in seconds) that is added to a value's creation time in order
+#: to work out its expiry timestamp. -1 denotes no expiry point.
+EXPIRY_DURATION = -1
+
 #: Defines the errors that can be reported between nodes in the DHT.
 ERRORS = {
     # The request simply didn't make any sense.

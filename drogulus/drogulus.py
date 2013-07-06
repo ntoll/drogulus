@@ -18,18 +18,22 @@ Encapsulates a node in the drogulus.
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from dht import node
-from constants import DUPLICATION_COUNT
+import time
+from constants import DUPLICATION_COUNT, EXPIRY_DURATION
+from crypto import generate_signature, construct_key
+from dht.node import Node
 
 
 class Drogulus(object):
     """
     Represents a node in the Drogulus distributed hash table. This is the
-    class that should generally be instantiated.
+    class that generally should be instantiated.
     """
 
-    def __init__(self, alias=None):
-        self._node = node()
+    def __init__(self, private_key, public_key, alias=None):
+        self.private_key = private_key
+        self.public_key = public_key
+        self._node = Node()
         if alias:
             self.alias = alias
         else:
@@ -56,14 +60,31 @@ class Drogulus(object):
         public key and meaningful key name. Returns a deferred that fires when
         the value is retrieved.
         """
-        pass
+        target = construct_key(public_key, key_name)
+        return self._node.retrieve(target)
 
     def set(self, key_name, value, duplicate=DUPLICATION_COUNT, meta=None,
-            expires=None):
+            expires=EXPIRY_DURATION):
         """
         Stores a value at a compound key made from the local node's public key
         and the passed in meaningful key name. Returns a deferred that fires
         when the value has been stored to duplicate number of nodes. An
-        optional meta dictionary and expires timestamp can also be specified.
+        optional meta dictionary and expires duration (to be added to the
+        current time) can also be specified.
         """
-        pass
+        timestamp = time.time()
+
+        if meta is None:
+            meta = {}
+
+        if expires < 1:
+            expires = -1
+        else:
+            expires = timestamp + expires
+
+        signature = generate_signature(value, timestamp, expires, key_name,
+                                       meta, self.private_key)
+
+        return self._node.replicate(self.public_key, key_name, value,
+                                    timestamp, expires, meta, signature,
+                                    duplicate)
