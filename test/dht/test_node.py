@@ -731,7 +731,7 @@ class TestNodeLookup(unittest.TestCase):
         other_request2 = lookup.pending_requests.values()[2]
         other_request1.cancel = MagicMock()
         other_request2.cancel = MagicMock()
-        contact = Contact(self.node.id, '192.168.0.1', 54321, self.version)
+        contact = Contact(long_to_hex(1), '192.168.0.1', 9999, self.version)
         msg = Value(uuid, self.node.id, self.key, self.value, self.timestamp,
                     self.expires, PUBLIC_KEY, self.name, self.meta,
                     self.signature, self.node.version)
@@ -1777,10 +1777,10 @@ class TestNode(unittest.TestCase):
         self.clock.advance(RPC_TIMEOUT)
 
     @patch('drogulus.dht.node.clientFromString')
-    def test_send_message_errback_if_connection_errors(self, mock_client):
+    def test_send_message_errback_if_errors(self, mock_client):
         """
-        Ensure that if there's an error during connection of the message then
-        the errback is fired.
+        Ensure that if there's an error during connection or sending of the
+        message then the errback is fired.
         """
         mock_client.return_value = FakeClient(self.protocol, success=False)
         errback = MagicMock()
@@ -1791,6 +1791,9 @@ class TestNode(unittest.TestCase):
         uuid = str(uuid4())
         version = get_version()
         msg = Ping(uuid, self.node_id, version)
+        # Set up a dummy pending request to ensure it is cleaned up by the
+        # errback
+        self.node._pending[uuid] = defer.Deferred()
         # Dummy contact.
         contact = Contact(self.node.id, '127.0.0.1', 54321, self.version)
         deferred = self.node.send_message(contact, msg)
@@ -1800,6 +1803,7 @@ class TestNode(unittest.TestCase):
         self.assertEqual(2, mockLog.call_count)
         # Clean up occurs as expected.
         self.assertEqual(1, self.node._routing_table.remove_contact.call_count)
+        # The dummy pending request has been removed from _pending.
         self.assertNotIn(uuid, self.node._pending)
         # Tidy up.
         patcher.stop()
