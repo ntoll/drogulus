@@ -206,7 +206,7 @@ class TestNodeLookup(unittest.TestCase):
         The simplest case - ensure the object is set up correctly.
         """
         lookup = NodeLookup(self.key, FindNode, self.node)
-        self.assertIsInstance(lookup, defer.Deferred)
+        self.assertIsInstance(lookup.deferred, defer.Deferred)
         self.assertEqual(lookup.target, self.key)
         self.assertEqual(lookup.message_type, FindNode)
         self.assertEqual(lookup.local_node, self.node)
@@ -238,7 +238,7 @@ class TestNodeLookup(unittest.TestCase):
         lookup.cancel = MagicMock()
         self.clock.advance(self.timeout)
         lookup.cancel.called_once_with(lookup)
-        self.failureResultOf(lookup).trap(defer.CancelledError)
+        self.failureResultOf(lookup.deferred).trap(defer.CancelledError)
         patcher.stop()
 
     def test_init_finds_close_nodes(self):
@@ -278,13 +278,13 @@ class TestNodeLookup(unittest.TestCase):
         """
         self.node._routing_table = RoutingTable(self.node.id)
         lookup = NodeLookup(self.key, FindNode, self.node)
-        self.assertIsInstance(lookup, defer.Deferred)
-        self.assertTrue(lookup.called)
+        self.assertIsInstance(lookup.deferred, defer.Deferred)
+        self.assertTrue(lookup.deferred.called)
 
         def errback_check(result):
             self.assertIsInstance(result.value, RoutingTableEmpty)
 
-        lookup.addErrback(errback_check)
+        lookup.deferred.addErrback(errback_check)
 
     def test_cancel_pending_requests(self):
         """
@@ -328,7 +328,7 @@ class TestNodeLookup(unittest.TestCase):
         errback = MagicMock()
         lookup = NodeLookup(self.key, FindNode, self.node)
         lookup._cancel_pending_requests = MagicMock()
-        lookup.addErrback(errback)
+        lookup.deferred.addErrback(errback)
         lookup.cancel()
         self.assertEqual(1, lookup._cancel_pending_requests.call_count)
         self.assertEqual(1, errback.call_count)
@@ -737,7 +737,7 @@ class TestNodeLookup(unittest.TestCase):
                     self.signature, self.node.version)
         lookup._handle_response(uuid, contact, msg)
         # Ensure the lookup has fired.
-        self.assertTrue(lookup.called)
+        self.assertTrue(lookup.deferred.called)
         # Check the pending requests have been cancelled.
         self.assertEqual(1, other_request1.cancel.call_count)
         self.assertEqual(1, other_request2.cancel.call_count)
@@ -749,7 +749,7 @@ class TestNodeLookup(unittest.TestCase):
         # Ensure the result of the callback is the returned Value object.
         def callback(result):
             self.assertEqual(msg, result)
-        lookup.addCallback(callback)
+        lookup.deferred.addCallback(callback)
 
     def test_handle_response_value_message_wrong_key(self):
         """
@@ -983,7 +983,7 @@ class TestNodeLookup(unittest.TestCase):
         # Lookup is not called.
         self.assertEqual(0, lookup._lookup.call_count)
         # The lookup has fired.
-        self.assertTrue(lookup.called)
+        self.assertTrue(lookup.deferred.called)
 
         # The result is the ordered shortlist of contacts closest to the
         # target.
@@ -999,7 +999,7 @@ class TestNodeLookup(unittest.TestCase):
             ordered = sort_contacts(lookup.shortlist, target_key)
             self.assertEqual(ordered, result)
 
-        lookup.addCallback(handle_callback)
+        lookup.deferred.addCallback(handle_callback)
 
     def test_handle_response_all_shortlist_contacted_no_value_found(self):
         """
@@ -1037,7 +1037,7 @@ class TestNodeLookup(unittest.TestCase):
         # Lookup is not called.
         self.assertEqual(0, lookup._lookup.call_count)
         # The lookup has fired.
-        self.assertTrue(lookup.called)
+        self.assertTrue(lookup.deferred.called)
 
         # The error is a ValueNotFound exception.
         def handle_errback(error):
@@ -1048,7 +1048,7 @@ class TestNodeLookup(unittest.TestCase):
             self.assertEqual("Unable to find value for key: %r" % target_key,
                              error.getErrorMessage())
 
-        lookup.addErrback(handle_errback)
+        lookup.deferred.addErrback(handle_errback)
 
 
 class TestNode(unittest.TestCase):

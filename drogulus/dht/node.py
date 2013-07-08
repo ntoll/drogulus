@@ -67,7 +67,7 @@ def response_timeout(message, protocol, node):
         node._routing_table.remove_contact(message.node)
 
 
-class NodeLookup(defer.Deferred):
+class NodeLookup(object):
     """
     Encapsulates a lookup in the DHT given a particular target key and message
     type. Will callback when a result is found or errback otherwise. If
@@ -176,10 +176,10 @@ class NodeLookup(defer.Deferred):
         after timeout seconds. See the documentation for
         twisted.internet.defer.Deferred for explanation of canceller.
         """
-        defer.Deferred.__init__(self, canceller)
         self.target = target
         self.message_type = message_type
         self.local_node = local_node
+        self.deferred = defer.Deferred(canceller)
         # A set of nodes that have been contacted for this lookup.
         self.contacted = set()
         # Holds currently pending requests.
@@ -195,11 +195,11 @@ class NodeLookup(defer.Deferred):
             self.local_node._routing_table.touch_kbucket(target)
         if not self.shortlist:
             # The node knows of no other nodes within the DHT.
-            self.errback(RoutingTableEmpty())
+            self.deferred.errback(RoutingTableEmpty())
             return
         # Holds the currently closest node to the target.
         self.nearest_node = self.shortlist[0]
-        # Start the lookup process
+        # Start the lookup process.
         self._lookup()
 
     def _cancel_pending_requests(self):
@@ -219,7 +219,7 @@ class NodeLookup(defer.Deferred):
         of tribute. ;-)
         """
         self._cancel_pending_requests()
-        defer.Deferred.cancel(self)
+        self.deferred.cancel()
 
     def _handle_error(self, uuid, contact, error):
         """
@@ -317,7 +317,7 @@ class NodeLookup(defer.Deferred):
 
                 # Success! The correct Value has been found. Fire the instance
                 # with the result.
-                self.callback(response)
+                self.deferred.callback(response)
             else:
                 # Blacklist the problem contact from the routing table since
                 # it's not behaving properly.
@@ -345,11 +345,11 @@ class NodeLookup(defer.Deferred):
                             # Can't find a value at the key.
                             msg = ("Unable to find value for key: %r" %
                                    self.target)
-                            self.errback(ValueNotFound(msg))
+                            self.deferred.errback(ValueNotFound(msg))
                         else:
                             # Success! Found nodes close to the specified
                             # target key.
-                            self.callback(self.shortlist)
+                            self.deferred.callback(self.shortlist)
                     else:
                         # There are still un-contacted peers in the shortlist
                         # so restart the lookup in order to check them.
