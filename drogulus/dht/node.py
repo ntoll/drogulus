@@ -329,7 +329,9 @@ class NodeLookup(defer.Deferred):
             # Add the returned nodes to the shortlist. Sort the shortlist in
             # order of closeness to the target and ensure the shortlist never
             # gets longer than K.
-            self.shortlist = sort_contacts(list(response.nodes) +
+            candidate_contacts = [candidate for candidate in response.nodes
+                                  if candidate not in self.shortlist]
+            self.shortlist = sort_contacts(candidate_contacts +
                                            self.shortlist, self.target)
             # Check if the nearest_node remains unchanged.
             if self.nearest_node == self.shortlist[0]:
@@ -387,6 +389,8 @@ class NodeLookup(defer.Deferred):
                 uuid, deferred = self.local_node.send_find(contact,
                                                            self.target,
                                                            self.message_type)
+                self.pending_requests[uuid] = deferred
+                self.contacted.add(contact)
 
                 def callback(result):
                     """
@@ -402,8 +406,6 @@ class NodeLookup(defer.Deferred):
 
                 deferred.addCallback(callback)
                 deferred.addErrback(errback)
-                self.pending_requests[uuid] = deferred
-                self.contacted.add(contact)
 
 
 class Node(object):
@@ -690,15 +692,62 @@ class Node(object):
         deferred = self.send_message(contact, find_message)
         return (new_uuid, deferred)
 
+    def _process_lookup_result(self, nearest_nodes, public_key, name, value,
+                               timestamp, expires, meta, signature, length):
+        """
+        Given a list of nearest nodes will return a list of send_store based
+        deferreds for the item to be stored in the DHT. The list will contain
+        up to "length" number of deferreds.
+        """
+        list_of_deferreds = []
+        for contact in nearest_nodes[:length]:
+            deferred = self.send_store(contact, public_key, name, value,
+                                       timestamp, expires, meta, signature)
+            list_of_deferreds.append(deferred)
+        return list_of_deferreds
+
     def replicate(self, public_key, name, value, timestamp, expires, meta,
                   signature, duplicate):
         """
-        Given data, will replicate it to duplicate number of nodes in the
-        distributed hash table. Returns a deferred that will fire when the
-        operation is complete or failed.
-        """
-        result = defer.Deferred()
+        Will replicate args to "duplicate" number of nodes in the distributed
+        hash table. Returns a deferred that will fire with a list of send_store
+        deferreds when "duplicate" number of closest nodes have been
+        identified.
 
+        Obviously, the list can be turned in to a deferred_list to fire when
+        the store commands have completed.
+
+        Even if "duplicate" is > K no more than K items will be contained
+        within the list result.
+        """
+        if duplicate < 1:
+            # Guard to ensure meaningful duplication count.
+            raise ValueError('Duplication count may not be less than 1')
+
+        result = defer.Deferred()
+        compound_key = construct_key(public_key, name)
+        lookup = NodeLookup(compound_key, FindNode, self)
+
+        def on_success(nodes):
+            """
+            A list of close nodes have been found so send store messages to
+            the "duplicate" closest number of them and fire the "result"
+            deferred with the resulting DeferredList of pending deferreds.
+            """
+            deferreds = self._process_lookup_result(nodes, public_key, name,
+                                                    value, timestamp, expires,
+                                                    meta, signature, duplicate)
+            result.callback(deferreds)
+
+        def on_error(error):
+            """
+            Catch all for errors during the lookup phase. Simply pass them on
+            via the "result" deferred.
+            """
+            result.errback(error)
+
+        lookup.addCallback(on_success)
+        lookup.addErrback(on_error)
         return result
 
     def retrieve(self, key):

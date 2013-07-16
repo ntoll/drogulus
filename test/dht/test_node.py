@@ -7,7 +7,7 @@ from drogulus.dht.node import (RoutingTableEmpty, response_timeout, NodeLookup,
                                Node, ValueNotFound)
 from drogulus.dht.routingtable import RoutingTable
 from drogulus.constants import (ERRORS, RPC_TIMEOUT, RESPONSE_TIMEOUT, K,
-                                REPLICATE_INTERVAL, ALPHA)
+                                REPLICATE_INTERVAL, ALPHA, DUPLICATION_COUNT)
 from drogulus.dht.contact import Contact
 from drogulus.version import get_version
 from drogulus.net.protocol import DHTFactory
@@ -828,15 +828,15 @@ class TestNodeLookup(unittest.TestCase):
 
         mock_sort.side_effect = sort_side_effect
 
-        def send_file_side_effect(*args):
+        def send_find_side_effect(*args):
             """
-            Ensures the mock send_file returns something useful.
+            Ensures the mock send_find returns something useful.
             """
             uuid = str(uuid4())
             deferred = defer.Deferred()
             return (uuid, deferred)
 
-        self.node.send_find = MagicMock(side_effect=send_file_side_effect)
+        self.node.send_find = MagicMock(side_effect=send_find_side_effect)
         target_key = long_to_hex(999)
         lookup = NodeLookup(target_key, FindNode, self.node)
         shortlist = lookup.shortlist
@@ -849,6 +849,32 @@ class TestNodeLookup(unittest.TestCase):
                                           target_key)
         self.assertEqual([1, 2, 3], lookup.shortlist)
 
+    def test_handle_response_nodes_no_duplicates_in_shortlist(self):
+        """
+        Ensures that if the response contains nodes that are already found in
+        the shortlist they are not duplicated.
+        """
+        def send_find_side_effect(*args):
+            """
+            Ensures the mock send_find returns something useful.
+            """
+            uuid = str(uuid4())
+            deferred = defer.Deferred()
+            return (uuid, deferred)
+
+        self.node.send_find = MagicMock(side_effect=send_find_side_effect)
+        target_key = long_to_hex(999)
+        lookup = NodeLookup(target_key, FindNode, self.node)
+        shortlist = lookup.shortlist
+
+        uuid = lookup.pending_requests.keys()[0]
+        contact = Contact(self.node.id, '192.168.1.1', 54321, self.version)
+        # Respond with all the current nodes in the shortlist.
+        msg = Nodes(self.uuid, self.node.id, shortlist, self.node.version)
+        lookup._handle_response(uuid, contact, msg)
+        # There shouldn't be any duplicate entries.
+        self.assertEqual(shortlist, lookup.shortlist)
+
     def test_handle_response_nodes_message_update_nearest_node(self):
         """
         Ensure that if the response contains contacts/nodes that are nearer to
@@ -857,7 +883,7 @@ class TestNodeLookup(unittest.TestCase):
         """
         def side_effect(*args):
             """
-            Ensures the mock send_file returns something useful.
+            Ensures the mock send_find returns something useful.
             """
             uuid = str(uuid4())
             deferred = defer.Deferred()
@@ -887,7 +913,7 @@ class TestNodeLookup(unittest.TestCase):
         """
         def side_effect(*args):
             """
-            Ensures the mock send_file returns something useful.
+            Ensures the mock send_find returns something useful.
             """
             uuid = str(uuid4())
             deferred = defer.Deferred()
@@ -916,7 +942,7 @@ class TestNodeLookup(unittest.TestCase):
         """
         def side_effect(*args):
             """
-            Ensures the mock send_file returns something useful.
+            Ensures the mock send_find returns something useful.
             """
             uuid = str(uuid4())
             deferred = defer.Deferred()
@@ -956,7 +982,7 @@ class TestNodeLookup(unittest.TestCase):
         """
         def side_effect(*args):
             """
-            Ensures the mock send_file returns something useful.
+            Ensures the mock send_find returns something useful.
             """
             uuid = str(uuid4())
             deferred = defer.Deferred()
@@ -1010,7 +1036,7 @@ class TestNodeLookup(unittest.TestCase):
         """
         def side_effect(*args):
             """
-            Ensures the mock send_file returns something useful.
+            Ensures the mock send_find returns something useful.
             """
             uuid = str(uuid4())
             deferred = defer.Deferred()
@@ -1088,6 +1114,18 @@ class TestNode(unittest.TestCase):
         self.meta = {'meta': 'value'}
         self.version = get_version()
         self.key = construct_key(PUBLIC_KEY, self.name)
+        self.target_key = long_to_hex(100)
+        node_list = []
+        for i in range(101, 121):
+            contact_id = long_to_hex(i)
+            contact_address = '192.168.1.%d' % i
+            contact_port = 9999
+            contact_version = self.version
+            contact_last_seen = self.timestamp - (i * 100)
+            contact = Contact(contact_id, contact_address, contact_port,
+                              contact_version, contact_last_seen)
+            node_list.append(contact)
+        self.nodes = tuple(sort_contacts(node_list, self.target_key))
 
     def test_init(self):
         """
@@ -2047,6 +2085,159 @@ class TestNode(unittest.TestCase):
         message_to_send = self.node.send_message.call_args[0][1]
         self.assertIsInstance(message_to_send, FindValue)
         self.assertEqual(target, message_to_send.key)
+
+    def test_process_lookup_result_returns_deferred_list(self):
+        """
+        Ensures a DeferredList of the expected length is returned from
+        _process_lookup_result.
+        """
+        result = self.node._process_lookup_result(self.nodes, PUBLIC_KEY,
+                                                  self.name, self.value,
+                                                  self.timestamp, self.expires,
+                                                  self.meta, self.signature, 3)
+        self.assertIsInstance(result, list)
+        self.assertEqual(3, len(result))
+
+    def test_process_lookup_result_sends_expected_number_of_send_store(self):
+        """
+        Ensure the _process_lookup_result calls the send_store method correctly
+        for the expected number of times.
+        """
+        self.node.send_store = MagicMock()
+        self.node._process_lookup_result(self.nodes, PUBLIC_KEY, self.name,
+                                         self.value, self.timestamp,
+                                         self.expires, self.meta,
+                                         self.signature, 3)
+        self.assertEqual(3, self.node.send_store.call_count)
+        self.assertEqual(self.nodes[0],
+                         self.node.send_store.call_args_list[0][0][0])
+        self.assertEqual(PUBLIC_KEY,
+                         self.node.send_store.call_args_list[0][0][1])
+        self.assertEqual(self.name,
+                         self.node.send_store.call_args_list[0][0][2])
+        self.assertEqual(self.value,
+                         self.node.send_store.call_args_list[0][0][3])
+        self.assertEqual(self.timestamp,
+                         self.node.send_store.call_args_list[0][0][4])
+        self.assertEqual(self.expires,
+                         self.node.send_store.call_args_list[0][0][5])
+        self.assertEqual(self.meta,
+                         self.node.send_store.call_args_list[0][0][6])
+        self.assertEqual(self.signature,
+                         self.node.send_store.call_args_list[0][0][7])
+
+    def test_process_lookup_result_uses_closest_nodes(self):
+        """
+        Ensure that the nodes targetted by the send_store calls are the ones
+        closest to the target key.
+        """
+        self.node.send_store = MagicMock()
+        self.node._process_lookup_result(self.nodes, PUBLIC_KEY, self.name,
+                                         self.value, self.timestamp,
+                                         self.expires, self.meta,
+                                         self.signature, 3)
+        self.assertEqual(3, self.node.send_store.call_count)
+        for i in range(3):
+            self.assertEqual(self.nodes[i].id,
+                             self.node.send_store.call_args_list[i][0][0].id)
+
+    def test_replicate_returns_a_deferred(self):
+        """
+        Ensures the replicate method returns a deferred.
+        """
+        # Patch NodeLookup._lookup
+        patcher = patch('drogulus.dht.node.NodeLookup._lookup')
+        patcher.start()
+        result = self.node.replicate(PUBLIC_KEY, self.name, self.value,
+                                     self.timestamp, self.expires, self.meta,
+                                     self.signature, DUPLICATION_COUNT)
+        self.assertIsInstance(result, defer.Deferred)
+        # Tidy up.
+        patcher.stop()
+
+    def test_replicate_stops_bad_duplication_count(self):
+        """
+        Ensure replicate complains if a bad duplication count is used.
+        """
+        ex = self.assertRaises(ValueError, self.node.replicate, PUBLIC_KEY,
+                               self.name, self.value, self.timestamp,
+                               self.expires, self.meta, self.signature, 0)
+        self.assertEqual('Duplication count may not be less than 1',
+                         ex.message)
+
+    def test_replicate_uses_node_lookup_with_expected_values(self):
+        """
+        Ensure that the replicate method does a node lookup with the expected
+        target key.
+        """
+        patcher = patch('drogulus.dht.node.NodeLookup')
+        mock_lookup = patcher.start()
+        self.node.replicate(PUBLIC_KEY, self.name, self.value, self.timestamp,
+                            self.expires, self.meta, self.signature,
+                            DUPLICATION_COUNT)
+        self.assertEqual(1, mock_lookup.call_count)
+        expected_target = construct_key(PUBLIC_KEY, self.name)
+        self.assertEqual(expected_target, mock_lookup.call_args[0][0])
+        self.assertEqual(FindNode, mock_lookup.call_args[0][1])
+        self.assertEqual(self.node, mock_lookup.call_args[0][2])
+        # Tidy up.
+        patcher.stop()
+
+    def test_replicate_deferred_fires_with_expected_deferred_list(self):
+        """
+        Make sure the deferred is fired with a list of the expected length when
+        the node lookup completes.
+        """
+        for i in range(K):
+            contact = Contact(long_to_hex(i), '192.168.0.%d' % i, 9999,
+                              self.node.version, 0)
+            self.node._routing_table.add_contact(contact)
+
+        def side_effect(*args):
+            """
+            Ensures the mock send_find returns something useful.
+            """
+            uuid = str(uuid4())
+            deferred = defer.Deferred()
+            # fire the deferred with a default Nodes message
+            msg = Nodes(self.uuid, self.node.id, self.nodes, self.node.version)
+            deferred.callback(msg)
+            return (uuid, deferred)
+
+        self.node.send_find = MagicMock(side_effect=side_effect)
+        result = self.node.replicate(PUBLIC_KEY, self.name, self.value,
+                                     self.timestamp, self.expires, self.meta,
+                                     self.signature, DUPLICATION_COUNT)
+
+        def check_callback(items):
+            """
+            Contains checks to ensure the deferred fires with the expected
+            list.
+            """
+            self.assertIsInstance(items, list)
+            for deferred in items:
+                self.assertIsInstance(deferred, defer.Deferred)
+
+        self.assertTrue(result.called)
+        result.addCallback(check_callback)
+
+    def test_replicate_handles_errors_as_expected(self):
+        """
+        Ensure error conditions are made visible in the expected way.
+        """
+        # Will fail because self.node's routing table is empty.
+        result = self.node.replicate(PUBLIC_KEY, self.name, self.value,
+                                     self.timestamp, self.expires, self.meta,
+                                     self.signature, DUPLICATION_COUNT)
+
+        def check_errback(error):
+            """
+            Ensure we get the expected error
+            """
+            self.assertIsInstance(error.value, RoutingTableEmpty)
+
+        self.assertTrue(result.called)
+        result.addErrback(check_errback)
 
     def test_retrieve(self):
         """
