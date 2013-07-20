@@ -34,3 +34,4 @@ docs: clean
 	@echo "\nDocumentation can be viewed in your browser here:"
 	@echo file://`pwd`/docs/_build/html/index.html
 	@echo "\n"
+	cp -r `pwd`/docs/_build/html website/docs
