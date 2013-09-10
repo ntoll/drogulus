@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Defines constants used by the Kademlia DHT network. Where possible naming is
-derived from the original Kademlia paper.
+derived from the original Kademlia paper as are the suggested default values.
 """
 
 # Copyright (C) 2012-2013 Nicholas H.Tollervey.
@@ -51,7 +51,7 @@ REFRESH_INTERVAL = REFRESH_TIMEOUT / 6  # Every 10 minutes.
 ALLOWED_RPC_FAILS = 5
 
 #: The number of nodes to attempt to use to store a value in the DHT.
-DUPLICATION_COUNT = 3
+DUPLICATION_COUNT = K
 
 #: The duration (in seconds) that is added to a value's creation time in order
 #: to work out its expiry timestamp. -1 denotes no expiry point.
@@ -72,7 +72,7 @@ ERRORS = {
     5: 'Unsupported protocol',
     # The request could not be cryptographically verified.
     6: 'Unverifiable provenance',
-    # The key / value pair did not match together as expected.
+    # The key for an item did not match as expected.
     7: 'Key mismatch',
     # The value is superceded (a newer version is known to the node already).
     8: 'Superceded value'

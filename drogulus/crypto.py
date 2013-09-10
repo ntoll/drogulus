@@ -25,17 +25,17 @@ from Crypto.Signature import PKCS1_v1_5
 import msgpack
 
 
-def construct_hash(value, timestamp, expires, name, meta):
+def construct_hash(value, timestamp, expires, name, meta, created_with):
     """
     The hash is a SHA512 hash of the concatenated SHA512 hashes of the
-    msgpack encoded 'value', 'timetamp, 'expires', 'name' and 'meta'
-    fields (in that order).
+    msgpack encoded 'value', 'timetamp, 'expires', 'name', 'meta' and
+    'created_with' fields (in that order).
 
-    It ensures that the 'value', 'timestamp', 'expires', 'name' and 'meta'
-    fields have not been tampered with.
+    It ensures that the 'value', 'timestamp', 'expires', 'name', 'meta' and
+    'created_with' fields have not been tampered with.
     """
     hashes = []
-    for item in (value, timestamp, expires, name, meta):
+    for item in (value, timestamp, expires, name, meta, created_with):
         packed = msgpack.packb(item)
         hashed = SHA512.new(packed).digest()
         hashes.append(hashed)
@@ -66,34 +66,38 @@ def construct_key(public_key, name=''):
         return key_hash.digest()
 
 
-def generate_signature(value, timestamp, expires, name, meta, private_key):
+def generate_signature(value, timestamp, expires, name, meta, created_with,
+                       private_key):
     """
-    Given the value, timestamp, expires, name and meta values of an outgoing
-    value carrying message will use the private key to generate a
+    Given the value, timestamp, expires, name, meta and created_with values of
+    an outgoing value carrying message will use the private key to generate a
     cryptographic hash to the message to be used to sign / validate the
     message.
 
-    This ensures that the 'value', 'timestamp', 'expires', 'name' and 'meta'
-    fields have not been tampered with.
+    This ensures that the 'value', 'timestamp', 'expires', 'name', 'meta' and
+    'created_with' fields have not been tampered with.
 
     The hash is created with the private key of the person storing the
     key/value pair. It is, in turn, based upon the SHA512 hash of the SHA512
-    hashes of the 'value', 'timestamp', 'expires', 'name' and 'meta' fields.
+    hashes of the 'value', 'timestamp', 'expires', 'name', 'meta' and
+    'created_with' fields.
     """
-    compound_hash = construct_hash(value, timestamp, expires, name, meta)
+    compound_hash = construct_hash(value, timestamp, expires, name, meta,
+                                   created_with)
     key = RSA.importKey(private_key)
     signer = PKCS1_v1_5.new(key)
     return signer.sign(compound_hash)
 
 
-def validate_signature(value, timestamp, expires, name, meta, signature,
-                       public_key):
+def validate_signature(value, timestamp, expires, name, meta, created_with,
+                       signature, public_key):
     """
     Uses the public key to validate the cryptographic signature based upon
-    a hash of the values in the 'value', 'timestamp', 'expires', 'name' and
-    'meta' fields of a value carrying message.
+    a hash of the values in the 'value', 'timestamp', 'expires', 'name', 'meta'
+    and 'created_with' fields of a value carrying message.
     """
-    generated_hash = construct_hash(value, timestamp, expires, name, meta)
+    generated_hash = construct_hash(value, timestamp, expires, name, meta,
+                                    created_with)
     try:
         public_key = RSA.importKey(public_key.strip())
     except ValueError:
@@ -105,16 +109,17 @@ def validate_signature(value, timestamp, expires, name, meta, signature,
 
 def validate_message(message):
     """
-    Given a message containing a key and value this function will return a
-    tuple containing two fields:
+    Given an item stored within the DHT this function will return a tuple
+    containing two fields:
 
-    * A boolean to indicate its validity
-    * An error number (in the case of a fail) or None (if success).
+    * a boolean to indicate its validity,
+    * an error number based upon constants.ERRORS (in the case of a fail) or
+      None (if success).
 
     The message contains a public_key field which is used to validate the
     message's 'sig' field with a list of SHA512 hashes of the message's
-    'value', 'timestamp', 'name' and 'meta' fields. This proves the
-    provenance of the data and ensures that these fields have not been
+    'value', 'timestamp', 'name', 'meta' and 'created_with' fields. This proves
+    the provenance of the data and ensures that these fields have not been
     tampered with.
 
     Furthermore, once the validity of the public_key field is proven through
@@ -124,7 +129,8 @@ def validate_message(message):
     """
     if not validate_signature(message.value, message.timestamp,
                               message.expires, message.name, message.meta,
-                              message.sig, message.public_key):
+                              message.created_with, message.sig,
+                              message.public_key):
         # Invalid signature so bail with the appropriate error number
         return (False, 6)
     # If the signature is correct then the public key must be valid. Ensure

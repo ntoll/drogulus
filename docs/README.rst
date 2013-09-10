@@ -12,6 +12,11 @@ following command::
 
     $ make html
 
+Alternatively, from the root directory of this project (one level up from this
+one) run the following command::
+
+    $ make docs
+
 The resulting HTML can be found in the ``_build/html`` directory.
 
 PDF copies of academic papers used / referenced within the Drogulus project

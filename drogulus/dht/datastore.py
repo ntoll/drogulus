@@ -33,10 +33,10 @@ class DataStore(UserDict.DictMixin):
         """
         return NotImplemented
 
-    def last_published(self, key):
+    def last_updated(self, key):
         """
         Get the time that a key/value pair identified by the key were last
-        published.
+        updated in this data store.
         """
         return NotImplemented
 
@@ -95,9 +95,10 @@ class DictDataStore(DataStore):
         """
         return self._dict.keys()
 
-    def last_published(self, key):
+    def last_updated(self, key):
         """
-        Get the time the key/value pair identified by key was last published.
+        Get the time the key/value pair identified by key was last updated in
+        this data store.
         """
         return self._dict[key][1]
 
@@ -118,8 +119,8 @@ class DictDataStore(DataStore):
         """
         Set the value of the key/value pair identified by key.
         """
-        lastPublished = time.time()
-        self._dict[key] = (value, lastPublished)
+        last_updated = time.time()
+        self._dict[key] = (value, last_updated)
 
     def __getitem__(self, key):
         """

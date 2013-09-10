@@ -138,7 +138,7 @@ class NodeLookup(defer.Deferred):
 
     7. If it's a FindValue message and a suitable value is returned (see note
        at the end of these comments) cancel all the other pending calls in
-       self.pending_requests and fire a callback with with the returned value.
+       self.pending_requests and fire a callback with the returned value.
        If the value is invalid remove the node from self.shortlist and start
        from step 3 again without cancelling the other pending calls.
 
@@ -146,20 +146,20 @@ class NodeLookup(defer.Deferred):
        self.shortlist and sort - making sure nodes in self.contacted are not
        mistakenly re-added to the shortlist.
 
-    7. If the nearest node in the newly sorted self.shortlist is closer to the
+    9. If the nearest node in the newly sorted self.shortlist is closer to the
        target than self.nearest_node then set self.nearest_node to the new
        closer node and start from step 3 again.
 
-    8. If self.nearest_node remains unchanged DO NOT start a new call.
+    10. If self.nearest_node remains unchanged DO NOT start a new call.
 
-    9. If there are no other requests in self.pending_requests then check that
-       the constants.K nearest nodes in the self.contacted set are all closer
-       than the nearest node in self.shortlist. If they are, and it's a
-       FindNode message call back with the constants.K nearest nodes in the
-       self.contacted set. If the message is a FindValue, errback with a
-       ValueNotFound error.
+    11. If there are no other requests in self.pending_requests then check that
+        the constants.K nearest nodes in the self.contacted set are all closer
+        than the nearest node in self.shortlist. If they are, and it's a
+        FindNode message call back with the constants.K nearest nodes in the
+        self.contacted set. If the message is a FindValue, errback with a
+        ValueNotFound error.
 
-    10. If there are still nearer nodes in self.shortlist to some of those in
+    12. If there are still nearer nodes in self.shortlist to some of those in
         the constants.K nearest nodes in the self.contacted set then start
         from step 3 again (forcing the local node to contact the close nodes
         that have yet to be contacted).
@@ -440,11 +440,21 @@ class Node(object):
     def join(self, seed_nodes=None):
         """
         Causes the Node to join the DHT network. This should be called before
-        any other DHT operations. The seedNodes argument contains a list of
-        tuples describing existing nodes on the network in the form of their
-        IP address and port.
+        any other DHT operations. The seed_nodes argument must be a list of
+        already known contacts describing existing nodes on the network.
         """
-        pass
+        if not seed_nodes:
+            raise ValueError('Seed nodes required for node to join network')
+        for contact in seed_nodes:
+            self._routing_table.add_contact(contact)
+        # Looking up the node's ID on the network will populate the routing
+        # table with fresh nodes as well as tell us who our nearest neighbours
+        # are.
+
+        # TODO: Add callback to kick off refresh of k-buckets in future..?
+        raise Exception('FIX ME!')
+        # Ensure the refresh of k-buckets is set up properly.
+        return NodeLookup(self.id, FindNode, self)
 
     def message_received(self, message, protocol):
         """
@@ -574,8 +584,10 @@ class Node(object):
             protocol.sendMessage(pong, True)
             # At some future time attempt to replicate the Store message
             # around the network IF it is within the message's expiry time.
+            raise Exception("FIX ME!")
+            # Need to check that callLater is called as part of the tests.
             reactor.callLater(constants.REPLICATE_INTERVAL,
-                              self.replicate, message)
+                              self.republish, message)
         else:
             # Remove from the routing table.
             log.msg('Problem with Store command: %d - %s' %
@@ -785,3 +797,68 @@ class Node(object):
 
         lookup.addCallback(cache)
         return lookup
+
+    def republish(self, message):
+        """
+        Will check and republish a locally stored message to the wider network.
+
+        From the original Kademlia paper:
+
+        "To ensure the persistence of key-value pairs, nodes must periodically
+        republish keys. Otherwise, two phenomena may cause lookups for valid
+        keys to fail. First, some of the k nodes that initially get a key-value
+        pair when it is published may leave the network. Second, new nodes may
+        join the network with IDs closer to some published key than the nodes
+        on which the key-value pair was originally published. In both cases,
+        the nodes with a key-value pair must republish it so as once again to
+        ensure it is available on the k nodes closest to the key.
+
+        To compensate for nodes leaving the network, Kademlia republishes each
+        key-value pair once an hour. A naive implementation of this strategy
+        would require many messages - each of up to k nodes storing a key-value
+        pair would perform a node lookup followed by k - 1 STORE RPCs every
+        hour. Fortunately, the republish process can be heavily optimized.
+        First, when a node receives a STORE RPC for a given key-value pair, it
+        assumes the RPC was also issued to the other k - 1 closest nodes, and
+        thus the recipient will not republish the key-value pair in the next
+        hour. This ensures that as long as republication intervals are not
+        exactly synchronized, only one node will republish a given key-value
+        pair every hour.
+
+        A second optimization avoids performing node lookups before
+        republishing keys. As described in Section 2.4, to handle unbalanced
+        trees, nodes split k-buckets as required to ensure they have complete
+        knowledge of a surrounding subtree with at least k nodes. If, before
+        republishing key-value pairs, a node u refreshes all k-buckets in this
+        subtree of k nodes, it will automatically be able to figure out the
+        k closest nodes to a given key. These bucket refreshes can be amortized
+        over the republication of many keys.
+
+        To see why a node lookup is unnecessary after u refreshes buckets in
+        the sub-tree of size >= k, it is necessary to consider two cases. If
+        the key being republished falls in the ID range of the subtree, then
+        since the subtree is of size at least k and u has complete knowledge of
+        the subtree, clearly u must know the k closest nodes to the key. If,
+        on the other hand, the key lies outside the subtree, yet u was one of
+        the k closest nodes to the key, it must follow that u's k-buckets for
+        intervals closer to the key than the subtree all have fewer than k
+        entries. Hence, u will know all nodes in these k-buckets, which
+        together with knowledge of the subtree will include the k closest nodes
+        to the key.
+
+        When a new node joins the system, it must store any key-value pair to
+        which is is one of the k closest. Existing nodes, by similarly
+        exploiting complete knowledge of their surrounding subtrees, will know
+        which key-value pairs the new node should store. Any node learning of a
+        new node therefore issues STORE RPCs to transfer relevant key-value
+        pairs to the new node. To avoid redundant STORE RPCs, however, a node
+        only transfers a key-value pair if it's [sic] own ID is closer to the
+        key than are the IDs of other nodes."
+
+        Messages are only republished if the following requirements are met:
+
+        * They still exist in the local data store.
+        * They have not expired.
+        * They have not been updated for REPLICATE_INTERVAL seconds.
+        """
+        pass

@@ -78,8 +78,8 @@ class Pong(namedtuple('Pong', ['uuid', 'node', 'version'])):
 
 
 class Store(namedtuple('Store', ['uuid', 'node', 'key', 'value', 'timestamp',
-                                 'expires', 'public_key', 'name', 'meta',
-                                 'sig', 'version'])):
+                                 'expires', 'created_with', 'public_key',
+                                 'name', 'meta', 'sig', 'version'])):
     """
     A "store" message instructs another node on the network to store the given
     key/value pair.
@@ -98,23 +98,24 @@ class Store(namedtuple('Store', ['uuid', 'node', 'key', 'value', 'timestamp',
                 as an integer representing the time in seconds since the Epoch
                 (so called POSIX time). If the value is less than or equal to
                 zero then the key/value pair should never expire.
+    * created_with - the version of the protocol used to generate the item.
     * public_key - the public key of the person storing the value.
     * name - the human-readable name of the key.
     * meta - a dictionary containing key/value strings for user defined
              metadata.
-    * sig - the cryptographic signature for the value, timestamp, expires, name
-            and meta fields.
+    * sig - the cryptographic signature for the value, timestamp, expires,
+            name, meta and created_with fields.
     * version - the protocol version the message conforms to.
 
     The provenance of the message is guaranteed through cryptography:
 
     The 'sig' field is created with the private key of the person storing the
     key/value pair. It's derived from the SHA512 hash of the SHA512 hashes of
-    the 'value', 'timestamp', 'expires', 'name' and 'meta' fields. This
-    mechanism ensures that the public_key used in the compound key is valid
-    (i.e. it validates the sig field given the correct SHA512 hash) and also
-    ensures that the 'value', 'timestamp', 'expires', 'name' and 'meta' fields
-    have not been tampered with.
+    the 'value', 'timestamp', 'expires', 'name', 'meta' and 'created_with'
+    fields. This mechanism ensures that the public_key used in the compound key
+    is valid (i.e. it validates the sig field given the correct SHA512 hash)
+    and also ensures that the 'value', 'timestamp', 'expires', 'name', 'meta'
+    and 'created_with' fields have not been tampered with.
 
     The 'key' value is a compound key. It is a SHA512 hash of the SHA512 hashes
     of the 'public_key' and 'name' fields. The 'public_key' and 'name' fields
@@ -167,8 +168,8 @@ class FindValue(namedtuple('FindValue', ['uuid', 'node', 'key', 'version'])):
 
 
 class Value(namedtuple('Value', ['uuid', 'node', 'key', 'value', 'timestamp',
-                                 'expires', 'public_key', 'name', 'meta',
-                                 'sig', 'version'])):
+                                 'expires', 'created_with', 'public_key',
+                                 'name', 'meta', 'sig', 'version'])):
     """
     A response to a FindValue request. Contains all the information known by
     the responder about the key/value pair. Such complete information can be
@@ -189,12 +190,13 @@ class Value(namedtuple('Value', ['uuid', 'node', 'key', 'value', 'timestamp',
                 as an integer representing the time in seconds since the Epoch
                 (so called POSIX time). If the value is less than or equal to
                 zero then the key/value pair should never expire.
+    * created_with - the version of the protocol used to generate the item.
     * public_key - the public key of the person who stored the value.
     * name - the human-readable name of the key.
     * meta - a dictionary containing key/value strings for user defined
              metadata.
-    * sig - the cryptographic signature for the value, timestamp, expires, name
-            and meta fields.
+    * sig - the cryptographic signature for the value, timestamp, expires,
+            name, meta and created_with fields.
     * version - the protocol version the message conforms to.
     """
     pass

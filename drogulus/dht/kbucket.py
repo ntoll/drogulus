@@ -19,6 +19,7 @@ Defines contact related storage (the so called k-buckets).
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from drogulus.constants import K
+from drogulus.utils import hex_to_long
 
 
 class KBucketFull(Exception):
@@ -44,7 +45,7 @@ class KBucket(object):
 
     Nota Bene: This implementation of Kademlia uses a 512 bit key space
     based upon SHA512 rather than the original 160 bit SHA1 implementation, so
-    i will equal 512.
+    i will be < 512.
     """
 
     def __init__(self, range_min, range_max):
@@ -98,12 +99,12 @@ class KBucket(object):
         then, if this is found within the list of returned values, it will be
         discarded before the result is returned.
         """
+        # Get current length of contact list.
+        current_len = len(self._contacts)
         # Check count argument
         if count <= 0:
             # Return all contacts
-            count = len(self._contacts)
-        # Get current length of contact list.
-        current_len = len(self._contacts)
+            count = current_len
         if not self._contacts:
             # There are no contacts so return an empty list.
             contact_list = []
@@ -133,7 +134,7 @@ class KBucket(object):
         k-bucket.
         """
         if isinstance(key, str):
-            key = long(key.encode('hex'), 16)
+            key = hex_to_long(key)
         return self.range_min <= key < self.range_max
 
     def __len__(self):

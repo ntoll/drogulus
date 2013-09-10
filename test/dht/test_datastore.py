@@ -50,13 +50,13 @@ class TestDataStore(unittest.TestCase):
         ds = DataStore()
         self.assertEqual(NotImplemented, ds.keys())
 
-    def test_last_published(self):
+    def test_last_updated(self):
         """
-        Check the DataStore base class has a last_published method.
+        Check the DataStore base class has a last_updated method.
         """
-        self.assertTrue(hasattr(DataStore, 'last_published'))
+        self.assertTrue(hasattr(DataStore, 'last_updated'))
         ds = DataStore()
-        self.assertEqual(NotImplemented, ds.last_published(123))
+        self.assertEqual(NotImplemented, ds.last_updated('foo'))
 
     def test_original_publisher_id(self):
         """
@@ -154,12 +154,12 @@ class TestDictDataStore(unittest.TestCase):
 
     def test_last_published(self):
         """
-        Ensures the correct value is returned from last_published for a given
-        key.
+        Ensures the expected value is returned from last_updated for a given
+        key (a float representing a timestamp).
         """
         store = DictDataStore()
         store['foo'] = self.mock_value
-        self.assertTrue(store.last_published('foo'))
+        self.assertIsInstance(store.last_updated('foo'), float)
 
     def test_original_publisher_id(self):
         """

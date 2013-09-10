@@ -7,8 +7,6 @@ Table of Contents
     :maxdepth: 3
 
     start
-    what
-    why
     how
     install
     logos

@@ -124,6 +124,7 @@ VALIDATORS = {
     'public_key': validate_string,
     'name': validate_string,
     'meta': validate_meta,
+    'created_with': validate_string,
     'sig': validate_string,
     'nodes': validate_nodes
 }

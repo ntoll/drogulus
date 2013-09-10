@@ -1139,6 +1139,57 @@ class TestNode(unittest.TestCase):
         self.assertEqual('ssl:%s:%d', node._client_string)
         self.assertEqual(get_version(), node.version)
 
+    def test_refresh_k_buckets(self):
+        """
+        Ensure that k-buckets are refreshed after the expected period of time.
+        """
+        assert False
+
+    def test_refresh_k_buckets_scheduled(self):
+        """
+        Ensure that the action to refresh k-buckets is scheduled correctly.
+        """
+        assert False
+
+    def test_join_returns_node_lookup_deferred(self):
+        """
+        Ensures the Node's join method returns a deferred that is fired when
+        the Node has joined the DHT.
+        """
+        assert False
+
+    def test_join_no_seed_nodes(self):
+        """
+        Ensures the Node's join method complains when no seed nodes are
+        provided.
+        """
+        ex = self.assertRaises(ValueError, self.node.join, [])
+        self.assertEqual('Seed nodes required for node to join network',
+                         ex.message)
+
+    def test_join_adds_seed_nodes_to_routing_table(self):
+        """
+        Ensures that the join method populates the node's routing table with
+        the seed nodes.
+        """
+        # Check the node's routing table is empty (a single k-bucket containing
+        # zero contacts).
+        assert False
+        self.assertEqual(1, self.node._routing_table._buckets)
+        self.assertEqual(0, self.node._routing_table._buckets[0])
+
+        # Ensure the add_contact method has been called on the routing table
+        # in the expected way.
+        self.node.join(self.nodes)
+
+    def test_join_not_able_to_join(self):
+        """
+        Ensure that the deferred returned from the join method fires an
+        errback if the Node was unable to join the DHT given the set of valid
+        seed nodes.
+        """
+        assert False
+
     def test_message_received_calls_routing_table(self):
         """
         Ensures an inbound message updates the routing table.
