@@ -7,4 +7,5 @@ build/*
 _trial_temp
 drogulus.egg-info/*
 drogulus/drogulus.egg-info/*
-website/docs/*
+website/site/docs/*
+website/site/*.html

@@ -6,4 +6,5 @@ sphinx
 pep8
 pyflakes
 mock
+sphinx_bootstrap_theme
 # coherence - upnp helper

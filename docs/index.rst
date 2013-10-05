@@ -1,14 +1,12 @@
-.. include:: ../README.rst
-
 Table of Contents
 =================
 
 .. toctree::
     :maxdepth: 3
 
+    introduction
     start
     how
-    install
     logos
     api/index
     license

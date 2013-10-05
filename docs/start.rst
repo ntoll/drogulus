@@ -4,7 +4,7 @@ Quick Start Guide
 Install
 =======
 
-TBD
+See the Developer Quick Start instructions.
 
 Configure
 =========

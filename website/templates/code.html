@@ -1,37 +1,7 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <title>Drogulus</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Homepage of the Drogulus project">
-    <meta name="author" content="Nicholas H.Tollervey">
-    <link href="css/bootstrap.min.css" rel="stylesheet" media="screen">
-    <link href="css/bootstrap-responsive.min.css" rel="stylesheet"
-      media="screen">
-    <link href="css/drogulus.css" rel="stylesheet" media="screen">
-    <!-- Fav and touch icons -->
-    <link rel="apple-touch-icon-precomposed" sizes="144x144" href="images/apple-touch-icon-144x144.png">
-    <link rel="apple-touch-icon-precomposed" sizes="114x114" href="images/apple-touch-icon-114x114..png">
-    <link rel="apple-touch-icon-precomposed" sizes="72x72" href="images/apple-touch-icon-72x72.png">
-    <link rel="apple-touch-icon-precomposed" href="images/apple-touch-icon-57x57.png">
-    <link rel="shortcut icon" href="images/favicon.ico">
-  </head>
-  <body>
-    <div class="container-fluid">
-
-      <div class="masthead">
-          <ul class="nav nav-pills">
-            <li><a href="/">Drogulus</a></li>
-            <li><a href="what.html">What?</a></li>
-            <li><a href="why.html">Why?</a></li>
-            <li><a href="how.html">How?</a></li>
-            <li><a href="docs/index.html">Docs</a></li>
-            <li><a href="code.html">Code</a></li>
-            <li><a href="contact.html">Contact</a></li>
-          </ul>
-      </div><!-- masthead -->
-
+{% extends "base.html" %}
+{% block title %}Code{% endblock %}
+{% block description %}Source code for the drogulus - a programmable peer to peer data store{% endblock %}
+{% block content %}
       <div class="row-fluid">
         <div class="span8 offset2">
 
@@ -88,16 +58,6 @@
             found <a href="http://www.gnu.org/licenses/agpl-3.0.html">
             here</a>.</p>
           </div>
-
-          <div class="footer">
-            <p>&copy 2013 <a href="http://ntoll.org/">Nicholas
-            H.Tollervey</a></p>
-          </div>
         </div>
       </div>
-
-    </div><!-- container -->
-    <script src="js/jquery-2.0.0.min.js"></script>
-    <script src="js/bootstrap.min.js"></script>
-  </body>
-</html>
+{% endblock %}

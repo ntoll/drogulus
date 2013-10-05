@@ -1,5 +1,5 @@
 Contributing to Drogulus
-========================
+------------------------
 
 Hey! Many thanks for wanting to improve Drogulus.
 
@@ -12,7 +12,7 @@ be politely requested and discussed with the originating author. Respectful
 yet robust argument is most welcome.
 
 Submit an Issue
----------------
++++++++++++++++
 
 * Use GitHub's built in issue tracker to report bugs and suggest improvements.
 
@@ -28,7 +28,7 @@ Submit an Issue
   be rejected).
 
 Copyright Status
-----------------
+++++++++++++++++
 
 I (Nicholas H.Tollervey) would like to keep the copyright status of this
 project as simple as possible. To this end, any contribution to the source code
@@ -47,7 +47,7 @@ project as simple as possible. To this end, any contribution to the source code
   code.
 
 Code Contribution Checklist
----------------------------
++++++++++++++++++++++++++++
 
 * Ensure your contribution is linked to an outstanding ticket in the issue
   tracker.

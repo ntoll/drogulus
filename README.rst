@@ -24,8 +24,8 @@ If in doubt, please ask. :-)
 Should you wish to contribute please make sure you read CONTRIBUTE file. By
 making a contribution you are agreeing to the terms described therein.
 
-Quick Start
------------
+Developer Quick Start
+---------------------
 
 * Clone the repository: ``git clone git://github.com/ntoll/drogulus.git``
 * I suggest you create a virtualenv for development purposes (see: https://pypi.python.org/pypi/virtualenv).

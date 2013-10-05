@@ -9,11 +9,13 @@ all:
 	@echo "make pep8 - run the PEP8 style checker."
 	@echo "make test - run the test suite."
 	@echo "make check - run all the checkers and tests."
-	@echo "make docs - run sphinx to create project documentation.\n"
+	@echo "make docs - run sphinx to create project documentation."
+	@echo "make web - build the project website."
 
 clean:
-	rm -rf dist docs/_build
+	rm -rf dist docs/_build website/site/docs website/site/*.html
 	find . \( -name '*.py[co]' -o -name dropin.cache \) -print0 | $(XARGS) rm
+	find . \( -name '*.tgz' -o -name dropin.cache \) -print0 | $(XARGS) rm
 	find . -name _trial_temp -type d -print0 | $(XARGS) rm -r
 
 pyflakes:
@@ -34,4 +36,11 @@ docs: clean
 	@echo "\nDocumentation can be viewed in your browser here:"
 	@echo file://`pwd`/docs/_build/html/index.html
 	@echo "\n"
-	cp -r `pwd`/docs/_build/html website/docs
+	rm -rf website/site/docs
+	cp -r `pwd`/docs/_build/html website/site/docs
+
+web: docs
+	@echo "\nGenerating static pages from templates..."
+	python website/build.py
+	tar cfvz deployable_website.tgz -C website/site/ .
+	@echo "\nDone!"

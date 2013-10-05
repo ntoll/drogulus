@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8"/>
+        <title>Distributed Hash Tables ~ Concise and Simple</title>
+        <meta name="description" content=""/>
+        <meta name="author" content="Nicholas H.Tollervey"/>
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <link href='assets/fonts/Lato' rel='stylesheet' type='text/css'>
+        <link rel="stylesheet" href="css/reset.css">
+        <link rel="stylesheet" href="css/main.css">
+        <link rel="stylesheet" href="css/print.css" type="text/css" media="print">
+        <link rel="stylesheet" href="lib/github.css">
+        <link rel="stylesheet" href="css/presentation.css">
+    </head>
+    <body>
+        <div class="reveal">
+            <div class="state-background"></div>
+            <div class="slides">
+                <section>
+                <h1>Distributed <br/>Hash Tables<h1>
+                    <h3 class="inverted">
+                        Concise &amp; Simple
+                    </h3>
+                    <h5>(A minor obsession)</h5>
+                    <br/>
+                    <p>
+                        <i>
+                            <small>Nicholas H.Tollervey</small><br/>
+                            <a href="http://ntoll.org">
+                            <small>
+                                <img src="assets/images/home.png" class="icon"/>
+                                ntoll.org
+                            </small></a>
+                            <small>/</small>
+                            <a href="mailto:ntoll@ntoll.org?subject=Hi%20there!&body=Hey%20Nicholas,">
+                            <small>
+                                <img src="assets/images/email.png" class="icon"/>
+                                ntoll@ntoll.org
+                            </small>
+                            </a>
+                            <small>/</small>
+                            <a href="http://twitter.com/ntoll">
+                            <small>
+                                <img src="assets/images/twitter.png" class="icon"/>
+                                @ntoll
+                            </small>
+                            </a>
+                        </i>
+                    </p>
+                    <script>
+                        if( navigator.userAgent.match( /(iPhone|iPad|iPod|Android)/i ) ) document.write( '<p style="color: rgba(0,0,0,0.3); text-shadow: none;">('+'Tap to navigate'+')</p>' );
+                    </script>
+                </section>
+                <section>
+                    <h2>HIGH LEVEL VIEW</h2>
+                    <img src="assets/images/high-level.jpg"/>
+                    <p>(I'm glossing over a lot here...)</p>
+                </section>
+                <section>
+                    <section>
+                    <h2>Hash Table = dict (in Python)</h2>
+                    <pre><code contenteditable class="python">
+&gt;&gt;&gt; home = {}
+&gt;&gt;&gt; home['ntoll'] = 'Towcester'
+&gt;&gt;&gt; home['voidspace'] = 'Bugbrook'
+&gt;&gt;&gt; home['pinner'] = 'Coventry'
+&gt;&gt;&gt; home
+{
+  'ntoll': 'Towcester',
+  'voidspace': 'Bugbrook',
+  'pinner': 'Coventry'
+}
+&gt;&gt;&gt; home['ntoll']
+'Towcester'
+                    </code></pre>
+                    <p>A very simple <strong><u>key</u></strong> /
+                    <strong><u>value</u></strong> data store.</p>
+                    </section>
+                    <section>
+                    <h2>Distributed</h2>
+                    <img src="assets/images/distributed.jpg"/>
+                    </section>
+                    <section>
+                    <h2>Decentralized</h2>
+                    <img src="assets/images/decentralized.jpg"/>
+                    </section>
+                    <section>
+                    <h1>A distributed<br/>hash table (DHT) is a peer-to-peer<br/>key / value data store</h1>
+                    </section>
+                </section>
+                <section>
+                <h1>Why?</h1>
+                <ul>
+                    <li class="fragment">No single point of failure or
+                    inadvertent point of control (e.g. no need for DNS).</li>
+                    <li class="fragment">Scale to huge number of nodes
+                    (redundancy++).</li>
+                    <li class="fragment">Relatively efficient.</li>
+                    <li class="fragment">Good handling of fluid network
+                    membership.</li>
+                    <li class="fragment">Solid foundational infrastructure for
+                    more complex services (e.g. the drogulus, distributed file
+                    systems, CDNs, p2p file sharing).</li>
+                    <li class="fragment">Tested in the real world (Bittorrent,
+                    Freenet and others).</li>
+                </ul>
+                </section>
+                <section>
+                    <h1>How..?</h1>
+                    <p>What the rest of the talk is about:</p>
+                    <ul>
+                        <li class="fragment">The DHT has a
+                        <strong><u>key</u></strong>
+                        space the size of the output range of its hashing
+                        function (e.g. SHA512).</li>
+                        <li class="fragment">Each <strong><u>node</u></strong>
+                        has a unique <strong><u>ID</u></strong> (a hash).</li>
+                        <li class="fragment">Each <strong><u>key</u></strong>
+                        is a hash.</li>
+                        <li class="fragment"><strong><u>Nodes</u></strong>
+                        store <strong><u>values</u></strong> whose
+                        <strong><u>keys</u></strong> are close to the node's
+                        <strong><u>ID</u></strong>.</li>
+                        <li class="fragment">Nodes keep track of peers in a
+                        <strong><u>routing table</u></strong>.</li>
+                        <li class="fragment">A <strong><u>recursive
+                        lookup</u></strong> function is used to find the
+                        correct node[s].</li>
+                    </ul>
+                </section>
+                <section>
+                    <section>
+                        <h2>Hashing</h2>
+                        <pre><code contenteditable class="python">
+&gt;&gt;&gt; import requests
+&gt;&gt;&gt; response = requests.get(
+  'http://www.gutenberg.org/ebooks/2600.txt.utf-8')
+&gt;&gt;&gt; war_and_peace = response.content
+&gt;&gt;&gt; len(war_and_peace)
+3291641
+&gt;&gt;&gt; from hashlib import sha1
+&gt;&gt;&gt; hash = sha1(war_and_peace)
+&gt;&gt;&gt; hash.hexdigest()
+'ee9fe1af40a27e58ca32dce32c891dce2885bbcb'
+&gt;&gt;&gt; int(hash.hexdigest().encode('hex'), 16)
+8460127932676481751312505548999589516107164899634142
+19229096415778905956014446754451978211976034L
+                        </code></pre>
+                        <p>A hash is <em><u>just a number</u></em>.</p>
+                    </section>
+                    <section>
+                    <h3>ee9fe1af40a27e58ca32dce32c891dce2885bbcb</h3>
+                    <img src="assets/images/war_and_peace.jpg"/>
+                    </section>
+                    <section>
+                        <h2>Good Hash functions...</h2>
+                        <ul>
+                        <li class="fragment">Deterministically generate
+                        small-ish values from seed data.</li>
+                        <li class="fragment">Cannot be reversed.</li>
+                        <li class="fragment">Generate different values from
+                        different seed data.</li>
+                        <li class="fragment">Uniformly distribute values in
+                        the output range.</li>
+                        <li class="fragment">Attempt to avoid collisions (that
+                        are, unfortunately, inevitable).</li>
+                        </ul>
+                    </section>
+                </section>
+                <section>
+                    <section>
+                        <h1>Hashing for Nodes and Keys</h1>
+                        <h2>(Location, Location, Location)</h2>
+                    </section>
+                    <section>
+                        <h2>A clock face of nodes</h2>
+                        <img src="assets/images/nodes.png"/>
+                    </section>
+                    <section>
+                        <h3>Node's ID (location) is derived from Hash</h3>
+                        <img src="assets/images/numbered_nodes.png"/>
+                    </section>
+                    <section>
+                        <h2>Items are a Key / Value Pair</h2>
+                        <pre><code contenteditable class="python">
+&gt;&gt;&gt; from hashlib import sha1
+&gt;&gt;&gt; item = {
+...     'my_key': 'Some value I want to store'
+... }
+&gt;&gt;&gt; sha1('my_key').hexdigest()
+'0f7da3f82f86e5ea63d3ac270f091af4bcfa819a'
+                        </code></pre>
+                        <h2>The key is turned into a hash. The value is stored
+                        at nodes whose IDs are <em><u>close</u></em>
+                        to the location of the hash of the key.</h2>
+                    </section>
+                    <section>
+                        <h2>Aardvark belongs...</h2>
+                        <img src="assets/images/aardvark.jpg"/>
+                    </section>
+                    <section>
+                        <h2>... under &quot;A&quot;</h2>
+                        <img src="assets/images/aardvark-entry.png"/>
+                    </section>
+                    <section>
+                        <h2>But, Zebra belongs...</h2>
+                        <img src="assets/images/zebra.jpg"/>
+                    </section>
+                    <section>
+                        <h2>... under &quot;Z&quot;</h2>
+                        <img src="assets/images/zebra-entry.png"/>
+                    </section>
+                </section>
+                <section>
+                    <section>
+                        <h2>Tracking via the Routing Table</h2>
+                        <img src="assets/images/me-rt.png"/>
+                    </section>
+                    <section>
+                        <h2>Interactions give tracking data</h2>
+                        <img src="assets/images/contact.jpg"/>
+                        <p>(ID, IP address and port etc...)</p>
+                    </section>
+                    <section>
+                        <h2><span style="color: blue">Peers</span> stored in
+                        fixed size
+                        <span style="border: 1px #737373 solid; padding-left:8px; padding-right: 8px;">buckets</span></h2>
+                        <img src="assets/images/peers-rt.png"/>
+                    </section>
+                    <section>
+                        <h2>Buckets contain the same number of peers</h2>
+                        <h2>Buckets cover a smaller range the closer to the
+                        local node thay are</h2>
+                        <h2>Ergo, the local node knows more closer nodes</h2>
+                    </section>
+                    <section>
+                        <h2><span style="color: blue">Peers</span> stored in
+                        fixed size
+                        <span style="border: 1px #737373 solid; padding-left:8px; padding-right: 8px;">buckets</span></h2>
+                        <img src="assets/images/peers-rt.png"/>
+                    </section>
+                    <section>
+                        <h1>Ignore unresponsive peers</h1>
+                        <h1>Refresh the Routing Table</h1>
+                        <h1>Re-publish items</h1>
+                    </section>
+                </section>
+                <section>
+                    <section>
+                        <h2>Recursive Lookup</h2>
+                        <img src="assets/images/kevin-bacon.jpg"/>
+                    </section>
+                    <section>
+                        <h2>Six degrees of separation</h2>
+                        <img src="assets/images/lookup1.png"/>
+                    </section>
+                    <section>
+                        <h2>Ask <span style="color: #008400">closest known
+                        peers</span></h2>
+                        <img src="assets/images/lookup2.png"/>
+                    </section>
+                    <section>
+                        <h2><span style="color: #008400">They</span> reply
+                        with <span style="color: #d73f87">closer
+                        peers</span></h2>
+                        <img src="assets/images/lookup3.png"/>
+                    </section>
+                    <section>
+                        <h2><span style="color: #d73f87">They</span> reply
+                        with the
+                        <span style="color: #ff4b00">target</span></h2>
+                        <img src="assets/images/lookup4.png"/>
+                    </section>
+                </section>
+                <section>
+                    <h1>GET() &amp; SET() require a lookup.</h1>
+                    <h1>All interactions are asynchronous.</h1>
+                </section>
+                <section>
+                    <h1>That's it!</h1>
+                    <h2>(But I'm only scratching the surface)</h2>
+                </section>
+                <section>
+                    <h1>Find Out More</h1>
+                    <ul>
+                        <li><a href="https://en.wikipedia.org/wiki/Distributed_hash_table">https://en.wikipedia.org/wiki/Distributed_hash_table</a></li>
+                        <li><a href="http://www.linuxjournal.com/article/6797">http://www.linuxjournal.com/article/6797</a></li>
+                        <li><a href="https://research.microsoft.com/apps/video/dl.aspx?id=104702">https://research.microsoft.com/apps/video/dl.aspx?id=104702</a></li>
+                        <li><a href="https://en.wikipedia.org/wiki/Kademlia">https://en.wikipedia.org/wiki/Kademlia</a></li>
+                        <li><a href="http://www.bittorrent.org/beps/bep_0005.html">http://www.bittorrent.org/beps/bep_0005.html</a></li>
+                        <li><a href="https://github.com/ntoll/drogulus">https://github.com/ntoll/drogulus</a></li>
+                    </ul>
+                </section>
+                <section>
+                    <h1>Image Credits</h1>
+                    <p>Licensed under <a href="http://creativecommons.org/licenses/by/2.0/deed.en_GB">CC BY 2.0</a></p>
+                    <ul>
+                        <li><a href="http://www.flickr.com/photos/m-i-k-e/6185544628/">High level view</a></li>
+                        <li><a href="http://www.flickr.com/photos/bostontx/4461314652/">Encyclopedia Britannica</a></li>
+                        <li><a href="https://secure.flickr.com/photos/davegray/5429335705/">Design by connection</a></li>
+                        <li><a href="http://www.flickr.com/photos/ucumari/7076368057/">Aardvark</a></li>
+                        <li><a href="http://www.flickr.com/photos/ucumari/3022337440/">Zebra</a></li>
+                        <li><a href="http://www.flickr.com/photos/caseorganic/4536319810/">Business card</a></li>
+                        <li><a href="http://www.flickr.com/photos/dwnews/8363649686/">Kevin Bacon</a></li>
+                    </ul>
+                </section>
+                <section>
+                    <h1>Questions..?</h1>
+                    <p>The source for this presentation can be found online
+                    here:</p>
+                    <p><a href="https://github.com/ntoll/presentations/tree/master/dhtcs">https://github.com/ntoll/presentations/tree/master/dhtcs</a></p>
+                </section>
+            </div>
+            <aside class="controls" style="display: block;">
+                <a class="left" href="#">&#x25C4;</a>
+                <a class="right" href="#">&#x25BA;</a>
+                <a class="up" href="#">&#x25B2;</a>
+                <a class="down" href="#">&#x25BC;</a>
+            </aside>
+
+            <div class="progress"><span></span></div>
+        </div>
+        <!-- Optional libraries for code syntax highlighting and classList support in IE9 -->
+        <script src="lib/highlight.js"></script>
+        <script src="lib/classList.js"></script>
+        <script src="js/reveal.min.js"></script>
+        <script>
+            Reveal.initialize({
+                // Display controls in the bottom right corner
+                controls: true,
+
+                // Display a presentation progress bar
+                progress: true,
+
+                // If true; each slide will be pushed to the browser history
+                history: true,
+
+                // Loops the presentation, defaults to false
+                loop: false,
+
+                // Flags if mouse wheel navigation should be enabled
+                mouseWheel: false,
+
+                // Apply a 3D roll to links on hover
+                rollingLinks: false,
+
+                // UI style
+                theme: 'default',
+
+                // Transition style
+                transition: 'linear'
+            });
+            hljs.initHighlightingOnLoad();
+        </script>
+    </body>
+</html>

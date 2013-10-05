@@ -2,9 +2,9 @@
 <html lang="en">
   <head>
     <meta charset="utf-8">
-    <title>Drogulus</title>
+    <title>{% block title %}Home{% endblock %} - Drogulus - drogul.us</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Homepage of the Drogulus project">
+    <meta name="description" content="{% block description %}Home of the drogulus - a programmable peer to peer data store{% endblock %}">
     <meta name="author" content="Nicholas H.Tollervey">
     <link href="css/bootstrap.min.css" rel="stylesheet" media="screen">
     <link href="css/bootstrap-responsive.min.css" rel="stylesheet"
@@ -21,29 +21,18 @@
     <div class="container-fluid">
 
       <div class="masthead">
-          <ul class="nav nav-pills">
-            <li><a href="/">Drogulus</a></li>
-            <li><a href="what.html">What?</a></li>
-            <li><a href="why.html">Why?</a></li>
-            <li><a href="how.html">How?</a></li>
-            <li><a href="docs/index.html">Docs</a></li>
-            <li><a href="code.html">Code</a></li>
-            <li><a href="contact.html">Contact</a></li>
-          </ul>
+        <ul class="nav nav-pills">
+          <li><a href="/">Drogulus</a></li>
+          <li><a href="what.html">What?</a></li>
+          <li><a href="why.html">Why?</a></li>
+          <li><a href="how.html">How?</a></li>
+          <li><a href="docs/index.html">Docs</a></li>
+          <li><a href="code.html">Code</a></li>
+          <li><a href="contact.html">Contact</a></li>
+        </ul>
       </div><!-- masthead -->
-
-      <!-- Jumbotron -->
-      <div class="jumbotron" id="drogulus">
-        <h1>Drogulus</h1>
-        <p id="logo">
-          <img src="images/logo.png" alt="Drogulus logo"/>
-        </p>
-        <p class="lead">A programmable peer-to-peer data store built
-        for simplicity, security, openness &amp; fun.</p>
-        <p class="warning">Drogulus is currently an unfinished work in
-        progress.</p>
-      </div>
-
+      {% block content %}
+      {% endblock %}
       <div class="row-fluid">
         <div class="span8 offset2">
           <div class="footer">
@@ -58,3 +47,4 @@
     <script src="js/bootstrap.min.js"></script>
   </body>
 </html>
+

@@ -2,7 +2,7 @@
 """
 Tests for the core Drogulus class
 """
-from drogulus.drogulus import Drogulus
+from drogulus.node import Drogulus
 import unittest
 
 
