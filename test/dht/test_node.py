@@ -182,10 +182,10 @@ class TestNodeLookup(unittest.TestCase):
         self.expires = self.timestamp + 1000
         self.name = 'name'
         self.meta = {'meta': 'value'}
+        self.version = get_version()
         self.signature = generate_signature(self.value, self.timestamp,
                                             self.expires, self.name, self.meta,
-                                            PRIVATE_KEY)
-        self.version = get_version()
+                                            self.version, PRIVATE_KEY)
         self.key = construct_key(PUBLIC_KEY, self.name)
         self.timeout = 1000
         self.target_key = long_to_hex(100)
@@ -676,8 +676,8 @@ class TestNodeLookup(unittest.TestCase):
         uuid = lookup.pending_requests.keys()[0]
         contact = Contact(self.node.id, '192.168.1.1', 54321, self.version)
         msg = Value(uuid, self.node.id, self.key, self.value, self.timestamp,
-                    self.expires, PUBLIC_KEY, self.name, self.meta,
-                    self.signature, self.node.version)
+                    self.expires, self.version, PUBLIC_KEY, self.name,
+                    self.meta, self.signature, self.node.version)
         lookup._blacklist = MagicMock()
         ex = self.assertRaises(TypeError, lookup._handle_response, uuid,
                                contact, msg)
@@ -704,8 +704,8 @@ class TestNodeLookup(unittest.TestCase):
         uuid = lookup.pending_requests.keys()[0]
         contact = Contact(self.node.id, '192.168.1.1', 54321, self.version)
         msg = Value(uuid, self.node.id, self.key, self.value, self.timestamp,
-                    self.expires, PUBLIC_KEY, self.name, self.meta,
-                    self.signature, self.node.version)
+                    self.expires, self.version, PUBLIC_KEY, self.name,
+                    self.meta, self.signature, self.node.version)
         lookup._handle_response(uuid, contact, msg)
         self.assertNotIn(uuid, lookup.pending_requests.keys())
 
@@ -733,8 +733,8 @@ class TestNodeLookup(unittest.TestCase):
         other_request2.cancel = MagicMock()
         contact = Contact(long_to_hex(1), '192.168.0.1', 9999, self.version)
         msg = Value(uuid, self.node.id, self.key, self.value, self.timestamp,
-                    self.expires, PUBLIC_KEY, self.name, self.meta,
-                    self.signature, self.node.version)
+                    self.expires, self.version, PUBLIC_KEY, self.name,
+                    self.meta, self.signature, self.node.version)
         lookup._handle_response(uuid, contact, msg)
         # Ensure the lookup has fired.
         self.assertTrue(lookup.called)
@@ -773,10 +773,10 @@ class TestNodeLookup(unittest.TestCase):
         key = construct_key(PUBLIC_KEY, 'foo')
         signature = generate_signature(self.value, self.timestamp,
                                        self.expires, 'foo', self.meta,
-                                       PRIVATE_KEY)
+                                       self.version, PRIVATE_KEY)
         msg = Value(uuid, self.node.id, key, self.value, self.timestamp,
-                    self.expires, PUBLIC_KEY, self.name, self.meta,
-                    signature, self.node.version)
+                    self.expires, self.version, PUBLIC_KEY, self.name,
+                    self.meta, signature, self.node.version)
         lookup._blacklist = MagicMock()
         ex = self.assertRaises(ValueError, lookup._handle_response, uuid,
                                contact, msg)
@@ -805,10 +805,10 @@ class TestNodeLookup(unittest.TestCase):
         expires = timestamp + 10
         signature = generate_signature(self.value, self.timestamp,
                                        self.expires, 'foo', self.meta,
-                                       PRIVATE_KEY)
+                                       self.version, PRIVATE_KEY)
         msg = Value(uuid, self.node.id, self.key, self.value, timestamp,
-                    expires, PUBLIC_KEY, self.name, self.meta, signature,
-                    self.node.version)
+                    expires, self.version, PUBLIC_KEY, self.name, self.meta,
+                    signature, self.node.version)
         ex = self.assertRaises(ValueError, lookup._handle_response, uuid,
                                contact, msg)
         self.assertEqual('Expired value returned by %r' % contact,
@@ -1098,15 +1098,6 @@ class TestNode(unittest.TestCase):
         self.clock = task.Clock()
         reactor.callLater = self.clock.callLater
         self.value = 'value'
-        self.signature = ('\x882f\xf9A\xcd\xf9\xb1\xcc\xdbl\x1c\xb2\xdb' +
-                          '\xa3UQ\x9a\x08\x96\x12\x83^d\xd8M\xc2`\x81Hz' +
-                          '\x84~\xf4\x9d\x0e\xbd\x81\xc4/\x94\x9dfg\xb2aq' +
-                          '\xa6\xf8!k\x94\x0c\x9b\xb5\x8e \xcd\xfb\x87' +
-                          '\x83`wu\xeb\xf2\x19\xd6X\xdd\xb3\x98\xb5\xbc#B' +
-                          '\xe3\n\x85G\xb4\x9c\x9b\xb0-\xd2B\x83W\xb8\xca' +
-                          '\xecv\xa9\xc4\x9d\xd8\xd0\xf1&\x1a\xfaw\xa0\x99' +
-                          '\x1b\x84\xdad$\xebO\x1a\x9e:w\x14d_\xe3\x03#\x95' +
-                          '\x9d\x10B\xe7\x13')
         self.uuid = str(uuid4())
         self.timestamp = 1350544046.084875
         self.expires = 1352221970.14242
@@ -1115,6 +1106,10 @@ class TestNode(unittest.TestCase):
         self.version = get_version()
         self.key = construct_key(PUBLIC_KEY, self.name)
         self.target_key = long_to_hex(100)
+        self.signature = generate_signature(self.value, self.timestamp,
+                                            self.expires, self.name,
+                                            self.meta, self.version,
+                                            PRIVATE_KEY)
         node_list = []
         for i in range(101, 121):
             contact_id = long_to_hex(i)
@@ -1247,8 +1242,8 @@ class TestNode(unittest.TestCase):
         self.node.handle_store = MagicMock()
         # Create a simple Store message.
         msg = Store(self.uuid, self.node.id, self.key, self.value,
-                    self.timestamp, self.expires, PUBLIC_KEY, self.name,
-                    self.meta, self.signature, self.version)
+                    self.timestamp, self.expires, self.version, PUBLIC_KEY,
+                    self.name, self.meta, self.signature, self.version)
         # Receive it...
         self.node.message_received(msg, self.protocol)
         # Dummy contact.
@@ -1315,8 +1310,8 @@ class TestNode(unittest.TestCase):
         # Create a Value message.
         uuid = str(uuid4())
         msg = Value(uuid, self.node.id, self.key, self.value, self.timestamp,
-                    self.expires, PUBLIC_KEY, self.name, self.meta,
-                    self.signature, self.node.version)
+                    self.expires, self.version, PUBLIC_KEY, self.name,
+                    self.meta, self.signature, self.node.version)
         # Receive it...
         self.node.message_received(msg, self.protocol)
         # Dummy contact.
@@ -1381,8 +1376,8 @@ class TestNode(unittest.TestCase):
         self.protocol.sendMessage = MagicMock()
         # Create a fake contact and valid message.
         msg = Store(self.uuid, self.node.id, self.key, self.value,
-                    self.timestamp, self.expires, PUBLIC_KEY, self.name,
-                    self.meta, self.signature, self.version)
+                    self.timestamp, self.expires, self.version, PUBLIC_KEY,
+                    self.name, self.meta, self.signature, self.version)
         other_node = Contact(self.node.id, '127.0.0.1', 1908,
                              self.version, time.time())
         self.node.handle_store(msg, self.protocol, other_node)
@@ -1391,22 +1386,22 @@ class TestNode(unittest.TestCase):
     @patch('drogulus.dht.node.reactor.callLater')
     def test_handle_store(self, mock_call_later):
         """
-        Ensures a correct Store message is handled correctly.
+        Ensures a valid Store message is handled correctly.
         """
         # Mock
         self.protocol.sendMessage = MagicMock()
         # Incoming message and peer
         msg = Store(self.uuid, self.node.id, self.key, self.value,
-                    self.timestamp, self.expires, PUBLIC_KEY, self.name,
-                    self.meta, self.signature, self.version)
+                    self.timestamp, self.expires, self.version, PUBLIC_KEY,
+                    self.name, self.meta, self.signature, self.version)
         other_node = Contact(self.node.id, '127.0.0.1', 1908,
                              self.version, time.time())
         self.node.handle_store(msg, self.protocol, other_node)
         # Ensure the message is in local storage.
         self.assertIn(self.key, self.node._data_store)
-        # Ensure call_later has been called to replicate the value.
+        # Ensure call_later has been called to republish the value.
         mock_call_later.assert_called_once_with(REPLICATE_INTERVAL,
-                                                self.node.replicate,
+                                                self.node.republish,
                                                 msg)
         # Ensure the response is a Pong message.
         result = Pong(self.uuid, self.node.id, self.version)
@@ -1422,23 +1417,19 @@ class TestNode(unittest.TestCase):
         """
         # Create existing up-to-date value
         newer_msg = Store(self.uuid, self.node.id, self.key, self.value,
-                          self.timestamp, self.expires, PUBLIC_KEY, self.name,
-                          self.meta, self.signature, self.version)
+                          self.timestamp, self.expires, self.version,
+                          PUBLIC_KEY, self.name, self.meta, self.signature,
+                          self.version)
         self.node._data_store.set_item(newer_msg.key, newer_msg)
         # Incoming message and peer
         old_timestamp = self.timestamp - 9999
         old_value = 'old value'
-        old_sig = ('\t^#F:\x0c;\r{Z\xbd$\xe4\xffz}\xb6Q\xb3g6\xca,\xe8' +
-                   '\xe4eY<g\x92tN\x8f\xbe\x8fs|\xdf\xe5O\xc6eZ\xef\xf5' +
-                   '\xd8\xab?g\xd7y\x81\xbeB\\\xe0=\xd1{\xcc\x0f%#\x9ad' +
-                   '\xcf\xea\xbd\x95\x0e\xed\xd7\x98\xfc\x85O\x81\x15' +
-                   '\x18/\xcb\xa0\x01\x1f+\x12\x8e\xdc\xbf\x9a\r\xd6\xfb' +
-                   '\xe0\xab\xc9\xff\xb5\xe5\x18\xb8\xe9\x8c\x13\xd1\xa5' +
-                   '\xba\xeb\xfa\xce\xaaT\xc8\x8c:\xcd\xc7\x0c\xfdCD\x00' +
-                   '\xd9\x93\xfeo><')
+        old_sig = generate_signature(old_value, old_timestamp, self.expires,
+                                     self.name, self.meta, self.version,
+                                     PRIVATE_KEY)
         old_msg = Store(self.uuid, self.node.id, self.key, old_value,
-                        old_timestamp, self.expires, PUBLIC_KEY, self.name,
-                        self.meta, old_sig, self.version)
+                        old_timestamp, self.expires, self.version, PUBLIC_KEY,
+                        self.name, self.meta, old_sig, self.version)
         other_node = Contact(self.node.id, '127.0.0.1', 1908,
                              self.version, time.time())
         # Check for the expected exception.
@@ -1465,24 +1456,20 @@ class TestNode(unittest.TestCase):
         # Create existing up-to-date value
         old_timestamp = self.timestamp - 9999
         old_value = 'old value'
-        old_sig = ('\t^#F:\x0c;\r{Z\xbd$\xe4\xffz}\xb6Q\xb3g6\xca,\xe8' +
-                   '\xe4eY<g\x92tN\x8f\xbe\x8fs|\xdf\xe5O\xc6eZ\xef\xf5' +
-                   '\xd8\xab?g\xd7y\x81\xbeB\\\xe0=\xd1{\xcc\x0f%#\x9ad' +
-                   '\xcf\xea\xbd\x95\x0e\xed\xd7\x98\xfc\x85O\x81\x15' +
-                   '\x18/\xcb\xa0\x01\x1f+\x12\x8e\xdc\xbf\x9a\r\xd6\xfb' +
-                   '\xe0\xab\xc9\xff\xb5\xe5\x18\xb8\xe9\x8c\x13\xd1\xa5' +
-                   '\xba\xeb\xfa\xce\xaaT\xc8\x8c:\xcd\xc7\x0c\xfdCD\x00' +
-                   '\xd9\x93\xfeo><')
+        old_sig = generate_signature(old_value, old_timestamp, self.expires,
+                                     self.name, self.meta, self.version,
+                                     PRIVATE_KEY)
         old_msg = Store(self.uuid, self.node.id, self.key, old_value,
-                        old_timestamp, self.expires, PUBLIC_KEY, self.name,
-                        self.meta, old_sig, self.version)
+                        old_timestamp, self.expires, self.version, PUBLIC_KEY,
+                        self.name, self.meta, old_sig, self.version)
         self.node._data_store.set_item(old_msg.key, old_msg)
         self.assertIn(self.key, self.node._data_store)
         self.assertEqual(old_msg, self.node._data_store[self.key])
         # Incoming message and peer
         new_msg = Store(self.uuid, self.node.id, self.key, self.value,
-                        self.timestamp, self.expires, PUBLIC_KEY, self.name,
-                        self.meta, self.signature, self.version)
+                        self.timestamp, self.expires, self.version,
+                        PUBLIC_KEY, self.name, self.meta, self.signature,
+                        self.version)
         other_node = Contact(self.node.id, '127.0.0.1', 1908,
                              self.version, time.time())
         # Store the new version of the message.
@@ -1500,8 +1487,8 @@ class TestNode(unittest.TestCase):
         """
         # Incoming message and peer
         msg = Store(self.uuid, self.node.id, self.key, 'wrong value',
-                    self.timestamp, self.expires, PUBLIC_KEY, self.name,
-                    self.meta, self.signature, self.version)
+                    self.timestamp, self.expires, self.version, PUBLIC_KEY,
+                    self.name, self.meta, self.signature, self.version)
         other_node = Contact('12345678abc', '127.0.0.1', 1908,
                              self.version, time.time())
         self.node._routing_table.add_contact(other_node)
@@ -1534,8 +1521,8 @@ class TestNode(unittest.TestCase):
         self.protocol.transport.loseConnection = MagicMock()
         # Incoming message and peer
         msg = Store(self.uuid, self.node.id, self.key, self.value,
-                    self.timestamp, self.expires, PUBLIC_KEY, self.name,
-                    self.meta, self.signature, self.version)
+                    self.timestamp, self.expires, self.version, PUBLIC_KEY,
+                    self.name, self.meta, self.signature, self.version)
         other_node = Contact(self.node.id, '127.0.0.1', 1908,
                              self.version, time.time())
         self.node.handle_store(msg, self.protocol, other_node)
@@ -1587,8 +1574,8 @@ class TestNode(unittest.TestCase):
         """
         # Store value.
         val = Store(self.uuid, self.node.id, self.key, self.value,
-                    self.timestamp, self.expires, PUBLIC_KEY, self.name,
-                    self.meta, self.signature, self.version)
+                    self.timestamp, self.expires, self.version, PUBLIC_KEY,
+                    self.name, self.meta, self.signature, self.version)
         self.node._data_store.set_item(val.key, val)
         # Mock
         self.protocol.sendMessage = MagicMock()
@@ -1597,8 +1584,9 @@ class TestNode(unittest.TestCase):
         self.node.handle_find_value(msg, self.protocol)
         # Check the response sent back
         result = Value(msg.uuid, self.node.id, val.key, val.value,
-                       val.timestamp, val.expires, val.public_key, val.name,
-                       val.meta, val.sig, val.version)
+                       val.timestamp, val.expires, val.created_with,
+                       val.public_key, val.name, val.meta, val.sig,
+                       val.version)
         self.protocol.sendMessage.assert_called_once_with(result, True)
 
     def test_handle_find_value_no_match(self):
@@ -1622,8 +1610,8 @@ class TestNode(unittest.TestCase):
         """
         # Store value.
         val = Store(self.uuid, self.node.id, self.key, self.value,
-                    self.timestamp, self.expires, PUBLIC_KEY, self.name,
-                    self.meta, self.signature, self.version)
+                    self.timestamp, self.expires, self.version, PUBLIC_KEY,
+                    self.name, self.meta, self.signature, self.version)
         self.node._data_store.set_item(val.key, val)
         # Mock
         self.protocol.transport.loseConnection = MagicMock()
@@ -1665,8 +1653,8 @@ class TestNode(unittest.TestCase):
         other_node = Contact(self.node.id, '127.0.0.1', 1908,
                              self.version, time.time())
         msg = Value(self.uuid, self.node.id, self.key, self.value,
-                    self.timestamp, self.expires, PUBLIC_KEY, self.name,
-                    self.meta, self.signature, self.node.version)
+                    self.timestamp, self.expires, self.version, PUBLIC_KEY,
+                    self.name, self.meta, self.signature, self.node.version)
         # Handle it.
         self.node.handle_value(msg, other_node)
         mock_validator.assert_called_once_with(msg)
@@ -1682,8 +1670,8 @@ class TestNode(unittest.TestCase):
         other_node = Contact(self.node.id, '127.0.0.1', 1908,
                              self.version, time.time())
         msg = Value(self.uuid, self.node.id, self.key, self.value,
-                    self.timestamp, self.expires, PUBLIC_KEY, self.name,
-                    self.meta, self.signature, self.node.version)
+                    self.timestamp, self.expires, self.version, PUBLIC_KEY,
+                    self.name, self.meta, self.signature, self.node.version)
         # Handle it.
         self.node.handle_value(msg, other_node)
         self.node.trigger_deferred.assert_called_once_with(msg)
@@ -1703,8 +1691,8 @@ class TestNode(unittest.TestCase):
         other_node = Contact(self.node.id, '127.0.0.1', 1908,
                              self.version, time.time())
         msg = Value(self.uuid, self.node.id, self.key, 'bad_value',
-                    self.timestamp, self.expires, PUBLIC_KEY, self.name,
-                    self.meta, self.signature, self.node.version)
+                    self.timestamp, self.expires, self.version, PUBLIC_KEY,
+                    self.name, self.meta, self.signature, self.node.version)
         # Handle it.
         self.node.handle_value(msg, other_node)
         # Logger was called twice.
@@ -2043,7 +2031,7 @@ class TestNode(unittest.TestCase):
         contact = Contact(self.node.id, '127.0.0.1', 54321, self.version)
         self.node.send_store(contact, PUBLIC_KEY, self.name, self.value,
                              self.timestamp, self.expires, self.meta,
-                             self.signature)
+                             self.version, self.signature)
         mock.assert_called_once_with(PUBLIC_KEY, self.name)
 
     def test_send_store_calls_send_message(self):
@@ -2054,7 +2042,7 @@ class TestNode(unittest.TestCase):
         contact = Contact(self.node.id, '127.0.0.1', 54321, self.version)
         self.node.send_store(contact, PUBLIC_KEY, self.name, self.value,
                              self.timestamp, self.expires, self.meta,
-                             self.signature)
+                             self.version, self.signature)
         self.assertEqual(1, self.node.send_message.call_count)
 
     def test_send_store_creates_expected_store_message(self):
@@ -2064,8 +2052,8 @@ class TestNode(unittest.TestCase):
         self.node.send_message = MagicMock()
         contact = Contact(self.node.id, '127.0.0.1', 54321, self.version)
         self.node.send_store(contact, PUBLIC_KEY, self.name, self.value,
-                             self.timestamp, self.expires, self.meta,
-                             self.signature)
+                             self.timestamp, self.expires, self.version,
+                             self.meta, self.signature)
         self.assertEqual(1, self.node.send_message.call_count)
         called_contact = self.node.send_message.call_args[0][0]
         self.assertEqual(called_contact, contact)
@@ -2077,6 +2065,7 @@ class TestNode(unittest.TestCase):
         self.assertEqual(message_to_send.value, self.value)
         self.assertEqual(message_to_send.timestamp, self.timestamp)
         self.assertEqual(message_to_send.expires, self.expires)
+        self.assertEqual(message_to_send.created_with, self.version)
         self.assertEqual(message_to_send.public_key, PUBLIC_KEY)
         self.assertEqual(message_to_send.name, self.name)
         self.assertEqual(message_to_send.meta, self.meta)
@@ -2145,7 +2134,8 @@ class TestNode(unittest.TestCase):
         result = self.node._process_lookup_result(self.nodes, PUBLIC_KEY,
                                                   self.name, self.value,
                                                   self.timestamp, self.expires,
-                                                  self.meta, self.signature, 3)
+                                                  self.meta, self.version,
+                                                  self.signature, 3)
         self.assertIsInstance(result, list)
         self.assertEqual(3, len(result))
 
@@ -2158,7 +2148,7 @@ class TestNode(unittest.TestCase):
         self.node._process_lookup_result(self.nodes, PUBLIC_KEY, self.name,
                                          self.value, self.timestamp,
                                          self.expires, self.meta,
-                                         self.signature, 3)
+                                         self.version, self.signature, 3)
         self.assertEqual(3, self.node.send_store.call_count)
         self.assertEqual(self.nodes[0],
                          self.node.send_store.call_args_list[0][0][0])
@@ -2174,8 +2164,10 @@ class TestNode(unittest.TestCase):
                          self.node.send_store.call_args_list[0][0][5])
         self.assertEqual(self.meta,
                          self.node.send_store.call_args_list[0][0][6])
-        self.assertEqual(self.signature,
+        self.assertEqual(self.version,
                          self.node.send_store.call_args_list[0][0][7])
+        self.assertEqual(self.signature,
+                         self.node.send_store.call_args_list[0][0][8])
 
     def test_process_lookup_result_uses_closest_nodes(self):
         """
@@ -2186,7 +2178,7 @@ class TestNode(unittest.TestCase):
         self.node._process_lookup_result(self.nodes, PUBLIC_KEY, self.name,
                                          self.value, self.timestamp,
                                          self.expires, self.meta,
-                                         self.signature, 3)
+                                         self.version, self.signature, 3)
         self.assertEqual(3, self.node.send_store.call_count)
         for i in range(3):
             self.assertEqual(self.nodes[i].id,
@@ -2201,7 +2193,8 @@ class TestNode(unittest.TestCase):
         patcher.start()
         result = self.node.replicate(PUBLIC_KEY, self.name, self.value,
                                      self.timestamp, self.expires, self.meta,
-                                     self.signature, DUPLICATION_COUNT)
+                                     self.version, self.signature,
+                                     DUPLICATION_COUNT)
         self.assertIsInstance(result, defer.Deferred)
         # Tidy up.
         patcher.stop()
@@ -2212,7 +2205,8 @@ class TestNode(unittest.TestCase):
         """
         ex = self.assertRaises(ValueError, self.node.replicate, PUBLIC_KEY,
                                self.name, self.value, self.timestamp,
-                               self.expires, self.meta, self.signature, 0)
+                               self.expires, self.meta, self.version,
+                               self.signature, 0)
         self.assertEqual('Duplication count may not be less than 1',
                          ex.message)
 
@@ -2224,8 +2218,8 @@ class TestNode(unittest.TestCase):
         patcher = patch('drogulus.dht.node.NodeLookup')
         mock_lookup = patcher.start()
         self.node.replicate(PUBLIC_KEY, self.name, self.value, self.timestamp,
-                            self.expires, self.meta, self.signature,
-                            DUPLICATION_COUNT)
+                            self.expires, self.meta, self.version,
+                            self.signature, DUPLICATION_COUNT)
         self.assertEqual(1, mock_lookup.call_count)
         expected_target = construct_key(PUBLIC_KEY, self.name)
         self.assertEqual(expected_target, mock_lookup.call_args[0][0])
@@ -2258,7 +2252,8 @@ class TestNode(unittest.TestCase):
         self.node.send_find = MagicMock(side_effect=side_effect)
         result = self.node.replicate(PUBLIC_KEY, self.name, self.value,
                                      self.timestamp, self.expires, self.meta,
-                                     self.signature, DUPLICATION_COUNT)
+                                     self.version, self.signature,
+                                     DUPLICATION_COUNT)
 
         def check_callback(items):
             """
@@ -2279,7 +2274,8 @@ class TestNode(unittest.TestCase):
         # Will fail because self.node's routing table is empty.
         result = self.node.replicate(PUBLIC_KEY, self.name, self.value,
                                      self.timestamp, self.expires, self.meta,
-                                     self.signature, DUPLICATION_COUNT)
+                                     self.version, self.signature,
+                                     DUPLICATION_COUNT)
 
         def check_errback(error):
             """
@@ -2335,16 +2331,17 @@ class TestNode(unittest.TestCase):
 
         self.node.send_store = MagicMock()
         msg = Value(str(uuid4()), key, self.key, self.value, self.timestamp,
-                    self.expires, PUBLIC_KEY, self.name, self.meta,
-                    self.signature, self.node.version)
+                    self.expires, self.version, PUBLIC_KEY, self.name,
+                    self.meta, self.signature, self.node.version)
         lookup.callback(msg)
         self.assertEqual(1, self.node.send_store.call_count)
         closest_contact = lookup.shortlist[0]
         self.node.send_store.assert_called_once_with(closest_contact,
                                                      msg.public_key, msg.name,
                                                      msg.value, msg.timestamp,
-                                                     msg.expires, msg.meta,
-                                                     msg.sig)
+                                                     msg.expires,
+                                                     msg.created_with,
+                                                     msg.meta, msg.sig)
 
         def callback_checker(result):
             """

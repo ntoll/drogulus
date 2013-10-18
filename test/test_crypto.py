@@ -67,15 +67,14 @@ class TestMessageCryptoFunctions(unittest.TestCase):
         """
         Set some values used in all tests.
         """
-        self.signature = ('\x882f\xf9A\xcd\xf9\xb1\xcc\xdbl\x1c\xb2\xdb' +
-                          '\xa3UQ\x9a\x08\x96\x12\x83^d\xd8M\xc2`\x81Hz' +
-                          '\x84~\xf4\x9d\x0e\xbd\x81\xc4/\x94\x9dfg\xb2aq' +
-                          '\xa6\xf8!k\x94\x0c\x9b\xb5\x8e \xcd\xfb\x87' +
-                          '\x83`wu\xeb\xf2\x19\xd6X\xdd\xb3\x98\xb5\xbc#B' +
-                          '\xe3\n\x85G\xb4\x9c\x9b\xb0-\xd2B\x83W\xb8\xca' +
-                          '\xecv\xa9\xc4\x9d\xd8\xd0\xf1&\x1a\xfaw\xa0\x99' +
-                          '\x1b\x84\xdad$\xebO\x1a\x9e:w\x14d_\xe3\x03#\x95' +
-                          '\x9d\x10B\xe7\x13')
+        self.signature = ('\x80 \xf6\x155\x93Z\xdf1t*\xc6\xc8b\x9b~\xc0\xa6' +
+                          '\xf8\xa7\xc0\xd5\x91\xa2Q\xd7\\\xd1\x1a\x0eX' +
+                          '\x855>\xc4\xa3\xa1l\xe26\x9d\x94\x9f\x92\t\xf8' +
+                          '\x8f\xe6iblp\x84}\x0cc(\xb7c\xba\x97J\x87u\x9f' +
+                          '\xd6\x1a]A\x870\x1df\xe8i\xe8\xbe\xf2\xc6\x8f' +
+                          '\xd0\x8f\xd18\xb8\\\xbc\x01\x1a\x1fP\xd6I\x06' +
+                          '\xf3K\xb1\x1e@\xc4ma61\xd4\x12\xf4!\x9dm3\x01n' +
+                          '\x17\xbcr\xe0\xf4Y-\xc7=\x87\xc4Xv\x84\xfa')
         self.value = 'value'
         self.timestamp = 1350544046.084875
         self.expires = 1352221970.14242
@@ -92,11 +91,13 @@ class TestMessageCryptoFunctions(unittest.TestCase):
         """
         expected = self.signature
         actual = generate_signature(self.value, self.timestamp, self.expires,
-                                    self.name, self.meta, PRIVATE_KEY)
+                                    self.name, self.meta, self.version,
+                                    PRIVATE_KEY)
         self.assertEqual(expected, actual)
         # Check the resulting signature can be validated with the public key
         check = validate_signature(self.value, self.timestamp, self.expires,
-                                   self.name, self.meta, expected, PUBLIC_KEY)
+                                   self.name, self.meta, self.version,
+                                   expected, PUBLIC_KEY)
         self.assertEqual(True, check)
 
     def test_validate_signature(self):
@@ -105,8 +106,8 @@ class TestMessageCryptoFunctions(unittest.TestCase):
         validate_signature returns True for the correct public key.
         """
         check = validate_signature(self.value, self.timestamp, self.expires,
-                                   self.name, self.meta, self.signature,
-                                   PUBLIC_KEY)
+                                   self.name, self.meta, self.version,
+                                   self.signature, PUBLIC_KEY)
         self.assertEqual(True, check)
 
     def test_validate_signature_bad_sig(self):
@@ -115,7 +116,8 @@ class TestMessageCryptoFunctions(unittest.TestCase):
         """
         signature = 'helloworld'
         check = validate_signature(self.value, self.timestamp, self.expires,
-                                   self.name, self.meta, signature, PUBLIC_KEY)
+                                   self.name, self.meta, self.version,
+                                   signature, PUBLIC_KEY)
         self.assertEqual(False, check)
 
     def test_validate_signature_bad_public_key(self):
@@ -124,8 +126,8 @@ class TestMessageCryptoFunctions(unittest.TestCase):
         results in False.
         """
         check = validate_signature(self.value, self.timestamp, self.expires,
-                                   self.name, self.meta, self.signature,
-                                   BAD_PUBLIC_KEY)
+                                   self.name, self.meta, self.version,
+                                   self.signature, BAD_PUBLIC_KEY)
         self.assertEqual(False, check)
 
     def test_validate_signature_wrong_public_key(self):
@@ -134,8 +136,8 @@ class TestMessageCryptoFunctions(unittest.TestCase):
         results in False.
         """
         check = validate_signature(self.value, self.timestamp, self.expires,
-                                   self.name, self.meta, self.signature,
-                                   ALT_PUBLIC_KEY)
+                                   self.name, self.meta, self.version,
+                                   self.signature, ALT_PUBLIC_KEY)
         self.assertEqual(False, check)
 
     def test_validate_message_good(self):
@@ -143,8 +145,8 @@ class TestMessageCryptoFunctions(unittest.TestCase):
         Ensures the validate_message function returns True for a valid message.
         """
         val = Value(1, 1, self.key, self.value, self.timestamp, self.expires,
-                    PUBLIC_KEY, self.name, self.meta, self.signature,
-                    self.version)
+                    self.version, PUBLIC_KEY, self.name, self.meta,
+                    self.signature, self.version)
         expected = (True, None)
         actual = validate_message(val)
         self.assertEqual(expected, actual)
@@ -155,8 +157,8 @@ class TestMessageCryptoFunctions(unittest.TestCase):
         value field has been altered.
         """
         val = Value(1, 1, self.key, 'bad_value', self.timestamp, self.expires,
-                    PUBLIC_KEY, self.name, self.meta, self.signature,
-                    self.version)
+                    self.version, PUBLIC_KEY, self.name, self.meta,
+                    self.signature, self.version)
         expected = (False, 6)
         actual = validate_message(val)
         self.assertEqual(expected, actual)
@@ -167,8 +169,8 @@ class TestMessageCryptoFunctions(unittest.TestCase):
         timestamp field has been altered.
         """
         val = Value(1, 1, self.key, self.value, 1350544046.084876,
-                    self.expires, PUBLIC_KEY, self.name, self.meta,
-                    self.signature, self.version)
+                    self.expires, self.version, PUBLIC_KEY, self.name,
+                    self.meta, self.signature, self.version)
         expected = (False, 6)
         actual = validate_message(val)
         self.assertEqual(expected, actual)
@@ -179,8 +181,20 @@ class TestMessageCryptoFunctions(unittest.TestCase):
         expires field has been altered.
         """
         val = Value(1, 1, self.key, self.value, self.timestamp, 0.0,
-                    PUBLIC_KEY, self.name, self.meta, self.signature,
-                    self.version)
+                    self.version, PUBLIC_KEY, self.name, self.meta,
+                    self.signature, self.version)
+        expected = (False, 6)
+        actual = validate_message(val)
+        self.assertEqual(expected, actual)
+
+    def test_validate_message_wrong_created_with(self):
+        """
+        Ensures the validate_message function returns False if the message's
+        created_with field has been altered.
+        """
+        val = Value(1, 1, self.key, self.value, self.timestamp, self.expires,
+                    '1.1.foo', PUBLIC_KEY, self.name, self.meta,
+                    self.signature, self.version)
         expected = (False, 6)
         actual = validate_message(val)
         self.assertEqual(expected, actual)
@@ -191,8 +205,8 @@ class TestMessageCryptoFunctions(unittest.TestCase):
         name field has been altered.
         """
         val = Value(1, 1, self.key, self.value, self.timestamp, self.expires,
-                    PUBLIC_KEY, 'bad_name', self.meta, self.signature,
-                    self.version)
+                    self.version, PUBLIC_KEY, 'bad_name', self.meta,
+                    self.signature, self.version)
         expected = (False, 6)
         actual = validate_message(val)
         self.assertEqual(expected, actual)
@@ -203,8 +217,8 @@ class TestMessageCryptoFunctions(unittest.TestCase):
         meta field has been altered.
         """
         val = Value(1, 1, self.key, self.value, self.timestamp, self.expires,
-                    PUBLIC_KEY, self.name, {'bad_meta': 'value'},
-                    self.signature, self.version)
+                    self.version, PUBLIC_KEY, self.name,
+                    {'bad_meta': 'value'}, self.signature, self.version)
         expected = (False, 6)
         actual = validate_message(val)
         self.assertEqual(expected, actual)
@@ -215,8 +229,8 @@ class TestMessageCryptoFunctions(unittest.TestCase):
         because of a bad public key.
         """
         val = Value(1, 1, self.key, self.value, self.timestamp, self.expires,
-                    ALT_PUBLIC_KEY, self.name, self.meta, self.signature,
-                    self.version)
+                    self.version, ALT_PUBLIC_KEY, self.name, self.meta,
+                    self.signature, self.version)
         expected = (False, 6)
         actual = validate_message(val)
         self.assertEqual(expected, actual)
@@ -234,8 +248,8 @@ class TestMessageCryptoFunctions(unittest.TestCase):
                          '\xdd\x8a\xe8\xfd\xaf\xcbRn\xb7C\xb1q\x13c\xc9' +
                          '\x89@w\xac\xc4\xf8\x87\x9ct\x1a\xa6')
         val = Value(1, 1, self.key, self.value, self.timestamp, self.expires,
-                    PUBLIC_KEY, self.name, self.meta, bad_signature,
-                    self.version)
+                    self.version, PUBLIC_KEY, self.name, self.meta,
+                    bad_signature, self.version)
         expected = (False, 6)
         actual = validate_message(val)
         self.assertEqual(expected, actual)
@@ -247,8 +261,8 @@ class TestMessageCryptoFunctions(unittest.TestCase):
         """
         key = construct_key(ALT_PUBLIC_KEY, 'name')
         val = Value(1, 1, key, self.value, self.timestamp, self.expires,
-                    PUBLIC_KEY, self.name, self.meta, self.signature,
-                    self.version)
+                    self.version, PUBLIC_KEY, self.name, self.meta,
+                    self.signature, self.version)
         expected = (False, 7)
         actual = validate_message(val)
         self.assertEqual(expected, actual)
@@ -260,8 +274,8 @@ class TestMessageCryptoFunctions(unittest.TestCase):
         """
         key = construct_key(PUBLIC_KEY, 'wrong_name')
         val = Value(1, 1, key, self.value, self.timestamp, self.expires,
-                    PUBLIC_KEY, self.name, self.meta, self.signature,
-                    self.version)
+                    self.version, PUBLIC_KEY, self.name, self.meta,
+                    self.signature, self.version)
         expected = (False, 7)
         actual = validate_message(val)
         self.assertEqual(expected, actual)
@@ -275,8 +289,9 @@ class TestMessageCryptoFunctions(unittest.TestCase):
         expires = timestamp + 1000
         name = 'bar'
         meta = {'baz': 'qux'}
+        created_with = '0.0.0.alpha.0'
         hashes = []
-        for item in (value, timestamp, expires, name, meta):
+        for item in (value, timestamp, expires, name, meta, created_with):
             packed = msgpack.packb(item)
             hasher = hashlib.sha512()
             hasher.update(packed)
@@ -285,7 +300,8 @@ class TestMessageCryptoFunctions(unittest.TestCase):
         hasher = hashlib.sha512()
         hasher.update(compound_hashes)
         expected = hasher.digest()
-        actual = construct_hash(value, timestamp, expires, name, meta)
+        actual = construct_hash(value, timestamp, expires, name, meta,
+                                created_with)
         self.assertEqual(expected, actual.digest())
 
     def test_construct_key(self):

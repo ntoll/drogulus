@@ -584,8 +584,6 @@ class Node(object):
             protocol.sendMessage(pong, True)
             # At some future time attempt to replicate the Store message
             # around the network IF it is within the message's expiry time.
-            raise Exception("FIX ME!")
-            # Need to check that callLater is called as part of the tests.
             reactor.callLater(constants.REPLICATE_INTERVAL,
                               self.republish, message)
         else:
@@ -626,8 +624,9 @@ class Node(object):
         match = self._data_store.get(message.key, False)
         if match:
             result = Value(message.uuid, self.id, match.key, match.value,
-                           match.timestamp, match.expires, match.public_key,
-                           match.name, match.meta, match.sig, match.version)
+                           match.timestamp, match.expires, match.created_with,
+                           match.public_key, match.name, match.meta, match.sig,
+                           match.version)
             protocol.sendMessage(result, True)
         else:
             self.handle_find_node(message, protocol)
@@ -680,7 +679,7 @@ class Node(object):
         return self.send_message(contact, ping)
 
     def send_store(self, contact, public_key, name, value, timestamp, expires,
-                   meta, signature):
+                   created_with, meta, signature):
         """
         Sends a Store message to the given contact. The value contained within
         the message is stored against a key derived from the public_key and
@@ -690,7 +689,8 @@ class Node(object):
         uuid = str(uuid4())
         compound_key = construct_key(public_key, name)
         store = Store(uuid, self.id, compound_key, value, timestamp, expires,
-                      public_key, name, meta, signature, self.version)
+                      created_with, public_key, name, meta, signature,
+                      self.version)
         return self.send_message(contact, store)
 
     def send_find(self, contact, target, message_type):
@@ -705,7 +705,8 @@ class Node(object):
         return (new_uuid, deferred)
 
     def _process_lookup_result(self, nearest_nodes, public_key, name, value,
-                               timestamp, expires, meta, signature, length):
+                               timestamp, expires, created_with, meta,
+                               signature, length):
         """
         Given a list of nearest nodes will return a list of send_store based
         deferreds for the item to be stored in the DHT. The list will contain
@@ -714,12 +715,13 @@ class Node(object):
         list_of_deferreds = []
         for contact in nearest_nodes[:length]:
             deferred = self.send_store(contact, public_key, name, value,
-                                       timestamp, expires, meta, signature)
+                                       timestamp, expires, created_with,
+                                       meta, signature)
             list_of_deferreds.append(deferred)
         return list_of_deferreds
 
-    def replicate(self, public_key, name, value, timestamp, expires, meta,
-                  signature, duplicate):
+    def replicate(self, public_key, name, value, timestamp, expires,
+                  created_with, meta, signature, duplicate):
         """
         Will replicate args to "duplicate" number of nodes in the distributed
         hash table. Returns a deferred that will fire with a list of send_store
@@ -748,7 +750,8 @@ class Node(object):
             """
             deferreds = self._process_lookup_result(nodes, public_key, name,
                                                     value, timestamp, expires,
-                                                    meta, signature, duplicate)
+                                                    created_with, meta,
+                                                    signature, duplicate)
             result.callback(deferreds)
 
         def on_error(error):
@@ -792,7 +795,8 @@ class Node(object):
                 log.msg("Caching to %r" % caching_contact)
                 self.send_store(caching_contact, result.public_key,
                                 result.name, result.value, result.timestamp,
-                                result.expires, result.meta, result.sig)
+                                result.expires, result.created_with,
+                                result.meta, result.sig)
             return result
 
         lookup.addCallback(cache)

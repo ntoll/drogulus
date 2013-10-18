@@ -85,7 +85,7 @@ class TestMessages(unittest.TestCase):
         Expected behaviour of a store message.
         """
         store = Store(self.uuid, self.node, 'abc123', 'value',
-                      1350544046.084875, 0.0, 'abcdefg', 'name',
+                      1350544046.084875, 0.0, '0.1', 'abcdefg', 'name',
                       {'meta': 'value'}, 'sig', '0.1')
         self.assertEqual(self.uuid, store.uuid)
         self.assertEqual(self.node, store.node)
@@ -93,6 +93,7 @@ class TestMessages(unittest.TestCase):
         self.assertEqual('value', store.value)
         self.assertEqual(1350544046.084875, store.timestamp)
         self.assertEqual(0.0, store.expires)
+        self.assertEqual('0.1', store.created_with)
         self.assertEqual('abcdefg', store.public_key)
         self.assertEqual('name', store.name)
         self.assertEqual({'meta': 'value'}, store.meta)
@@ -135,13 +136,15 @@ class TestMessages(unittest.TestCase):
         Expected behaviour of a value message.
         """
         val = Value(self.uuid, self.node, 'abc123', 'value', 1350544046.084875,
-                    0.0, 'abcdefg', 'name', {'meta': 'value'}, 'sig', '0.1')
+                    0.0, '0.1', 'abcdefg', 'name', {'meta': 'value'}, 'sig',
+                    '0.1')
         self.assertEqual(self.uuid, val.uuid)
         self.assertEqual(self.node, val.node)
         self.assertEqual('abc123', val.key)
         self.assertEqual('value', val.value)
         self.assertEqual(1350544046.084875, val.timestamp)
         self.assertEqual(0.0, val.expires)
+        self.assertEqual('0.1', val.created_with)
         self.assertEqual('abcdefg', val.public_key)
         self.assertEqual('name', val.name)
         self.assertEqual({'meta': 'value'}, val.meta)
@@ -171,14 +174,15 @@ class TestMessagePackConversion(unittest.TestCase):
             'mime': 'numeric',
             'description': 'a test value'
         }
-        self.sig = generate_signature(self.value, self.timestamp, self.expires,
-                                      self.name, self.meta, PRIVATE_KEY)
         self.version = '0.1'
+        self.sig = generate_signature(self.value, self.timestamp, self.expires,
+                                      self.name, self.meta, self.version,
+                                      PRIVATE_KEY)
         self.message = 'value'
         self.nodes = (('hash1', '127.0.0.1', 1908, '0.1'),
                      ('hash2', '0.0.0.0', 1908, '0.1'))
         self.mock_message = Value(self.uuid, self.node, self.key, self.value,
-                                  self.timestamp, self.expires,
+                                  self.timestamp, self.expires, self.version,
                                   self.public_key, self.name, self.meta,
                                   self.sig, self.version)
 
@@ -259,6 +263,7 @@ class TestMessagePackConversion(unittest.TestCase):
             'value': self.value,
             'timestamp': self.timestamp,
             'expires': self.expires,
+            'created_with': self.version,
             'public_key': self.public_key,
             'name': self.name,
             'meta': self.meta,
@@ -273,6 +278,7 @@ class TestMessagePackConversion(unittest.TestCase):
         self.assertEqual(result.value, self.value)
         self.assertEqual(result.timestamp, self.timestamp)
         self.assertEqual(result.expires, self.expires)
+        self.assertEqual(result.created_with, self.version)
         self.assertEqual(result.public_key, self.public_key)
         self.assertEqual(result.name, self.name)
         self.assertEqual(result.meta, self.meta)
@@ -345,6 +351,8 @@ class TestMessagePackConversion(unittest.TestCase):
         self.assertEqual(result.key, self.key)
         self.assertEqual(result.value, self.value)
         self.assertEqual(result.timestamp, self.timestamp)
+        self.assertEqual(result.expires, self.expires)
+        self.assertEqual(result.created_with, self.version)
         self.assertEqual(result.public_key, self.public_key)
         self.assertEqual(result.name, self.name)
         self.assertEqual(result.meta, self.meta)
