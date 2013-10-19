@@ -5,3 +5,4 @@
 * Ensure version changes are updated in the local routing table (node ids are hash of a hash of the public key and drogulus version).
 * Keep track of last access for a value in the local hash-table.
 * Ensure more recent value trumps older values.
+* Use SSH for inter-node communication.
