@@ -1,100 +1,99 @@
 # -*- coding: utf-8 -*-
 """
-Ensures details of contacts (other nodes on the network) are represented
+Ensures details of contacts (peer nodes on the network) are represented
 correctly.
 """
-from drogulus.dht.contact import Contact
+from hashlib import sha512
+from drogulus.dht.contact import PeerNode
 from drogulus.version import get_version
+from .keys import PUBLIC_KEY
 import unittest
 
 
-class TestContact(unittest.TestCase):
+class TestPeerNode(unittest.TestCase):
     """
-    Ensures the Contact class works as expected.
+    Ensures the PeerNode class works as expected.
     """
 
     def test_init(self):
         """
         Ensures an object is created as expected.
         """
-        id = '12345'
-        address = '192.168.0.1'
-        port = 9999
+        uri = 'netstring://192.168.0.1:9999'
         version = get_version()
         last_seen = 123
-        contact = Contact(id, address, port, version, last_seen)
-        self.assertEqual(id, contact.id)
-        self.assertEqual(address, contact.address)
-        self.assertEqual(port, contact.port)
+        contact = PeerNode(PUBLIC_KEY, version, uri, last_seen)
+        hex_digest = sha512(PUBLIC_KEY.encode('ascii')).hexdigest()
+        self.assertEqual(contact.network_id, hex_digest)
         self.assertEqual(version, contact.version)
+        self.assertEqual(uri, contact.uri)
         self.assertEqual(last_seen, contact.last_seen)
         self.assertEqual(0, contact.failed_RPCs)
-
-    def test_init_with_long_id(self):
-        """
-        If the ID is passed in as a long value ensure it's translated to the
-        correct string representation of the hex version.
-        """
-        id = 12345L
-        address = '192.168.0.1'
-        port = 9999
-        version = get_version()
-        last_seen = 123
-        contact = Contact(id, address, port, version, last_seen)
-        expected = '09'
-        self.assertEqual(expected, contact.id)
-        self.assertEqual(12345L, long(contact.id.encode('hex'), 16))
-
-    def test_init_with_int_id(self):
-        """
-        If the ID is passed in as an int value ensure it's translated to the
-        correct string representation of the hex version.
-        """
-        id = 12345
-        address = '192.168.0.1'
-        port = 9999
-        version = get_version()
-        last_seen = 123
-        contact = Contact(id, address, port, version, last_seen)
-        expected = '09'
-        self.assertEqual(expected, contact.id)
-        self.assertEqual(12345L, long(contact.id.encode('hex'), 16))
 
     def test_eq(self):
         """
         Makes sure equality works between a string representation of an ID and
-        a contact object.
+        a PeerNode object.
         """
-        id = '12345'
-        address = '192.168.0.1'
-        port = 9999
+        network_id = sha512(PUBLIC_KEY.encode('ascii')).hexdigest()
+        version = get_version()
+        uri = 'netstring://192.168.0.1:9999'
+        last_seen = 123
+        contact = PeerNode(PUBLIC_KEY, version, uri, last_seen)
+        self.assertTrue(network_id == contact)
+
+    def test_eq_other_peer(self):
+        """
+        Ensure equality works between two PeerNode instances.
+        """
+        uri = 'netstring://192.168.0.1:9999'
         version = get_version()
         last_seen = 123
-        contact = Contact(id, address, port, version, last_seen)
-        self.assertTrue(id == contact)
+        contact1 = PeerNode(PUBLIC_KEY, version, uri, last_seen)
+        contact2 = PeerNode(PUBLIC_KEY, version, uri, last_seen)
+        self.assertTrue(contact1 == contact2)
+
+    def test_eq_wrong_type(self):
+        """
+        Ensure equality returns false if comparing a PeerNode with some other
+        type of object.
+        """
+        uri = 'netstring://192.168.0.1:9999'
+        version = get_version()
+        last_seen = 123
+        contact = PeerNode(PUBLIC_KEY, version, uri, last_seen)
+        self.assertFalse(12345 == contact)
 
     def test_ne(self):
         """
         Makes sure non-equality works between a string representation of an ID
-        and a contact object.
+        and a PeerNode object.
         """
-        id = '12345'
-        address = '192.168.0.1'
-        port = 9999
+        uri = 'netstring://192.168.0.1:9999'
         version = get_version()
         last_seen = 123
-        contact = Contact(id, address, port, version, last_seen)
+        contact = PeerNode(PUBLIC_KEY, version, uri, last_seen)
         self.assertTrue('54321' != contact)
 
     def test_str(self):
         """
-        Ensures the string representation of a contact is something useful.
+        Ensures the string representation of a PeerContact is something
+        useful.
         """
-        id = '12345'
-        address = '192.168.0.1'
-        port = 9999
+        network_id = sha512(PUBLIC_KEY.encode('ascii')).hexdigest()
+        uri = 'netstring://192.168.0.1:9999'
         version = get_version()
         last_seen = 123
-        contact = Contact(id, address, port, version, last_seen)
-        expected = "('12345', '192.168.0.1', 9999, '%s', 123, 0)" % version
+        contact = PeerNode(PUBLIC_KEY, version, uri, last_seen)
+        expected = str((network_id, PUBLIC_KEY, version, uri, last_seen, 0))
+        self.maxDiff = None
         self.assertEqual(expected, str(contact))
+
+    def test_hash(self):
+        """
+        Ensure the hash for the object is correct.
+        """
+        uri = 'netstring://192.168.0.1:9999'
+        contact = PeerNode(PUBLIC_KEY, get_version(), uri, 0)
+        expected = hash(sha512(PUBLIC_KEY.encode('ascii')).hexdigest())
+        self.assertEqual(expected, hash(contact))

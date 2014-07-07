@@ -1,49 +1,34 @@
 # -*- coding: utf-8 -*-
 """
-Defines a contact (another node) on the network.
+Defines a peer node on the network.
 """
-
-# Copyright (C) 2012-2013 Nicholas H.Tollervey.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-from drogulus.utils import long_to_hex
+from hashlib import sha512
 
 
-class Contact(object):
+class PeerNode(object):
     """
-    Represents another known node on the network.
+    Represents another node on the network.
     """
 
-    def __init__(self, id, address, port, version, last_seen=0):
+    def __init__(self, public_key, version, uri, last_seen=0):
         """
-        Initialises the contact object with its unique id within the DHT, IP
-        address, port, the Drogulus version the contact is running and a
-        timestamp when the last connection was made with the contact (defaults
-        to 0). The id, if passed in as a numeric value, will be converted into
-        a hexadecimal string.
+        Initialise the peer node with a unique id within the network (derived
+        from its public key), the drogulus version the contact is running, a
+        URI that identifies where to contact the peer node and a timestamp
+        indicating when the last connection was made with the contact
+        (defaults to 0).
+
+        The network id is created as the hexdigest of the SHA512 of the public
+        key.
         """
-        if isinstance(id, long) or isinstance(id, int):
-            self.id = long_to_hex(id)
-        else:
-            self.id = id
-        self.address = address
-        self.port = port
+        self.network_id = sha512(public_key.encode('ascii')).hexdigest()
+        self.public_key = public_key
         self.version = version
+        self.uri = uri
         self.last_seen = last_seen
-        # failed_RPCs keeps track of the number of failed RPCs to this contact.
-        # If this number reaches a threshold then it is evicted from the
-        # kbucket and replaced with a contact that is more reliable.
+        # failed_RPCs keeps track of the number of failed RPCs to this peer.
+        # If this number reaches a threshold then it is evicted from a
+        # bucket and replaced with another node that is more reliable.
         self.failed_RPCs = 0
 
     def __eq__(self, other):
@@ -51,10 +36,10 @@ class Contact(object):
         Override equals to work with a string representation of the contact's
         id.
         """
-        if isinstance(other, Contact):
-            return self.id == other.id
+        if isinstance(other, PeerNode):
+            return self.network_id == other.network_id
         elif isinstance(other, str):
-            return self.id == other
+            return self.network_id == other
         else:
             return False
 
@@ -68,7 +53,7 @@ class Contact(object):
         """
         Returns a tuple containing information about this contact.
         """
-        return str((self.id, self.address, self.port, self.version,
+        return str((self.network_id, self.public_key, self.version, self.uri,
                     self.last_seen, self.failed_RPCs))
 
     def __str__(self):
@@ -77,3 +62,10 @@ class Contact(object):
         useful.
         """
         return self.__repr__()
+
+    def __hash__(self):
+        """
+        Create a Python hash so instances of this class can be used as keys in
+        Python dics and members of Python sets.
+        """
+        return hash(self.network_id)

@@ -1,35 +1,31 @@
-Drogulus
-========
+The Drogulus
+============
 
-**NB: This is an unfinished work in progress and does not yet work.**
+**This is an unfinished work in progress and does not work yet!**
 
-Check out the project's website for more details: http://drogul.us
-
-Drogulus is a programmable peer-to-peer data store designed for simplicity,
-security, openness and fun. It's also an exercise in practical philosophy.
-
-It's influenced by ideas from Fluidinfo (an openly writable data store),
-Kademlia (a distributed hash table), Lisp, public/private key cryptography with
-a dash of Xanadu thrown in for inspiration. It is implemented in Python and
-requires very few external dependencies.
+A small and simple peer-to-peer data store and an exercise in practical
+philosophy.
 
 It'll probably all come to nothing. ;-)
 
-Current status: the distributed hash table is almost finished. Crypto based
-work is done. Lisp implementation is an (uncommitted) toy which requires
-further work although the design is pretty much done.
+There's not a lot here right now.
 
-If in doubt, please ask. :-)
+Developer Setup
++++++++++++++++
 
-Should you wish to contribute please make sure you read CONTRIBUTE file. By
-making a contribution you are agreeing to the terms described therein.
+This project requires Python version 3.3 (or higher).
 
-Developer Quick Start
----------------------
+Make a new virtualenv (see:
+http://virtualenvwrapper.readthedocs.org/en/latest/)::
 
-* Clone the repository: ``git clone git://github.com/ntoll/drogulus.git``
-* I suggest you create a virtualenv for development purposes (see: https://pypi.python.org/pypi/virtualenv).
-* Make sure you have a clean virtualenv. Then, within the resulting ``drogulus`` directory, type ``pip install -r requirements.txt`` to install all the project's requirements. This may take some minutes since the packages need to be downloaded from the internet. You may need to have the Python development headers installed for your system (on Debian based environments this is the python-dev package) otherwise see the http://python.org/ website for more information.
-* Next, type ``make check`` to run various code quality checks and the test suite. You should see a bunch of green ``OK`` messages scroll past. If you see errors, just ask.
-* To build the documentation locally type ``make docs``. As the script will tell you, the resulting docs (as HTML) can be found in ``drogulus/docs/_build/html/index.html``.
-* A simple demo application is coming soon...
+    $ mkvirtualenv drogulus
+
+Install the requirements::
+
+    $ pip install -r requirements.txt
+
+The ``make`` command is a useful starting point. If you type ``make check``
+and see a passing test suite followed by a coverage report then you should be
+set up all fine and dandy.
+
+More to follow...

@@ -1,10 +1,7 @@
-pycrypto
-twisted
-pyopenssl
-msgpack-python
-sphinx
-pep8
-pyflakes
 mock
-sphinx_bootstrap_theme
-# coherence - upnp helper
+pep8
+pycrypto
+pyflakes
+sphinx
+coverage
+asyncio

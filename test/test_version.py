@@ -4,6 +4,7 @@ A rather silly test but added all the same for completeness and to check the
 initial test suite works as expected.
 """
 from drogulus.version import VERSION, get_version
+from drogulus import __version__
 import unittest
 
 
@@ -39,3 +40,10 @@ class TestVersion(unittest.TestCase):
         expected = '.'.join([str(i) for i in VERSION])
         actual = get_version()
         self.assertEqual(expected, actual)
+
+    def test_dunder_version(self):
+        """
+        Ensure that the __version__ attribute of the drogulus module is the
+        expected version.
+        """
+        self.assertEqual(__version__, get_version())

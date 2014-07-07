@@ -9,3 +9,4 @@ drogulus.egg-info/*
 drogulus/drogulus.egg-info/*
 website/site/docs/*
 website/site/*.html
+.coverage
