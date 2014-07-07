@@ -17,7 +17,6 @@ import uuid
 import asyncio
 import unittest
 import mock
-import logging
 import time
 
 
@@ -99,8 +98,7 @@ class TestLookup(unittest.TestCase):
         node's network_id.
         """
         self.node.routing_table.touch_bucket = mock.MagicMock()
-        lookup = Lookup(FindNode, self.node.network_id, self.node,
-                        self.event_loop)
+        Lookup(FindNode, self.node.network_id, self.node, self.event_loop)
         self.assertEqual(self.node.routing_table.touch_bucket.call_count, 0)
 
     def test_cancel_pending_requests(self):

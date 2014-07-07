@@ -1,4 +1,3 @@
 include README.rst
 include AUTHORS
-recursive-include bin *
 recursive-include drogulus *.py

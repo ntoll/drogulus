@@ -8,15 +8,14 @@ from drogulus.dht.node import Node
 from drogulus.dht.routingtable import RoutingTable
 from drogulus.dht.storage import DictDataStore
 from drogulus.dht.messages import from_dict
-from drogulus.dht.crypto import get_signed_item, get_seal, construct_key
+from drogulus.dht.crypto import get_signed_item, get_seal
 from drogulus.dht.errors import BadMessage
-from .keys import PRIVATE_KEY, PUBLIC_KEY, BAD_PUBLIC_KEY
+from .keys import PRIVATE_KEY, PUBLIC_KEY
 from mock import MagicMock, patch
 from hashlib import sha512
 import asyncio
 import uuid
 import unittest
-import time
 
 
 class TestNode(unittest.TestCase):

@@ -89,21 +89,21 @@ class TestValidators(unittest.TestCase):
         The node should be expressed within a tuple.
         """
         self.assertFalse(validate_node(['id', '0.1',
-                                      'http://192.168.0.1:9999/']))
+                                       'http://192.168.0.1:9999/']))
 
     def test_validate_node_bad_id(self):
         """
         The node's id should be a string.
         """
         self.assertFalse(validate_node((123, '0.1',
-                                      'http://192.168.0.1:9999/')))
+                                       'http://192.168.0.1:9999/')))
 
     def test_validate_node_invalid_version(self):
         """
         The version number should be a string.
         """
         self.assertFalse(validate_node(('id', 0.1,
-                                      'http://192.168.0.1:9999/')))
+                                       'http://192.168.0.1:9999/')))
 
     def test_validate_node_bad_uri(self):
         """
@@ -117,14 +117,14 @@ class TestValidators(unittest.TestCase):
         A tuple of zero or more nodes is valid.
         """
         self.assertTrue(validate_nodes((('id', '0.1',
-                                       'http://192.168.0.1:9999/'),)))
+                                       'http://192.168.0.1:9999/'), )))
 
     def test_validate_nodes_wrong_type(self):
         """
         Nodes can only be expressed in tuples.
         """
         self.assertFalse(validate_nodes([('id', '0.1',
-                                         'http://192.168.0.1:9999/'),]))
+                                        'http://192.168.0.1:9999/'), ]))
 
     def test_validate_nodes_bad_node(self):
         """
