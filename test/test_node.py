@@ -12,4 +12,4 @@ class TestDrogulus(unittest.TestCase):
     """
 
     def __init__(self):
-        self.drogulus = Drogulus()
+        pass
