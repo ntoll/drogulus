@@ -93,7 +93,7 @@ class TestRoutingTable(unittest.TestCase):
         r = RoutingTable(parent_node_id)
         # Populate the routing table with contacts.
         for i in range(512):
-            uri = 'netstring://192.168.0.%d:9999/'
+            uri = 'netstring://192.168.0.%d:9999/' % i
             contact = PeerNode(PUBLIC_KEY, self.version, uri, 0)
             contact.network_id = hex(2 ** i)
             r.add_contact(contact)

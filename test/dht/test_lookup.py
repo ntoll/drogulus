@@ -11,13 +11,32 @@ from drogulus.dht.errors import RoutingTableEmpty
 from drogulus.dht.constants import LOOKUP_TIMEOUT, K, ALPHA
 from drogulus.dht.utils import sort_peer_nodes
 from drogulus.dht.errors import ValueNotFound
+from drogulus.dht.utils import distance
 from drogulus.version import get_version
 from .keys import PRIVATE_KEY, PUBLIC_KEY
+from hashlib import sha512
 import uuid
 import asyncio
 import unittest
 import mock
 import time
+
+
+# Create a tuple containing source values ordered by associated sha512 has
+# values. These are to be used in place of public_key values to help test
+# remote nodes reported back to the Lookup instance.
+HASH_TUPLES = []
+for i in range(2000):
+    s = str(i)
+    h = sha512(s.encode('utf-8')).hexdigest()
+    HASH_TUPLES.append((s, h))
+ORDERED_HASHES = tuple([val[0] for val in
+                       sorted(HASH_TUPLES,
+                       key=lambda x: distance('0', x[1]))])
+TARGET = sha512(ORDERED_HASHES[1000].encode('utf-8')).hexdigest()
+CLOSEST_TO_TARGET = tuple([val[0] for val in
+                          sorted(HASH_TUPLES,
+                          key=lambda x: distance(TARGET, x[1]))])
 
 
 class TestLookup(unittest.TestCase):
@@ -31,29 +50,33 @@ class TestLookup(unittest.TestCase):
         """
         self.event_loop = asyncio.get_event_loop()
         self.version = get_version()
-        self.node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop)
+        self.sender = mock.MagicMock()
         self.reply_port = 1908
-        self.target = 'deadbeef'
+        self.node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop,
+                         self.sender, self.reply_port)
+        self.target = TARGET
         self.seal = 'afakesealthatwillnotverify'
         node_list = []
+        remote_node_list = []
         for i in range(100, 120):
             uri = 'netstring://192.168.0.%d:9999/' % i
-            contact = PeerNode(PUBLIC_KEY, self.version, uri, 0)
-            contact.network_id = hex(i)[2:]
+            contact = PeerNode(ORDERED_HASHES[i], self.version, uri, 0)
             node_list.append(contact)
+            remote_node_list.append((ORDERED_HASHES[i], self.version, uri))
 
         self.nodes = tuple(sort_peer_nodes(node_list, self.target))
+        self.remote_nodes = tuple(remote_node_list)
 
         def side_effect(*args, **kwargs):
             return (str(uuid.uuid4()), asyncio.Future())
         self.node.send_find = mock.MagicMock(side_effect=side_effect)
         self.contacts = []
+        node_list = []
         for i in range(20):
             uri = 'netstring://192.168.0.%d:%d/' % (i, self.reply_port)
-            contact = PeerNode(PUBLIC_KEY, self.version, uri, 0)
-            contact.network_id = hex(i)[2:]
-            self.contacts.append(contact)
+            contact = PeerNode(ORDERED_HASHES[i], self.version, uri, 0)
             self.node.routing_table.add_contact(contact)
+            self.contacts.append((ORDERED_HASHES[i], self.version, uri))
 
     def test_init(self):
         """
@@ -338,7 +361,8 @@ class TestLookup(unittest.TestCase):
         uuid = uuids[0]
         contact = lookup.shortlist[0]
         msg = Nodes(uuid, self.node.network_id, self.node.network_id,
-                    self.reply_port, self.version, self.seal, self.nodes)
+                    self.reply_port, self.version, self.seal,
+                    self.remote_nodes)
         response = asyncio.Future()
         response.set_result(msg)
         self.assertNotEqual(lookup.shortlist, list(self.nodes))
@@ -354,13 +378,14 @@ class TestLookup(unittest.TestCase):
         uuids = [uuid for uuid in lookup.pending_requests.keys()]
         uuid = uuids[0]
         contact = lookup.shortlist[0]
-        shortlist = lookup.shortlist
+        shortlist = tuple([(p.public_key, p.version, p.uri) for p
+                           in lookup.shortlist])
         msg = Nodes(uuid, self.node.network_id, self.node.network_id,
                     self.reply_port, self.version, self.seal, shortlist)
         response = asyncio.Future()
         response.set_result(msg)
         lookup._handle_response(uuid, contact, response)
-        self.assertEqual(lookup.shortlist, shortlist)
+        self.assertEqual(lookup.shortlist, [PeerNode(*n) for n in shortlist])
 
     def test_handle_response_nodes_update_nearest_node(self):
         """
@@ -375,7 +400,8 @@ class TestLookup(unittest.TestCase):
         uuid = uuids[0]
         contact = lookup.shortlist[0]
         msg = Nodes(uuid, self.node.network_id, self.node.network_id,
-                    self.reply_port, self.version, self.seal, self.nodes)
+                    self.reply_port, self.version, self.seal,
+                    self.remote_nodes)
         response = asyncio.Future()
         response.set_result(msg)
         lookup._handle_response(uuid, contact, response)
@@ -395,7 +421,8 @@ class TestLookup(unittest.TestCase):
         uuids = [uuid for uuid in lookup.pending_requests.keys()]
         uuid = uuids[0]
         contact = lookup.shortlist[0]
-        shortlist = lookup.shortlist
+        shortlist = tuple([(p.public_key, p.version, p.uri) for p
+                           in lookup.shortlist])
         msg = Nodes(uuid, self.node.network_id, self.node.network_id,
                     self.reply_port, self.version, self.seal, shortlist)
         response = asyncio.Future()
@@ -426,7 +453,8 @@ class TestLookup(unittest.TestCase):
         not_contacted = lookup.shortlist[K - 1]
         self.assertNotIn(not_contacted, lookup.contacted)
         msg = Nodes(uuid, self.node.network_id, self.node.network_id,
-                    self.reply_port, self.version, self.seal, self.contacts)
+                    self.reply_port, self.version, self.seal,
+                    self.contacts)
         response = asyncio.Future()
         response.set_result(msg)
         lookup._handle_response(uuid, contact, response)
@@ -454,7 +482,8 @@ class TestLookup(unittest.TestCase):
             lookup.contacted.add(contact)
         # Cause the lookup to fire.
         msg = Nodes(uuid, self.node.network_id, self.node.network_id,
-                    self.reply_port, self.version, self.seal, self.contacts)
+                    self.reply_port, self.version, self.seal,
+                    self.contacts)
         response = asyncio.Future()
         response.set_result(msg)
         lookup._handle_response(uuid, contact, response)
@@ -492,7 +521,8 @@ class TestLookup(unittest.TestCase):
             lookup.contacted.add(contact)
         # Cause the lookup to fire.
         msg = Nodes(uuid, self.node.network_id, self.node.network_id,
-                    self.reply_port, self.version, self.seal, self.contacts)
+                    self.reply_port, self.version, self.seal,
+                    self.contacts)
         response = asyncio.Future()
         response.set_result(msg)
         lookup._handle_response(uuid, contact, response)

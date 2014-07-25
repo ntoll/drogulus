@@ -7,7 +7,6 @@ from drogulus.dht.utils import distance, sort_peer_nodes
 from drogulus.dht.contact import PeerNode
 from drogulus.dht import constants
 from drogulus.version import get_version
-from .keys import PUBLIC_KEY
 import unittest
 
 
@@ -41,7 +40,7 @@ class TestUtils(unittest.TestCase):
         contacts = []
         for i in range(512):
             uri = 'netstring://192.168.0.%d:9999' % i
-            contact = PeerNode(PUBLIC_KEY, self.version, uri, 0)
+            contact = PeerNode(str(i), self.version, uri, 0)
             contact.network_id = hex(2 ** i)
             contacts.append(contact)
         target_key = hex(2 ** 256)
@@ -64,7 +63,7 @@ class TestUtils(unittest.TestCase):
         contacts = []
         for i in range(512):
             uri = 'netstring://192.168.0.%d:9999' % i
-            contact = PeerNode(PUBLIC_KEY, self.version, uri, 0)
+            contact = PeerNode(str(i), self.version, uri, 0)
             contact.network_id = hex(2 ** i)
             contacts.append(contact)
         target_key = hex(2 ** 256)

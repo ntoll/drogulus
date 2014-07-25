@@ -3,16 +3,20 @@
 Contains code that defines the behaviour of the local node in the DHT network.
 """
 from .routingtable import RoutingTable
+from .lookup import Lookup
 from .storage import DictDataStore
 from .contact import PeerNode
-from .crypto import check_seal
-from .errors import BadMessage
+from .crypto import check_seal, get_seal, verify_item, construct_key
+from .errors import BadMessage, UnverifiableProvenance, TimedOut
 from .messages import (Error, Ping, Pong, Store, FindNode, Nodes, FindValue,
-                       Value)
+                       Value, from_dict, to_dict)
+from .constants import REPLICATE_INTERVAL, RESPONSE_TIMEOUT
 from ..version import get_version
 import logging
 import time
+import asyncio
 from hashlib import sha512
+from uuid import uuid4
 
 
 class Node(object):
@@ -24,13 +28,21 @@ class Node(object):
     subclass).
     """
 
-    def __init__(self, public_key, private_key, event_loop):
+    def __init__(self, public_key, private_key, event_loop, connector,
+                 reply_port):
         """
-        Initialises the object representing the node with the credentials.
+        Initialises the node with the credentials, event loop and object
+        via which the node opens connections to peers. The reply_port
+        argument tells other nodes on the network the port to use to contact
+        this node. Such a port may not be the port used by the local machine
+        but could be, for example, the port assigned by the UPnP setup of the
+        local router.
         """
         self.public_key = public_key
         self.private_key = private_key
         self.event_loop = event_loop
+        self.connector = connector
+        self.reply_port = reply_port
         # The node's ID within the distributed hash table.
         self.network_id = sha512(public_key.encode('ascii')).hexdigest()
         # Reference to the event loop.
@@ -81,89 +93,78 @@ class Node(object):
         self.routing_table.add_contact(other_node)
         # Sort on message type and pass to handler method. Explicit > implicit.
         if isinstance(message, Ping):
-            self.handle_ping(message, protocol)
+            self.handle_ping(message, other_node)
         elif isinstance(message, Pong):
             self.handle_pong(message)
         elif isinstance(message, Store):
-            self.handle_store(message, protocol, other_node)
+            self.handle_store(message, other_node)
         elif isinstance(message, FindNode):
-            self.handle_find_node(message, protocol)
+            self.handle_find_node(message, other_node)
         elif isinstance(message, FindValue):
-            self.handle_find_value(message, protocol)
+            self.handle_find_value(message, other_node)
         elif isinstance(message, Error):
-            self.handle_error(message, protocol, other_node)
+            self.handle_error(message, other_node)
         elif isinstance(message, Value):
             self.handle_value(message, other_node)
         elif isinstance(message, Nodes):
             self.handle_nodes(message)
 
-    def send_message(self, contact, message):
+    def send_message(self, contact, message, fire_and_forget=False):
         """
-        Sends a message to the specified contact, adds it to the _pending
-        dictionary and ensures it times-out after the correct period. If an
-        error occurs the deferred's errback is called.
+        Sends a message to the specified contact, adds the resulting task to
+        the pending dictionary and ensures it times-out after the correct
+        period. A callback is added to ensure that the task is removed from
+        pending when it resolves (no matter the result). A timeout function
+        is scheduled after RESPONSE_TIMEOUT seconds to clean up the pending
+        task if the remote peer doesn't respond in a timely fashion.
         """
-        d = defer.Deferred()
-        # open network call.
-        client_string = self._client_string % (contact.address, contact.port)
-        client = clientFromString(reactor, client_string)
-        connection = client.connect(DHTFactory(self))
-        # Ensure the connection will potentially time out.
-        connection_timeout = reactor.callLater(constants.RPC_TIMEOUT,
-                                               connection.cancel)
+        task = asyncio.async(self.connector.send(contact, message))
+        self.pending[message.uuid] = task
 
-        def on_connect(protocol):
-            # Cancel pending connection_timeout if it's still active.
-            if connection_timeout.active():
-                connection_timeout.cancel()
-            # Send the message and add a timeout for the response.
-            protocol.sendMessage(message)
-            self._pending[message.uuid] = d
-            reactor.callLater(constants.RESPONSE_TIMEOUT, response_timeout,
-                              message, protocol, self)
+        def on_complete(task, uuid=message.uuid):
+            """
+            Ensure the completed task is removed from the pending dictionary.
+            """
+            if uuid in self.pending:
+                del self.pending[uuid]
 
-        def on_error(error):
-            log.msg('***** ERROR ***** interacting with %s' % contact)
-            log.msg(error)
-            self._routing_table.remove_contact(message.node)
-            if message.uuid in self._pending:
-                del self._pending[message.uuid]
-            d.errback(error)
+        task.add_done_callback(on_complete)
+        if fire_and_forget:
+            self.event_loop.call_soon(task.set_result, 'sent')
+        else:
+            error = TimedOut('Response took too long.')
+            self.event_loop.call_later(RESPONSE_TIMEOUT, self.trigger_task,
+                                       message, error)
+        return message.uuid, task
 
-        connection.addCallback(on_connect)
-        connection.addErrback(on_error)
-        return d
-
-    def trigger_deferred(self, message, error=False):
+    def trigger_task(self, message, error=False):
         """
-        Given a message, will attempt to retrieve the deferred and trigger it
-        with the appropriate callback or errback.
+        Given a message, will attempt to retrieve the related pending task
+        and trigger it with the message.
         """
-        if message.uuid in self._pending:
-            deferred = self._pending[message.uuid]
+        if message.uuid in self.pending:
+            task = self.pending[message.uuid]
             if error:
-                error.message = message
-                deferred.errback(error)
+                task.set_exception(error)
             else:
-                deferred.callback(message)
-            # Remove the called deferred from the _pending dictionary.
-            del self._pending[message.uuid]
+                task.set_result(message)
+            # Remove the resolved task from the pending dictionary.
+            del self.pending[message.uuid]
 
-    def handle_ping(self, message, protocol):
+    def handle_ping(self, message, contact):
         """
         Handles an incoming Ping message. Returns a Pong message using the
         referenced protocol object.
         """
-        pong = Pong(message.uuid, self.id, self.version)
-        protocol.sendMessage(pong, True)
+        self.send_pong(message, contact)
 
     def handle_pong(self, message):
         """
         Handles an incoming Pong message.
         """
-        self.trigger_deferred(message)
+        self.trigger_task(message)
 
-    def handle_store(self, message, protocol, sender):
+    def handle_store(self, message, contact):
         """
         Handles an incoming Store message. Checks the provenance and timeliness
         of the message before storing locally. If there is a problem, removes
@@ -176,41 +177,43 @@ class Node(object):
         appropriate Error.
         """
         # Check provenance
-        is_valid, err_code = validate_message(message)
-        if is_valid:
+        if verify_item(to_dict(message)):
+            # Ensure the key is correct.
+            k = construct_key(message.public_key, message.name)
+            if k != message.key:
+                # This may indicate a different / unknown / unsupported
+                # version of the drogulus created the original message.
+                raise BadMessage('Key mismatch')
+            # Ensure the value isn't expired.
+            now = time.time()
+            if message.expires > 0 and (message.expires < now):
+                # There's a non-zero expiry and it's less than the current
+                # time, so return an error.
+                raise BadMessage('Expired at %r (current time: %r)' %
+                                 (message.expires, now))
             # Ensure the node doesn't already have a more up-to-date version
             # of the value.
-            current = self._data_store.get(message.key, False)
+            current = self.data_store.get(message.key, False)
             if current and (message.timestamp < current.timestamp):
                 # The node already has a later version of the value so
                 # return an error.
-                details = {
-                    'new_timestamp': '%d' % current.timestamp
-                }
-                raise ValueError(8, constants.ERRORS[8], details,
-                                 message.uuid)
+                raise BadMessage('Out of date. New timestamp: %r' %
+                                 current.timestamp)
             # Good to go, so store value.
-            self._data_store.set_item(message.key, message)
+            self.data_store[message.key] = message
             # Reply with a pong so the other end updates its routing table.
-            pong = Pong(message.uuid, self.id, self.version)
-            protocol.sendMessage(pong, True)
+            self.send_pong(message, contact)
             # At some future time attempt to replicate the Store message
             # around the network IF it is within the message's expiry time.
-            reactor.callLater(constants.REPLICATE_INTERVAL,
-                              self.republish, message)
+            self.event_loop.call_later(REPLICATE_INTERVAL, self.republish,
+                                       message)
         else:
             # Remove from the routing table.
-            log.msg('Problem with Store command: %d - %s' %
-                    (err_code, constants.ERRORS[err_code]))
-            self._routing_table.blacklist(sender)
-            # Return an error.
-            details = {
-                'message': 'You have been blacklisted.'
-            }
-            raise ValueError(err_code, constants.ERRORS[err_code], details,
-                             message.uuid)
+            logging.info('Problem with Store command from %s' % contact)
+            self.routing_table.blacklist(contact)
+            raise UnverifiableProvenance('Blacklisted')
 
-    def handle_find_node(self, message, protocol):
+    def handle_find_node(self, message, contact):
         """
         Handles an incoming FindNode message. Finds the details of up to K
         other nodes closer to the target key that *this* node knows about.
@@ -219,168 +222,280 @@ class Node(object):
         """
         target_key = message.key
         # List containing tuples of information about the matching contacts.
-        other_nodes = [(n.id, n.address, n.port, n.version) for n in
-                       self._routing_table.find_close_nodes(target_key)]
-        result = Nodes(message.uuid, self.id, other_nodes, self.version)
-        protocol.sendMessage(result, True)
+        other_nodes = [(n.public_key, n.version, n.uri) for n in
+                       self.routing_table.find_close_nodes(target_key)]
+        self.send_nodes(message, contact, other_nodes)
 
-    def handle_find_value(self, message, protocol):
+    def handle_find_value(self, message, contact):
         """
         Handles an incoming FindValue message. If the local node contains the
         value associated with the requested key replies with an appropriate
         "Value" message. Otherwise, responds with details of up to K other
         nodes closer to the target key that the local node knows about. In
         this case a "Nodes" message containing the list of matching nodes is
-        sent to the caller.
+        sent to the remote peer.
         """
-        match = self._data_store.get(message.key, False)
+        match = self.data_store.get(message.key, False)
         if match:
-            result = Value(message.uuid, self.id, match.key, match.value,
-                           match.timestamp, match.expires, match.created_with,
-                           match.public_key, match.name, match.meta, match.sig,
-                           match.version)
-            protocol.sendMessage(result, True)
+            self.send_value(message, contact, match.key, match.value,
+                            match.timestamp, match.expires,
+                            match.created_with, match.public_key, match.name,
+                            match.signature)
         else:
-            self.handle_find_node(message, protocol)
+            self.handle_find_node(message, contact)
 
-    def handle_error(self, message, protocol, sender):
+    def handle_error(self, message, contact):
         """
         Handles an incoming Error message. Currently, this simply logs the
-        error and closes the connection. In future this *may* remove the
-        sender from the routing table (depending on the error).
+        error. In future this *may* remove the sender from the routing table
+        (depending on the sort of error - for example, it's running an
+        incompatible version of the drogulus).
         """
-        # TODO: Handle error 8 (out of date data)
-        log.msg('***** ERROR ***** from %s' % sender)
-        log.msg(message)
+        # TODO: Handle out of date data
+        logging.info('***** ERROR ***** from %s' % contact)
+        logging.info(message)
 
-    def handle_value(self, message, sender):
+    def handle_value(self, message, contact):
         """
         Handles an incoming Value message containing a value retrieved from
-        another node on the DHT. Ensures the message is valid and calls the
-        referenced deferred to signal the arrival of the value.
+        another node on the DHT. Ensures the message is valid and resolves the
+        referenced future to signal the arrival of the value.
 
-        TODO: How to handle invalid messages and errback the deferred.
+        If the value is invalid then the reponse is logged, the remote peer
+        is blacklisted and the referenced future is resolved with an
+        UnverifiableProvenance exception.
         """
-        # Check provenance
-        is_valid, err_code = validate_message(message)
-        if is_valid:
-            self.trigger_deferred(message)
+        if verify_item(to_dict(message)):
+            self.trigger_task(message)
         else:
-            log.msg('Problem with incoming Value: %d - %s' %
-                    (err_code, constants.ERRORS[err_code]))
-            log.msg(message)
-            # Remove the remote node from the routing table.
-            self._routing_table.remove_contact(sender.id, True)
-            error = ValueError(constants.ERRORS[err_code])
-            self.trigger_deferred(message, error)
+            logging.info('Problem with incoming Value message from %r' %
+                         contact)
+            logging.info(message)
+            self.routing_table.remove_contact(contact.network_id, True)
+            logging.info('Remote peer removed from routing table.')
+            self.trigger_task(message,
+                              error=UnverifiableProvenance('Blacklisted'))
 
     def handle_nodes(self, message):
         """
         Handles an incoming Nodes message containing information about other
         nodes on the network that are close to a requested key.
         """
-        self.trigger_deferred(message)
+        self.trigger_task(message)
 
     def send_ping(self, contact):
         """
-        Sends a ping request to the given contact and returns a deferred
+        Sends a ping request to the given contact and returns a future
         that is fired when the reply arrives or an error occurs.
         """
-        new_uuid = str(uuid4())
-        ping = Ping(new_uuid, self.id, self.version)
-        return self.send_message(contact, ping)
+        ping = {
+            'uuid': str(uuid4()),
+            'recipient': contact.public_key,
+            'sender': self.public_key,
+            'reply_port': self.reply_port,
+            'version': self.version
+        }
+        seal = get_seal(ping, self.private_key)
+        ping['seal'] = seal
+        ping['message'] = 'ping'
+        message = from_dict(ping)
+        return self.send_message(contact, message)
 
-    def send_store(self, contact, public_key, name, value, timestamp, expires,
-                   created_with, meta, signature):
+    def send_pong(self, message, contact):
+        """
+        Returns a Pong acknowledgement to the remote contact for the given
+        message.
+        """
+        pong = {
+            'uuid': message.uuid,
+            'recipient': message.sender,
+            'sender': self.public_key,
+            'reply_port': self.reply_port,
+            'version': self.version
+        }
+        seal = get_seal(pong, self.private_key)
+        pong['seal'] = seal
+        pong['message'] = 'pong'
+        reply = from_dict(pong)
+        return self.send_message(contact, reply, fire_and_forget=True)
+
+    def send_store(self, contact, key, value, timestamp, expires,
+                   created_with, public_key, name, signature):
         """
         Sends a Store message to the given contact. The value contained within
         the message is stored against a key derived from the public_key and
         name. Furthermore, the message is cryptographically signed using the
         value, timestamp, expires, name and meta values.
         """
-        uuid = str(uuid4())
-        compound_key = construct_key(public_key, name)
-        store = Store(uuid, self.id, compound_key, value, timestamp, expires,
-                      created_with, public_key, name, meta, signature,
-                      self.version)
-        return self.send_message(contact, store)
+        msg_dict = {
+            'uuid': str(uuid4()),
+            'recipient': contact.public_key,
+            'sender': self.public_key,
+            'reply_port': self.reply_port,
+            'version': self.version,
+            'key': key,
+            'value': value,
+            'timestamp': timestamp,
+            'expires': expires,
+            'created_with': created_with,
+            'public_key': public_key,
+            'name': name,
+            'signature': signature,
+        }
+        seal = get_seal(msg_dict, self.private_key)
+        msg_dict['seal'] = seal
+        msg_dict['message'] = 'store'
+        message = from_dict(msg_dict)
+        return self.send_message(contact, message)
 
     def send_find(self, contact, target, message_type):
         """
         Sends a Find[Node|Value] message to the given contact with the
         intention of obtaining information at the given target key. The type of
         find message is specified by message_type.
-        """
-        new_uuid = str(uuid4())
-        find_message = message_type(new_uuid, self.id, target, self.version)
-        deferred = self.send_message(contact, find_message)
-        return (new_uuid, deferred)
 
-    def _process_lookup_result(self, nearest_nodes, public_key, name, value,
-                               timestamp, expires, created_with, meta,
-                               signature, length):
+        This method is called by an instance of the Lookup class.
+        """
+        msg_dict = {
+            'uuid': str(uuid4()),
+            'recipient': contact.public_key,
+            'sender': self.public_key,
+            'reply_port': self.reply_port,
+            'version': self.version,
+            'key': target,
+        }
+        seal = get_seal(msg_dict, self.private_key)
+        msg_dict['seal'] = seal
+        if message_type is FindNode:
+            msg_dict['message'] = 'findnode'
+        else:
+            msg_dict['message'] = 'findvalue'
+        message = from_dict(msg_dict)
+        return self.send_message(contact, message)
+
+    def send_value(self, message, contact, key, value, timestamp, expires,
+                   created_with, public_key, name, signature):
+        """
+        Sends a fire and forget Value message to the referenced contact as a
+        result of teh referenced incoming message.
+        """
+        msg_dict = {
+            'uuid': message.uuid,
+            'recipient': contact.public_key,
+            'sender': self.public_key,
+            'reply_port': self.reply_port,
+            'version': self.version,
+            'key': key,
+            'value': value,
+            'timestamp': timestamp,
+            'expires': expires,
+            'created_with': created_with,
+            'public_key': public_key,
+            'name': name,
+            'signature': signature,
+        }
+        seal = get_seal(msg_dict, self.private_key)
+        msg_dict['seal'] = seal
+        msg_dict['message'] = 'value'
+        reply = from_dict(msg_dict)
+        return self.send_message(contact, reply, fire_and_forget=True)
+
+    def send_nodes(self, message, contact, nodes):
+        """
+        Sends a fire and forget Nodes message to the referenced contact as
+        a result of the referenced incoming message.
+        """
+        msg_dict = {
+            'uuid': message.uuid,
+            'recipient': contact.public_key,
+            'sender': self.public_key,
+            'reply_port': self.reply_port,
+            'version': self.version,
+            'nodes': nodes,
+        }
+        seal = get_seal(msg_dict, self.private_key)
+        msg_dict['seal'] = seal
+        msg_dict['message'] = 'nodes'
+        reply = from_dict(msg_dict)
+        return self.send_message(contact, reply, fire_and_forget=True)
+
+    def _store_to_nodes(self, nearest_nodes, duplicate, key, value, timestamp,
+                        expires, created_with, public_key, name, signature):
         """
         Given a list of nearest nodes will return a list of send_store based
-        deferreds for the item to be stored in the DHT. The list will contain
-        up to "length" number of deferreds.
+        tasks for the item based upon the args to be stored in the DHT at
+        those locations. The list will contain up to "duplicate" number of
+        pending tasks.
         """
-        list_of_deferreds = []
-        for contact in nearest_nodes[:length]:
-            deferred = self.send_store(contact, public_key, name, value,
-                                       timestamp, expires, created_with,
-                                       meta, signature)
-            list_of_deferreds.append(deferred)
-        return list_of_deferreds
+        # Guards to ensure meaningful duplication.
+        if duplicate < 1:
+            raise ValueError('Duplication count may not be less than 1')
+        if len(nearest_nodes) < 1:
+            raise ValueError('Empty list of nearest nodes.')
 
-    def replicate(self, public_key, name, value, timestamp, expires,
-                  created_with, meta, signature, duplicate):
+        list_of_tasks = []
+        for contact in nearest_nodes[:duplicate]:
+            uuid, task = self.send_store(contact, key, value, timestamp,
+                                         expires, created_with, public_key,
+                                         name, signature)
+            list_of_tasks.append(task)
+        return list_of_tasks
+
+    def replicate(self, duplicate, key, value, timestamp, expires,
+                  created_with, public_key, name, signature):
         """
-        Will replicate args to "duplicate" number of nodes in the distributed
-        hash table. Returns a deferred that will fire with a list of send_store
-        deferreds when "duplicate" number of closest nodes have been
-        identified.
+        Will replicate item to "duplicate" number of nodes in the distributed
+        hash table. Returns a task that will fire with a list of send_store
+        tasks when "duplicate" number of closest nodes have been identified.
 
-        Obviously, the list can be turned in to a deferred_list to fire when
-        the store commands have completed.
-
-        Even if "duplicate" is > K no more than K items will be contained
-        within the list result.
+        Obviously, the list can be consumed by asycnio.wait or asyncio.gather
+        to fire when the store commands have completed.
         """
         if duplicate < 1:
-            # Guard to ensure meaningful duplication count.
+            # Guard to ensure meaningful duplication count. This may save
+            # time.
             raise ValueError('Duplication count may not be less than 1')
 
-        result = defer.Deferred()
+        result = asyncio.Future()
         compound_key = construct_key(public_key, name)
-        lookup = NodeLookup(compound_key, FindNode, self)
+        lookup = Lookup(FindNode, compound_key, self, self.event_loop)
+        if lookup.done():
+            # If we get here it's because lookup couldn't start due to an
+            # empty routing table.
+            result.set_exception(lookup.exception())
+            return result
 
-        def on_success(nodes):
+        def on_result(r, duplicate=duplicate, result=result, key=key,
+                      value=value, timestamp=timestamp, expires=expires,
+                      created_with=created_with, public_key=public_key,
+                      name=name, signature=signature):
             """
-            A list of close nodes have been found so send store messages to
-            the "duplicate" closest number of them and fire the "result"
-            deferred with the resulting DeferredList of pending deferreds.
-            """
-            deferreds = self._process_lookup_result(nodes, public_key, name,
-                                                    value, timestamp, expires,
-                                                    created_with, meta,
-                                                    signature, duplicate)
-            result.callback(deferreds)
+            To be called when the lookup completes.
 
-        def on_error(error):
-            """
-            Catch all for errors during the lookup phase. Simply pass them on
-            via the "result" deferred.
-            """
-            result.errback(error)
+            If successful, send a store message to "duplicate" number of
+            contacts in the list of the close nodes have been found have by
+            the lookup and resolve the "result" Future with the resulting
+            list of pending tasks.
 
-        lookup.addCallback(on_success)
-        lookup.addErrback(on_error)
+            If there was an error simply pass the exception on via the
+            Future representing the result.
+            """
+            try:
+                contacts = r.result()
+                tasks = self._store_to_nodes(contacts, duplicate, key, value,
+                                             timestamp, expires, created_with,
+                                             public_key, name, signature)
+                result.set_result(tasks)
+            except Exception as ex:
+                result.set_exception(ex)
+
+        lookup.add_done_callback(on_result)
         return result
 
     def retrieve(self, key):
         """
         Given a key, will try to retrieve associated value from the distributed
-        hash table. Returns a deferred that will fire when the operation is
+        hash table. Returns a Future that will resolve when the operation is
         complete or failed.
 
         As the original Kademlia explains:
@@ -391,27 +506,35 @@ class Node(object):
 
         This method adds a callback to the NodeLookup to achieve this end.
         """
-        lookup = NodeLookup(key, FindValue, self)
+        lookup = Lookup(FindValue, key, self, self.event_loop)
+        if lookup.done():
+            # If we get here it's because lookup couldn't start due to an
+            # empty routing table.
+            return lookup
 
-        def cache(result):
+        def cache_result(lookup):
             """
-            Called once the lookup succeeds in order to store the item at the
-            node closest to the key that did not return the value.
+            Called once the lookup resolves in order to store the item at the
+            node closest to the key that did not return the value. If the
+            lookup encountered an exception then no further action is taken.
             """
+            if lookup.exception():
+                return
             caching_contact = None
             for candidate in lookup.shortlist:
                 if candidate in lookup.contacted:
+                    # TODO - CHECK THIS!!!
                     caching_contact = candidate
                     break
             if caching_contact:
-                log.msg("Caching to %r" % caching_contact)
-                self.send_store(caching_contact, result.public_key,
-                                result.name, result.value, result.timestamp,
-                                result.expires, result.created_with,
-                                result.meta, result.sig)
-            return result
+                logging.info("Caching to %r" % caching_contact)
+                result = lookup.result()
+                self.send_store(caching_contact, lookup.target, result.value,
+                                result.timestamp, result.expires,
+                                result.created_with, result.public_key,
+                                result.name, result.signature)
 
-        lookup.addCallback(cache)
+        lookup.add_done_callback(cache_result)
         return lookup
 
     def republish(self, message):

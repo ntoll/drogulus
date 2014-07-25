@@ -5,7 +5,6 @@ represented by dict objects.
 """
 import time
 import base64
-import copy
 from Crypto.Hash import SHA512
 from Crypto.Signature import PKCS1_v1_5
 from Crypto.PublicKey import RSA
@@ -69,7 +68,7 @@ def get_signed_item(key, value, public_key, private_key, expires=None):
     }
     expires_at = 0.0  # it's a float, dammit
     t = type(expires)
-    if expires and (t == int or t == float) and expires > 0:
+    if expires and (t == int or t == float) and expires > 0.0:
         expires_at = signed_item['timestamp'] + expires
     signed_item['expires'] = expires_at
     root_hash = _get_hash(signed_item)
@@ -86,12 +85,16 @@ def verify_item(item):
     verified.
     """
     try:
-        item_no_sig = copy.deepcopy(item)
-        raw_sig = item_no_sig['signature']
+        ignore_fields = ['uuid', 'recipient', 'sender', 'reply_port',
+                         'version', 'seal', 'message']
+        for field in ignore_fields:
+            if field in item:
+                del item[field]
+        raw_sig = item['signature']
         signature = base64.decodebytes(raw_sig.encode('utf-8'))
-        public_key = RSA.importKey(item_no_sig['public_key'])
-        del item_no_sig['signature']
-        root_hash = _get_hash(item_no_sig)
+        public_key = RSA.importKey(item['public_key'])
+        del item['signature']
+        root_hash = _get_hash(item)
         verifier = PKCS1_v1_5.new(public_key)
         return verifier.verify(root_hash, signature)
     except:

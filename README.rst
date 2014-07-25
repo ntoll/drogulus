@@ -10,6 +10,9 @@ It'll probably all come to nothing. ;-)
 
 There's not a lot here right now.
 
+This is free and unencumbered software released into the public domain. Please
+read the UNLICENSE file for details.
+
 Developer Setup
 +++++++++++++++
 
@@ -27,5 +30,3 @@ Install the requirements::
 The ``make`` command is a useful starting point. If you type ``make check``
 and see a passing test suite followed by a coverage report then you should be
 set up all fine and dandy.
-
-More to follow...

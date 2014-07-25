@@ -153,7 +153,7 @@ class TestValidators(unittest.TestCase):
         self.assertEqual(VALIDATORS['version'], validate_string)
         self.assertEqual(VALIDATORS['seal'], validate_string)
         self.assertEqual(VALIDATORS['error'], validate_string)
-        self.assertEqual(VALIDATORS['details'], validate_dict)
+        self.assertEqual(VALIDATORS['details'], validate_string)
         self.assertEqual(VALIDATORS['key'], validate_string)
         self.assertEqual(VALIDATORS['value'], validate_value)
         self.assertEqual(VALIDATORS['timestamp'], validate_timestamp)

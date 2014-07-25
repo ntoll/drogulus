@@ -230,7 +230,7 @@ class TestDictConversion(unittest.TestCase):
             'version': self.version,
             'seal': self.seal,
             'error': 'AnError',
-            'details': {'key': 'value'},
+            'details': 'Arbitrary error information',
         }
         result = from_dict(mock_message)
         self.assertIsInstance(result, Error)
@@ -241,7 +241,7 @@ class TestDictConversion(unittest.TestCase):
         self.assertEqual(result.version, self.version)
         self.assertEqual(result.seal, self.seal)
         self.assertEqual(result.error, 'AnError')
-        self.assertEqual(result.details, {'key': 'value'})
+        self.assertEqual(result.details, 'Arbitrary error information')
 
     def test_from_dict_ping(self):
         """

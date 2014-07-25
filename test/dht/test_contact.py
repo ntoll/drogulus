@@ -75,10 +75,9 @@ class TestPeerNode(unittest.TestCase):
         contact = PeerNode(PUBLIC_KEY, version, uri, last_seen)
         self.assertTrue('54321' != contact)
 
-    def test_str(self):
+    def test_repr(self):
         """
-        Ensures the string representation of a PeerContact is something
-        useful.
+        Ensure the repr for the object is something useful.
         """
         network_id = sha512(PUBLIC_KEY.encode('ascii')).hexdigest()
         uri = 'netstring://192.168.0.1:9999'
@@ -86,7 +85,25 @@ class TestPeerNode(unittest.TestCase):
         last_seen = 123
         contact = PeerNode(PUBLIC_KEY, version, uri, last_seen)
         expected = str((network_id, PUBLIC_KEY, version, uri, last_seen, 0))
-        self.maxDiff = None
+        self.assertEqual(expected, repr(contact))
+
+    def test_str(self):
+        """
+        Ensures the string representation of a PeerContact is something
+        useful.
+        """
+        uri = 'netstring://192.168.0.1:9999'
+        version = get_version()
+        last_seen = 123
+        contact = PeerNode(PUBLIC_KEY, version, uri, last_seen)
+        expected = str({
+            'network_id': contact.network_id,
+            'public_key': contact.public_key,
+            'version': contact.version,
+            'uri': contact.uri,
+            'last_seen': contact.last_seen,
+            'failed_rpc': contact.failed_RPCs
+        })
         self.assertEqual(expected, str(contact))
 
     def test_hash(self):

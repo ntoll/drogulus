@@ -22,8 +22,7 @@ def sort_peer_nodes(peer_nodes, target_key):
     to the target key are at the head. If the list is longer than K then only
     the K closest contacts will be returned.
     """
-    # Key function
-    def node_key(node):
+    def node_key(node, target_key=target_key):
         """
         Returns the node's distance to the target key.
         """

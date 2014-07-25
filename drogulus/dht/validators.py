@@ -89,7 +89,7 @@ VALIDATORS = {
     'version': validate_string,
     'seal': validate_string,
     'error': validate_string,
-    'details': validate_dict,
+    'details': validate_string,
     'key': validate_string,
     'value': validate_value,
     'timestamp': validate_timestamp,

@@ -6,6 +6,7 @@ import asyncio
 import time
 import logging
 from . import constants
+from .contact import PeerNode
 from .utils import sort_peer_nodes
 from .errors import RoutingTableEmpty, ValueNotFound
 from .messages import Nodes, FindValue, Value
@@ -156,6 +157,7 @@ class Lookup(asyncio.Future):
             # TODO: should this be...
             # self.event_loop.call_soon(task.cancel)
             # ???
+            # TODO: YES CHANGE THIS!
             task.cancel()
         self.pending_requests = {}
 
@@ -284,7 +286,8 @@ class Lookup(asyncio.Future):
                 # nodes. Add the returned nodes to the shortlist. Sort the
                 # shortlist in order of closeness to the target and ensure
                 # the shortlist never gets longer than K.
-                candidate_contacts = [candidate for candidate in result.nodes
+                nodes = [PeerNode(n[0], n[1], n[2]) for n in result.nodes]
+                candidate_contacts = [candidate for candidate in nodes
                                       if candidate not in self.shortlist]
                 self.shortlist = sort_peer_nodes(candidate_contacts +
                                                  self.shortlist, self.target)

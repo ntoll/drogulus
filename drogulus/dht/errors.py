@@ -71,3 +71,11 @@ class UnverifiableProvenance(Exception):
     receiving node.
     """
     pass
+
+
+class TimedOut(Exception):
+    """
+    The expected response to an outgoing message was not received in a timely
+    fashion.
+    """
+    pass

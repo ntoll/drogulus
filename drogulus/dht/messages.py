@@ -102,12 +102,12 @@ d = """
     * key - the hash used as the actual key on the DHT.
     * value - the value to be stored in the DHT.
     * timestamp - a timestamp indicating when this key/value pair was
-                  *originally* generated as an integer representing the time
+                  *originally* generated as a float representing the time
                   in seconds since the Epoch (so called POSIX time, see
                   https://en.wikipedia.org/wiki/Unix_time).
     * expires - a timestamp indicating a point in time after which this
                 key/value pair can be removed (expired) from the DHT. Expressed
-                as an integer representing the time in seconds since the Epoch
+                as a float representing the time in seconds since the Epoch
                 (so called POSIX time). If the value is less than or equal to
                 zero then the key/value pair should never expire.
     * created_with - the version of the protocol used to generate the item.
@@ -201,12 +201,12 @@ d = """
     * key - the hash used as the actual key on the DHT.
     * value - the value to be stored in the DHT.
     * timestamp - a timestamp indicating when this key/value pair was
-                  *originally* generated as an integer representing the time
+                  *originally* generated as a float representing the time
                   in seconds since the Epoch (so called POSIX time, see
                   https://en.wikipedia.org/wiki/Unix_time).
     * expires - a timestamp indicating a point in time after which this
                 key/value pair can be removed (expired) from the DHT. Expressed
-                as an integer representing the time in seconds since the Epoch
+                as a float representing the time in seconds since the Epoch
                 (so called POSIX time). If the value is less than or equal to
                 zero then the key/value pair should never expire.
     * created_with - the version of the protocol used to generate the item.

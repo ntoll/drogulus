@@ -10,7 +10,7 @@ class PeerNode(object):
     Represents another node on the network.
     """
 
-    def __init__(self, public_key, version, uri, last_seen=0):
+    def __init__(self, public_key, version, uri, last_seen=0.0):
         """
         Initialise the peer node with a unique id within the network (derived
         from its public key), the drogulus version the contact is running, a
@@ -61,7 +61,14 @@ class PeerNode(object):
         Override the string representation of the object to be something
         useful.
         """
-        return self.__repr__()
+        return str({
+            'network_id': self.network_id,
+            'public_key': self.public_key,
+            'version': self.version,
+            'uri': self.uri,
+            'last_seen': self.last_seen,
+            'failed_rpc': self.failed_RPCs
+        })
 
     def __hash__(self):
         """

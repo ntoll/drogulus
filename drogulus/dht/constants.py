@@ -18,7 +18,7 @@ LOOKUP_TIMEOUT = 600
 RPC_TIMEOUT = 5
 
 #: The timeout for receiving complete message once a connection is made (in
-#: seconds). Ensures there are no stale deferreds in the node's _pending
+#: seconds). Ensures there are no stale tasks to resolve in the node's pending
 #: dictionary.
 RESPONSE_TIMEOUT = 1800  # half an hour
 
