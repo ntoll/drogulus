@@ -39,6 +39,18 @@ CLOSEST_TO_TARGET = tuple([val[0] for val in
                           key=lambda x: distance(TARGET, x[1]))])
 
 
+@asyncio.coroutine
+def blip(wait=0.01):
+    """
+    A coroutine that ends after some period of time to allow tasks scheduled
+    in the tests to run.
+
+    THIS IS A QUICK HACK AND SHOULD BE CHANGED TO SOMETHING MORE ELEGANT.
+    """
+    yield from asyncio.sleep(wait)
+    return True
+
+
 class TestLookup(unittest.TestCase):
     """
     Ensures the Lookup class works as expected.
@@ -134,6 +146,7 @@ class TestLookup(unittest.TestCase):
         self.assertEqual(3, len(lookup.pending_requests))
         tasks = lookup.pending_requests.values()
         lookup._cancel_pending_requests()
+        self.event_loop.run_until_complete(blip())
         self.assertEqual(lookup.pending_requests, {})
         for task in tasks:
             self.assertTrue(task.cancelled())
@@ -278,8 +291,6 @@ class TestLookup(unittest.TestCase):
         contact = lookup.shortlist[0]
         other_request1 = lookup.pending_requests[uuids[1]]
         other_request2 = lookup.pending_requests[uuids[2]]
-        other_request1.cancel = mock.MagicMock()
-        other_request2.cancel = mock.MagicMock()
         msg = Value(uuid, self.node.network_id, self.node.network_id,
                     self.reply_port, self.version, self.seal, self.target,
                     'value', time.time(), time.time() + 99999, self.version,
@@ -287,12 +298,13 @@ class TestLookup(unittest.TestCase):
         response = asyncio.Future()
         response.set_result(msg)
         lookup._handle_response(uuid, contact, response)
+        self.event_loop.run_until_complete(blip())
         # Check the lookup has fired correctly.
         self.assertTrue(lookup.done())
         self.assertEqual(lookup.result(), msg)
-        # Check the pending requests have been cancelled.
-        self.assertEqual(1, other_request1.cancel.call_count)
-        self.assertEqual(1, other_request2.cancel.call_count)
+        # Check the other requests are cancelled.
+        self.assertTrue(other_request1.cancelled())
+        self.assertTrue(other_request2.cancelled())
         # Make sure the pending_requests dict is empty.
         self.assertEqual(0, len(lookup.pending_requests))
         # Ensure the contact that provided the result is NOT in the shortlist.
@@ -632,3 +644,22 @@ class TestLookup(unittest.TestCase):
             self.assertIn(arg_contact, lookup.contacted)
             arg_future = lookup._handle_response.call_args_list[i][0][2]
             self.assertEqual(arg_future.result(), 'foo')
+
+    def test_lookup_added_callbacks_work_when_cancelled(self):
+        """
+        Ensures that the callback added to pending requests by the _lookup
+        method handles cancelled results. This may happen if the lookup is
+        finished because a suitable value has been found (so everything else
+        can be stopped ASAP).
+        """
+        # Reset event_loop so we start in a clean state.
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        self.event_loop = asyncio.get_event_loop()
+        lookup = Lookup(FindValue, self.target, self.node, self.event_loop)
+        lookup._handle_response = mock.MagicMock()
+        lookup._cancel_pending_requests()
+        for k, v in lookup.pending_requests.items():
+            v.set_result('foo')
+            self.event_loop.run_until_complete(v)
+        self.assertEqual(lookup._handle_response.call_count, 0)

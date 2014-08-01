@@ -4,6 +4,10 @@ Contains the class that defines a node in the drogulus network.
 """
 from .dht.node import Node
 from .dht.constants import DUPLICATION_COUNT, EXPIRY_DURATION
+from .dht.crypto import construct_key
+from .net.netstring import NetstringConnector
+import asyncio
+import time
 
 
 class Drogulus:
@@ -11,7 +15,8 @@ class Drogulus:
     Represents a node in the drogulus network.
     """
 
-    def __init__(self, private_key, public_key, event_loop, alias=None):
+    def __init__(self, private_key, public_key, event_loop, port=1908,
+                 alias=None):
         """
         The private and public keys are required for signing and verifying
         items and peers within the drogulus network. The event loop is an
@@ -21,7 +26,9 @@ class Drogulus:
         self.private_key = private_key
         self.public_key = public_key
         self.event_loop = event_loop
-        self._node = Node()
+        connector = NetstringConnector(self.event_loop)
+        self._node = Node(private_key, public_key, event_loop,
+                          connector, port)
         if alias:
             self.alias = alias
         else:
@@ -48,8 +55,8 @@ class Drogulus:
     def get(self, public_key, key_name):
         """
         Gets the value associated with a compound key made of the passed in
-        public key and meaningful key name. Returns a future that fires when
-        the value is retrieved.
+        public key and meaningful key name. Returns a future that resolves
+        when the value is retrieved.
         """
         target = construct_key(public_key, key_name)
         return self._node.retrieve(target)
@@ -58,15 +65,23 @@ class Drogulus:
             expires=EXPIRY_DURATION):
         """
         Stores a value at a compound key made from the local node's public key
-        and the passed in meaningful key name. Returns a future that fires
-        when the value has been stored to duplicate number of nodes. An
-        expires duration (to be added to the current time) can also be
-        specified.
+        and the passed in meaningful key name. Returns a future that resolves
+        when the value has been stored to duplicate number of nodes (see
+        https://docs.python.org/3.4/library/asyncio-task.html#asyncio.gather
+        for more information about how this is done).
+
+        An optional "duplicate" argument specifies the number of remote peers
+        to replicate to. This defaults to the DEPLICATION_COUNT setting.
+
+        An optional expires duration (to be added to the current time) is used
+        to indicate when the supplied value should be removed from the DHT.
+        This defaults to the EXPIRY_DURATION setting.
         """
         timestamp = time.time()
         if expires < 1:
             expires = -1
         else:
             expires = timestamp + expires
-        return self._node.replicate(key_name, value, timestamp, expires,
-                                    duplicate)
+        tasks = self._node.replicate(key_name, value, timestamp, expires,
+                                     duplicate)
+        return asyncio.gather(tasks, return_exceptions=True)

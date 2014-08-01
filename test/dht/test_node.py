@@ -28,14 +28,13 @@ import mock
 
 
 @asyncio.coroutine
-def blip(wait=0.01):
+def blip():
     """
-    A coroutine that ends after some period of time to allow tasks scheduled
-    in the tests to run.
+    A coroutine that immediately return to allow tasks scheduled in the tests
+    to run.
 
     THIS IS A QUICK HACK AND SHOULD BE CHANGED TO SOMETHING MORE ELEGANT.
     """
-    yield from asyncio.sleep(wait)
     return True
 
 
@@ -49,14 +48,13 @@ class FakeConnector:
     def __init__(self):
         self.messages = []
 
-    @asyncio.coroutine
     def send(self, contact, message):
         """
         Pretends to send a message to the specified contact.
         """
+        self.future = asyncio.Future()
         self.messages.append((contact, message))
-        task = asyncio.Future()
-        return task
+        return self.future
 
 
 class TestNode(unittest.TestCase):
@@ -289,7 +287,7 @@ class TestNode(unittest.TestCase):
         self.event_loop.run_until_complete(blip())
         # Check the task is in the node's pending dictionary.
         self.assertIn(message.uuid, node.pending)
-        self.assertIsInstance(node.pending[message.uuid], asyncio.Task)
+        self.assertIsInstance(node.pending[message.uuid], asyncio.Future)
         task = node.pending[message.uuid]
         # Receive the Ping response
         msg_dict['message'] = 'pong'
@@ -319,7 +317,7 @@ class TestNode(unittest.TestCase):
         self.event_loop.run_until_complete(blip())
         # Check the task is in the node's pending dictionary.
         self.assertIn(message.uuid, node.pending)
-        self.assertIsInstance(node.pending[message.uuid], asyncio.Task)
+        self.assertIsInstance(node.pending[message.uuid], asyncio.Future)
         task = node.pending[message.uuid]
         # Receive the Pong response
         msg_dict['message'] = 'pong'
@@ -786,6 +784,19 @@ class TestNode(unittest.TestCase):
         self.assertTrue(pending_task.done())
         self.assertEqual(ex, pending_task.exception())
 
+    def test_trigger_task_for_resolved_future(self):
+        """
+        If the task/future has already been resolved then simply just remove
+        it from the pending dictionary.
+        """
+        node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
+                    self.reply_port)
+        pending_task = asyncio.Future()
+        node.pending[self.message.uuid] = pending_task
+        pending_task.set_result('done!')
+        node.trigger_task(self.message)
+        self.assertEqual(0, len(node.pending))
+
     def test_send_message(self):
         """
         Ensure that the send_message creates a task that is added to the
@@ -800,6 +811,8 @@ class TestNode(unittest.TestCase):
                     self.reply_port)
         with patch.object(self.event_loop, 'call_later') as mock_call:
             uuid, task = node.send_message(self.contact, self.message)
+            self.connector.future.set_result('done')
+            self.event_loop.run_until_complete(blip())
             self.assertEqual(1, mock_call.call_count)
             self.assertEqual(mock_call.call_args_list[0][0][0],
                              RESPONSE_TIMEOUT)
@@ -826,10 +839,29 @@ class TestNode(unittest.TestCase):
         node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
                     self.reply_port)
         uuid, task = node.send_message(self.contact, self.message, True)
+        self.connector.future.set_result('done')
         self.event_loop.run_until_complete(blip())
         self.assertEqual(self.message.uuid, uuid)
         self.assertEqual(True, task.done())
+        self.event_loop.run_until_complete(blip())
         self.assertNotIn(self.message.uuid, node.pending)
+
+    def test_send_message_bad_delivery(self):
+        """
+        Ensures that if the local node is unable to create a connection to the
+        remote peer then the correct exception is set against the resulting
+        Future and the remote peer is punished (for being unreliable).
+        """
+        node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
+                    self.reply_port)
+        node.routing_table.remove_contact = MagicMock()
+        uuid, task = node.send_message(self.contact, self.message, True)
+        self.connector.future.set_exception(Exception('Danger Will Robinson!'))
+        self.event_loop.run_until_complete(blip())
+        self.assertEqual(self.message.uuid, uuid)
+        self.assertEqual(True, task.done())
+        self.assertIsInstance(task.exception(), Exception)
+        self.assertEqual('Danger Will Robinson!', task.exception().args[0])
 
     def test_send_ping(self):
         """
@@ -1182,7 +1214,7 @@ class TestNode(unittest.TestCase):
                 self.assertIsInstance(i, asyncio.Future)
 
         result.add_done_callback(check_result)
-        self.event_loop.run_until_complete(blip())
+        self.event_loop.run_until_complete(result)
         self.assertTrue(result.done())
 
     def test_replicate_future_resolves_with_expected_exception(self):
@@ -1274,3 +1306,112 @@ class TestNode(unittest.TestCase):
         self.assertTrue(result.done())
         with self.assertRaises(RoutingTableEmpty):
             result.result()
+
+    def test_retrieve_with_a_result(self):
+        """
+        Ensure the retrieval of a value sets the correct result for the
+        lookup Future.
+        """
+        node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
+                    self.reply_port)
+        for i in range(20):
+            uri = 'http://192.168.0.%d:9999/'
+            contact = PeerNode(PUBLIC_KEY, self.version, uri, 0)
+            contact.network_id = hex(2 ** i)
+            node.routing_table.add_contact(contact)
+
+        def side_effect(*args):
+            """
+            Ensures the mock returns something useful.
+            """
+            u = str(uuid.uuid4())
+            task = asyncio.Future()
+            return (u, task)
+
+        node.send_find = MagicMock(side_effect=side_effect)
+        key = self.message.key
+        lookup = node.retrieve(key)
+        node.send_store = MagicMock()
+
+        uid = [i for i in lookup.pending_requests.keys()][0]
+        contact = lookup.shortlist[0]
+        response = asyncio.Future()
+        response.set_result(self.message)
+        lookup._handle_response(uid, contact, response)
+        self.event_loop.run_until_complete(blip())
+        self.assertTrue(lookup.done())
+        self.assertEqual(self.message, lookup.result())
+
+    def test_retrieve_causes_caching(self):
+        """
+        Ensure the retrieval of a value causes the caching of the found
+        value to the node closest to the key that DID NOT return the value.
+        """
+        node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
+                    self.reply_port)
+        for i in range(20):
+            uri = 'http://192.168.0.%d:9999/'
+            contact = PeerNode(PUBLIC_KEY, self.version, uri, 0)
+            contact.network_id = hex(2 ** i)
+            node.routing_table.add_contact(contact)
+
+        def side_effect(*args):
+            """
+            Ensures the mock returns something useful.
+            """
+            u = str(uuid.uuid4())
+            task = asyncio.Future()
+            return (u, task)
+
+        node.send_find = MagicMock(side_effect=side_effect)
+        key = self.message.key
+        lookup = node.retrieve(key)
+        node.send_store = MagicMock()
+
+        uid = [i for i in lookup.pending_requests.keys()][0]
+        contact = lookup.shortlist[0]
+        response = asyncio.Future()
+        response.set_result(self.message)
+        lookup._handle_response(uid, contact, response)
+        self.event_loop.run_until_complete(blip())
+        self.assertEqual(1, node.send_store.call_count)
+        closest_contact = lookup.shortlist[0]
+        node.send_store.assert_called_once_with(closest_contact,
+                                                self.message.key,
+                                                self.message.value,
+                                                self.message.timestamp,
+                                                self.message.expires,
+                                                self.message.created_with,
+                                                self.message.public_key,
+                                                self.message.name,
+                                                self.message.signature)
+
+    def test_retrieve_with_bad_result(self):
+        """
+        If the result is not found or bad in some way (i.e. the lookup has
+        an exception set) ensure that the caching doesn't occur.
+        """
+        node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
+                    self.reply_port)
+        for i in range(20):
+            uri = 'http://192.168.0.%d:9999/'
+            contact = PeerNode(PUBLIC_KEY, self.version, uri, 0)
+            contact.network_id = hex(2 ** i)
+            node.routing_table.add_contact(contact)
+
+        def side_effect(*args):
+            """
+            Ensures the mock returns something useful.
+            """
+            u = str(uuid.uuid4())
+            task = asyncio.Future()
+            return (u, task)
+
+        node.send_find = MagicMock(side_effect=side_effect)
+        key = self.message.key
+        lookup = node.retrieve(key)
+        node.send_store = MagicMock()
+        ex = Exception('A test exception')
+        lookup.set_exception(ex)
+        self.event_loop.run_until_complete(blip())
+        self.assertEqual(0, node.send_store.call_count)

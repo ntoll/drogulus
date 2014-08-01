@@ -154,11 +154,7 @@ class Lookup(asyncio.Future):
         a clean non-blocking fashion.
         """
         for task in self.pending_requests.values():
-            # TODO: should this be...
-            # self.event_loop.call_soon(task.cancel)
-            # ???
-            # TODO: YES CHANGE THIS!
-            task.cancel()
+            self.event_loop.call_soon(task.cancel)
         self.pending_requests = {}
 
     def cancel(self):
@@ -366,6 +362,7 @@ class Lookup(asyncio.Future):
 
                     This is a bit of a hack. :-/
                     """
-                    self._handle_response(uuid, contact, result)
+                    if not result.cancelled():
+                        self._handle_response(uuid, contact, result)
 
                 future.add_done_callback(callback)

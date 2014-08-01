@@ -80,6 +80,9 @@ class Node(object):
     def message_received(self, message, protocol, ip_address, port):
         """
         Handles incoming messages.
+
+        The protocol, ip_address and port arguments are used to create the
+        remote contact's URI used to identify them on the network.
         """
         # Check the "seal" of the sender to make sure it's legit.
         if not check_seal(message):
@@ -111,31 +114,54 @@ class Node(object):
 
     def send_message(self, contact, message, fire_and_forget=False):
         """
-        Sends a message to the specified contact, adds the resulting task to
+        Sends a message to the specified contact, adds the resulting future to
         the pending dictionary and ensures it times-out after the correct
         period. A callback is added to ensure that the task is removed from
         pending when it resolves (no matter the result). A timeout function
         is scheduled after RESPONSE_TIMEOUT seconds to clean up the pending
         task if the remote peer doesn't respond in a timely fashion.
         """
-        task = asyncio.async(self.connector.send(contact, message))
-        self.pending[message.uuid] = task
+        # A Future that represents the delivery of the message.
+        delivery = self.connector.send(contact, message)
+        # A Future that resolves with the response to the outgoing message.
+        response_received = asyncio.Future()
+        self.pending[message.uuid] = response_received
 
-        def on_complete(task, uuid=message.uuid):
+        def on_delivery(task, node=self, response_received=response_received,
+                        message=message):
             """
-            Ensure the completed task is removed from the pending dictionary.
+            Called when the delivery of the message either succeeds or fails.
+            If the delivery failed then punish the remote peer and resolve
+            response_received appropriately. Otherwise make sure the
+            appropriate timeout or fire-and-forget handling is put in place
+            on the response_received Future.
+            """
+            if task.exception():
+                node.routing_table.remove_contact(contact.network_id)
+                if not response_received.done():
+                    response_received.set_exception(task.exception())
+            else:
+                if fire_and_forget:
+                    node.event_loop.call_soon(response_received.set_result,
+                                              'sent')
+                else:
+                    error = TimedOut('Response took too long.')
+                    node.event_loop.call_later(RESPONSE_TIMEOUT,
+                                               node.trigger_task,
+                                               message, error)
+
+        delivery.add_done_callback(on_delivery)
+
+        def on_response(future, uuid=message.uuid):
+            """
+            Ensure the resolved response_received is removed from the pending
+            dictionary.
             """
             if uuid in self.pending:
                 del self.pending[uuid]
 
-        task.add_done_callback(on_complete)
-        if fire_and_forget:
-            self.event_loop.call_soon(task.set_result, 'sent')
-        else:
-            error = TimedOut('Response took too long.')
-            self.event_loop.call_later(RESPONSE_TIMEOUT, self.trigger_task,
-                                       message, error)
-        return message.uuid, task
+        response_received.add_done_callback(on_response)
+        return message.uuid, response_received
 
     def trigger_task(self, message, error=False):
         """
@@ -144,10 +170,11 @@ class Node(object):
         """
         if message.uuid in self.pending:
             task = self.pending[message.uuid]
-            if error:
-                task.set_exception(error)
-            else:
-                task.set_result(message)
+            if not task.done():
+                if error:
+                    task.set_exception(error)
+                else:
+                    task.set_result(message)
             # Remove the resolved task from the pending dictionary.
             del self.pending[message.uuid]
 
@@ -523,7 +550,6 @@ class Node(object):
             caching_contact = None
             for candidate in lookup.shortlist:
                 if candidate in lookup.contacted:
-                    # TODO - CHECK THIS!!!
                     caching_contact = candidate
                     break
             if caching_contact:
