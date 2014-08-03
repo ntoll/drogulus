@@ -290,7 +290,7 @@ class TestNetstringConnector(unittest.TestCase):
             return ('foo', protocol)
 
         with mock.patch.object(self.event_loop, 'create_connection',
-                               return_value=faux_connect()) as mock_call:
+                               return_value=faux_connect()):
             result = nc.send(contact, msg)
             self.event_loop.run_until_complete(result)
             self.assertEqual(1, new_protocol.send_string.call_count)
@@ -320,7 +320,7 @@ class TestNetstringConnector(unittest.TestCase):
             return ('foo', protocol)
 
         with mock.patch.object(self.event_loop, 'create_connection',
-                               return_value=faux_connect()) as mock_call:
+                               return_value=faux_connect()):
             result = nc.send(contact, msg)
             self.event_loop.run_until_complete(result)
             self.assertEqual(1, protocol.send_string.call_count)
@@ -353,7 +353,7 @@ class TestNetstringConnector(unittest.TestCase):
             return ('foo', protocol)
 
         with mock.patch.object(self.event_loop, 'create_connection',
-                               return_value=faux_connect()) as mock_call:
+                               return_value=faux_connect()):
             result = nc.send(contact, msg)
             with self.assertRaises(ValueError) as ex:
                 self.event_loop.run_until_complete(result)
