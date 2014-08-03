@@ -77,18 +77,18 @@ class Node(object):
         # Ensure the refresh of k-buckets is set up properly.
         return (self.network_id, FindNode, self)
 
-    def message_received(self, message, protocol, ip_address, port):
+    def message_received(self, message, protocol, address, port):
         """
         Handles incoming messages.
 
-        The protocol, ip_address and port arguments are used to create the
+        The protocol, address and port arguments are used to create the
         remote contact's URI used to identify them on the network.
         """
         # Check the "seal" of the sender to make sure it's legit.
         if not check_seal(message):
             raise BadMessage()
         # Update the routing table.
-        uri = '%s://%s:%d' % (protocol, ip_address, port)
+        uri = '%s://%s:%d' % (protocol, address, port)
         other_node = PeerNode(message.sender, message.version, uri,
                               time.time())
         logging.info('Message received from %s' % other_node)

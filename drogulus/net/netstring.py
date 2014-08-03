@@ -6,7 +6,9 @@ the local node (from its point of view, messages come in and messages go out).
 """
 from ..dht.messages import to_dict, from_dict
 from .connector import Connector
+from hashlib import sha512
 import urllib.parse
+import logging
 import asyncio
 import json
 import re
@@ -146,16 +148,18 @@ class NetstringConnector(Connector):
     def __init__(self, event_loop):
         """
         Initialises the object with an empty cache to contain protocol objects
-        associated with peers.
+        associated with peers. The passed in event_loop is used to create
+        connections to the remote peers in the network.
         """
         self._connections = {}
+        self.event_loop = event_loop
 
     def _send_message_with_protocol(self, message, protocol):
         """
         Sends the referenced message to the remote peer using the passed in
         protocol object.
         """
-        msg = from_dict(message)
+        msg = to_dict(message)
         protocol.send_string(msg)
 
     def send(self, contact, message):
@@ -163,7 +167,6 @@ class NetstringConnector(Connector):
         Sends the message to the referenced contact.
         """
         delivered = asyncio.Future()
-        protocol = None
         if contact.network_id in self._connections:
             # Use the cached protocol object.
             protocol = self._connections[contact.network_id]
@@ -172,35 +175,35 @@ class NetstringConnector(Connector):
                 delivered.set_result(True)
                 return delivered
             except:
-                # Retry with a fresh connection. E.g. perhaps the transport
-                # dropped but the remote peer is still online.
-                protocol = None
-        if not protocol:
-            # Create a new connection and then cache it.
-            uri = urllib.parse.urlsplit(contact.uri)
-            coro = self.event_loop.create_connection(NetstringProtocol,
-                                                     uri.hostname, uri.port)
-            connection = asyncio.Task(coro)
+                # Continue and retry with a fresh connection. E.g. perhaps
+                # the transport dropped but the remote peer is still online.
+                # Clean up the old protocol object.
+                del self._connections[contact.network_id]
+        # Create a new connection and then cache it.
+        uri = urllib.parse.urlsplit(contact.uri)
+        coro = self.event_loop.create_connection(NetstringProtocol,
+                                                 uri.hostname, uri.port)
+        connection = asyncio.Task(coro)
 
-            def on_connect(task, contact=contact, message=message, node=self,
-                           delivered=delivered):
-                """
-                Once a connection is established handles the sending of the
-                actual message and caching of the protocol for later use.
-                """
-                try:
-                    if task.result():
-                        protocol = task.result()[1]
-                        node._connections[contact.network_id] = protocol
-                        node._send_message_with_protocol(message, protocol)
-                        deliviered.set_result(True)
-                except Exception as ex:
-                    # There was a problem so pass up the callback chain for
-                    # upstream to handle what to do (e.g. punish the problem
-                    # remote peer).
-                    delivered.set_exception(ex)
+        def on_connect(task, contact=contact, message=message, nc=self,
+                       delivered=delivered):
+            """
+            Once a connection is established handles the sending of the
+            actual message and caching of the protocol for later use.
+            """
+            try:
+                if task.result():
+                    protocol = task.result()[1]
+                    nc._send_message_with_protocol(message, protocol)
+                    nc._connections[contact.network_id] = protocol
+                    delivered.set_result(True)
+            except Exception as ex:
+                # There was a problem so pass up the callback chain for
+                # upstream to handle what to do (e.g. punish the problem
+                # remote peer).
+                delivered.set_exception(ex)
 
-            connection.add_done_callback(on_connect)
+        connection.add_done_callback(on_connect)
         return delivered
 
     def receive(self, raw, sender, handler, protocol):
@@ -210,6 +213,19 @@ class NetstringConnector(Connector):
         try:
             message_dict = json.loads(raw)
             message = from_dict(message_dict)
-        except:
-            pass
-        # Make sure we store the protocol away for caching purposes.
+            network_id = sha512(message.sender.encode('ascii')).hexdigest()
+            if network_id not in self._connections:
+                # If the remote node is a new peer cache the protocol.
+                self._connections[network_id] = protocol
+            elif self._connections[network_id] != protocol:
+                # If the remote node has a cached protocol that appears to
+                # have expired cache the replacement protocol object.
+                self._connections[network_id] = protocol
+            handler.message_received(message, 'netstring', sender,
+                                     message.reply_port)
+        except Exception as ex:
+            # There's not a lot that can be usefully done at this stage except
+            # to log the problem in a way that may aid further investigation.
+            logging.info('Problem message received from %s' % sender)
+            logging.info(ex)
+            logging.info(raw)

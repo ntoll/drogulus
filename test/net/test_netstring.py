@@ -3,9 +3,20 @@
 A rather silly test but added all the same for completeness and to check the
 initial test suite works as expected.
 """
-from drogulus.net.netstring import NetstringProtocol, LENGTH
+from drogulus.net.netstring import (NetstringProtocol, NetstringConnector,
+                                    LENGTH)
+from drogulus.dht.messages import Ping, to_dict, from_dict
+from drogulus.dht.contact import PeerNode
+from drogulus.dht.crypto import get_seal
+from drogulus.dht.node import Node
+from drogulus.version import get_version
+from ..dht.keys import PUBLIC_KEY, PRIVATE_KEY, BAD_PUBLIC_KEY
+from hashlib import sha512
 import unittest
 import mock
+import uuid
+import json
+import asyncio
 
 
 class TestNetstringProtocol(unittest.TestCase):
@@ -184,14 +195,275 @@ class TestNetstringProtocol(unittest.TestCase):
         transport.write.assert_called_once_with(expected.encode('utf-8'))
 
 
-class TestNetstringConnector:
+class TestNetstringConnector(unittest.TestCase):
     """
     Checks the NetstringConnector class works as expected.
     """
+
+    def setUp(self):
+        """
+        Set up a new throw-away event loop.
+        """
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        self.event_loop = asyncio.get_event_loop()
+        self.version = get_version()
+
+    def tearDown(self):
+        """
+        Clean up the event loop.
+        """
+        self.event_loop.close()
 
     def test_init(self):
         """
         Check the class instantiates as expected.
         """
-        nc = NetstringConnector()
+        nc = NetstringConnector(self.event_loop)
         self.assertEqual(nc._connections, {})
+        self.assertEqual(nc.event_loop, self.event_loop)
+
+    def test_send_message_with_protocol(self):
+        """
+        Ensures that the message is translated into a dictionary and passed
+        into the protocol object in the expected way.
+        """
+        nc = NetstringConnector(self.event_loop)
+        protocol = mock.MagicMock()
+        protocol.send_string = mock.MagicMock()
+        msg = Ping('uuid', 'recipient', 'sender', 9999, 'version',
+                   'seal')
+        nc._send_message_with_protocol(msg, protocol)
+        protocol.send_string.assert_called_once_with({
+            'message': 'ping',
+            'uuid': 'uuid',
+            'recipient': 'recipient',
+            'sender': 'sender',
+            'reply_port': 9999,
+            'version': 'version',
+            'seal': 'seal'
+        })
+
+    def test_send_with_cached_protocol(self):
+        """
+        Send the message to the referenced contact using a cached protocol
+        object.
+        """
+        nc = NetstringConnector(self.event_loop)
+        nc._send_message_with_protocol = mock.MagicMock()
+        contact = PeerNode(PUBLIC_KEY, self.version,
+                           'netstring://192.168.0.1:1908')
+        msg = Ping('uuid', 'recipient', 'sender', 9999, 'version',
+                   'seal')
+        protocol = mock.MagicMock()
+        nc._connections[contact.network_id] = protocol
+        result = nc.send(contact, msg)
+        self.assertIsInstance(result, asyncio.Future)
+        self.assertTrue(result.done())
+        self.assertEqual(result.result(), True)
+        nc._send_message_with_protocol.assert_called_once_with(msg, protocol)
+
+    def test_send_with_failing_cached_protocol(self):
+        """
+        Attempting to send a message to the referenced contact using a
+        cached protocol object that cannot send (e.g. perhaps the transport
+        was dropped?) causes a retry as if the contact were new.
+        """
+        nc = NetstringConnector(self.event_loop)
+        contact = PeerNode(PUBLIC_KEY, self.version,
+                           'netstring://192.168.0.1:1908')
+        msg = Ping('uuid', 'recipient', 'sender', 9999, 'version',
+                   'seal')
+        protocol = mock.MagicMock()
+
+        def side_effect(*args, **kwargs):
+            raise ValueError()
+
+        protocol.send_string = mock.MagicMock(side_effect=side_effect)
+        nc._connections[contact.network_id] = protocol
+
+        new_protocol = mock.MagicMock()
+        new_protocol.send_string = mock.MagicMock()
+
+        @asyncio.coroutine
+        def faux_connect(protocol=new_protocol):
+            return ('foo', protocol)
+
+        with mock.patch.object(self.event_loop, 'create_connection',
+                               return_value=faux_connect()) as mock_call:
+            result = nc.send(contact, msg)
+            self.event_loop.run_until_complete(result)
+            self.assertEqual(1, new_protocol.send_string.call_count)
+            self.assertTrue(result.done())
+            self.assertEqual(True, result.result())
+            self.assertIn(contact.network_id, nc._connections)
+            self.assertEqual(nc._connections[contact.network_id],
+                             new_protocol)
+            m = to_dict(msg)
+            new_protocol.send_string.assert_called_once_with(m)
+
+    def test_send_to_new_contact_successful_connection(self):
+        """
+        Send a message to a new contact causes a new connection to be made
+        whose associated protocol object is cached for later use.
+        """
+        nc = NetstringConnector(self.event_loop)
+        contact = PeerNode(PUBLIC_KEY, self.version,
+                           'netstring://192.168.0.1:1908')
+        msg = Ping('uuid', 'recipient', 'sender', 9999, 'version',
+                   'seal')
+        protocol = mock.MagicMock()
+        protocol.send_string = mock.MagicMock()
+
+        @asyncio.coroutine
+        def faux_connect(protocol=protocol):
+            return ('foo', protocol)
+
+        with mock.patch.object(self.event_loop, 'create_connection',
+                               return_value=faux_connect()) as mock_call:
+            result = nc.send(contact, msg)
+            self.event_loop.run_until_complete(result)
+            self.assertEqual(1, protocol.send_string.call_count)
+            self.assertTrue(result.done())
+            self.assertEqual(True, result.result())
+            self.assertIn(contact.network_id, nc._connections)
+            self.assertEqual(nc._connections[contact.network_id], protocol)
+            m = to_dict(msg)
+            protocol.send_string.assert_called_once_with(m)
+
+    def test_send_to_new_contact_failed_to_connect(self):
+        """
+        Sending a message to a new but unreachable contact results in the
+        resulting deferred to be resolved with the expected exception.
+        """
+        nc = NetstringConnector(self.event_loop)
+        contact = PeerNode(PUBLIC_KEY, self.version,
+                           'netstring://192.168.0.1:1908')
+        msg = Ping('uuid', 'recipient', 'sender', 9999, 'version',
+                   'seal')
+        protocol = mock.MagicMock()
+
+        def side_effect(*args, **kwargs):
+            raise ValueError()
+
+        protocol.send_string = mock.MagicMock(side_effect=side_effect)
+
+        @asyncio.coroutine
+        def faux_connect(protocol=protocol):
+            return ('foo', protocol)
+
+        with mock.patch.object(self.event_loop, 'create_connection',
+                               return_value=faux_connect()) as mock_call:
+            result = nc.send(contact, msg)
+            with self.assertRaises(ValueError) as ex:
+                self.event_loop.run_until_complete(result)
+            self.assertEqual(1, protocol.send_string.call_count)
+            self.assertTrue(result.done())
+            self.assertEqual(ex.exception, result.exception())
+            self.assertNotIn(contact.network_id, nc._connections)
+
+    def test_receive_valid_json_valid_message_from_new_peer(self):
+        """
+        A good message is received then the node handles the message as
+        expected.
+        """
+        nc = NetstringConnector(self.event_loop)
+        ping = {
+            'uuid': str(uuid.uuid4()),
+            'recipient': PUBLIC_KEY,
+            'sender': PUBLIC_KEY,
+            'reply_port': 1908,
+            'version': self.version,
+        }
+        seal = get_seal(ping, PRIVATE_KEY)
+        ping['seal'] = seal
+        ping['message'] = 'ping'
+        raw = json.dumps(ping)
+        sender = '192.168.0.1'
+        handler = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, nc, 1908)
+        handler.message_received = mock.MagicMock()
+        protocol = mock.MagicMock()
+        nc.receive(raw, sender, handler, protocol)
+        network_id = sha512(PUBLIC_KEY.encode('ascii')).hexdigest()
+        self.assertIn(network_id, nc._connections)
+        self.assertEqual(nc._connections[network_id], protocol)
+        msg = from_dict(ping)
+        handler.message_received.assert_called_once_with(msg, 'netstring',
+                                                         sender,
+                                                         msg.reply_port)
+
+    def test_receive_valid_json_valid_message_from_old_peer(self):
+        """
+        A good message is received then the node handles the message as
+        expected. The cached protocol object for the peer node is expired since
+        a new protocol object is used in this instance.
+        """
+        nc = NetstringConnector(self.event_loop)
+        old_protocol = mock.MagicMock()
+        network_id = sha512(PUBLIC_KEY.encode('ascii')).hexdigest()
+        nc._connections[network_id] = old_protocol
+
+        ping = {
+            'uuid': str(uuid.uuid4()),
+            'recipient': PUBLIC_KEY,
+            'sender': PUBLIC_KEY,
+            'reply_port': 1908,
+            'version': self.version,
+        }
+        seal = get_seal(ping, PRIVATE_KEY)
+        ping['seal'] = seal
+        ping['message'] = 'ping'
+        raw = json.dumps(ping)
+        sender = '192.168.0.1'
+        handler = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, nc, 1908)
+        handler.message_received = mock.MagicMock()
+        protocol = mock.MagicMock()
+        nc.receive(raw, sender, handler, protocol)
+        self.assertIn(network_id, nc._connections)
+        self.assertEqual(nc._connections[network_id], protocol)
+        msg = from_dict(ping)
+        handler.message_received.assert_called_once_with(msg, 'netstring',
+                                                         sender,
+                                                         msg.reply_port)
+
+    def test_receive_invalid_json(self):
+        """
+        If a message is received that contains bad json then log the incident
+        for later analysis.
+        """
+        patcher = mock.patch('drogulus.net.netstring.logging.info')
+        nc = NetstringConnector(self.event_loop)
+        sender = '192.168.0.1'
+        handler = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, nc, 1908)
+        protocol = mock.MagicMock()
+        raw = 'invalid JSON'
+        mock_log = patcher.start()
+        nc.receive(raw, sender, handler, protocol)
+        self.assertEqual(3, mock_log.call_count)
+        patcher.stop()
+
+    def test_receive_valid_json_invalid_message(self):
+        """
+        If a message is received that consists of valid json but a malformed
+        message then log the incident for later analysis.
+        """
+        patcher = mock.patch('drogulus.net.netstring.logging.info')
+        nc = NetstringConnector(self.event_loop)
+        ping = {
+            'uuid': str(uuid.uuid4()),
+            'recipient': PUBLIC_KEY,
+            'sender': BAD_PUBLIC_KEY,
+            'reply_port': 1908,
+            'version': self.version,
+        }
+        seal = get_seal(ping, PRIVATE_KEY)
+        ping['seal'] = seal
+        ping['message'] = 'ping'
+        raw = json.dumps(ping)
+        sender = '192.168.0.1'
+        handler = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, nc, 1908)
+        protocol = mock.MagicMock()
+        mock_log = patcher.start()
+        nc.receive(raw, sender, handler, protocol)
+        self.assertEqual(3, mock_log.call_count)
+        patcher.stop()
