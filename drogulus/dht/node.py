@@ -10,7 +10,8 @@ from .crypto import check_seal, get_seal, verify_item, construct_key
 from .errors import BadMessage, UnverifiableProvenance, TimedOut
 from .messages import (Error, Ping, Pong, Store, FindNode, Nodes, FindValue,
                        Value, from_dict, to_dict)
-from .constants import REPLICATE_INTERVAL, RESPONSE_TIMEOUT
+from .constants import (REPLICATE_INTERVAL, REFRESH_INTERVAL,
+                        RESPONSE_TIMEOUT, K)
 from ..version import get_version
 import logging
 import time
@@ -67,15 +68,14 @@ class Node(object):
         if not seed_nodes:
             raise ValueError('Seed nodes required for node to join network')
         for contact in seed_nodes:
-            self._routing_table.add_contact(contact)
+            self.routing_table.add_contact(contact)
         # Looking up the node's ID on the network will populate the routing
         # table with fresh nodes as well as tell us who our nearest neighbours
         # are.
-
-        # TODO: Add callback to kick off refresh of k-buckets in future..?
-        raise Exception('FIX ME!')
+        lookup = Lookup(FindNode, self.network_id, self, self.event_loop)
         # Ensure the refresh of k-buckets is set up properly.
-        return (self.network_id, FindNode, self)
+        self.event_loop.call_later(REFRESH_INTERVAL, self.refresh)
+        return lookup
 
     def message_received(self, message, protocol, address, port):
         """
@@ -233,7 +233,7 @@ class Node(object):
             # At some future time attempt to replicate the Store message
             # around the network IF it is within the message's expiry time.
             self.event_loop.call_later(REPLICATE_INTERVAL, self.republish,
-                                       message)
+                                       message.key)
         else:
             # Remove from the routing table.
             logging.info('Problem with Store command from %s' % contact)
@@ -268,6 +268,8 @@ class Node(object):
                             match.timestamp, match.expires,
                             match.created_with, match.public_key, match.name,
                             match.signature)
+            # Update the last access time for the matching value.
+            self.data_store.touch(message.key)
         else:
             self.handle_find_node(message, contact)
 
@@ -563,9 +565,22 @@ class Node(object):
         lookup.add_done_callback(cache_result)
         return lookup
 
-    def republish(self, message):
+    def refresh(self):
         """
-        Will check and republish a locally stored message to the wider network.
+        A periodically called method that will check and refresh the k-buckets
+        in the node's routing table.
+        """
+        refresh_ids = self.routing_table.get_refresh_list()
+        logging.info('Refreshing buckets with ids: %r' % refresh_ids)
+        for network_id in refresh_ids:
+            Lookup(FindNode, network_id, self, self.event_loop)
+        # schedule the next refresh.
+        self.event_loop.call_later(REFRESH_INTERVAL, self.refresh)
+
+    def republish(self, item_key):
+        """
+        Periodically called to check and republish a locally stored item to
+        the wider network.
 
         From the original Kademlia paper:
 
@@ -588,42 +603,57 @@ class Node(object):
         thus the recipient will not republish the key-value pair in the next
         hour. This ensures that as long as republication intervals are not
         exactly synchronized, only one node will republish a given key-value
-        pair every hour.
+        pair every hour."
 
-        A second optimization avoids performing node lookups before
-        republishing keys. As described in Section 2.4, to handle unbalanced
-        trees, nodes split k-buckets as required to ensure they have complete
-        knowledge of a surrounding subtree with at least k nodes. If, before
-        republishing key-value pairs, a node u refreshes all k-buckets in this
-        subtree of k nodes, it will automatically be able to figure out the
-        k closest nodes to a given key. These bucket refreshes can be amortized
-        over the republication of many keys.
+        In this implementation, messages are only republished if the following
+        requirements are met:
 
-        To see why a node lookup is unnecessary after u refreshes buckets in
-        the sub-tree of size >= k, it is necessary to consider two cases. If
-        the key being republished falls in the ID range of the subtree, then
-        since the subtree is of size at least k and u has complete knowledge of
-        the subtree, clearly u must know the k closest nodes to the key. If,
-        on the other hand, the key lies outside the subtree, yet u was one of
-        the k closest nodes to the key, it must follow that u's k-buckets for
-        intervals closer to the key than the subtree all have fewer than k
-        entries. Hence, u will know all nodes in these k-buckets, which
-        together with knowledge of the subtree will include the k closest nodes
-        to the key.
-
-        When a new node joins the system, it must store any key-value pair to
-        which is is one of the k closest. Existing nodes, by similarly
-        exploiting complete knowledge of their surrounding subtrees, will know
-        which key-value pairs the new node should store. Any node learning of a
-        new node therefore issues STORE RPCs to transfer relevant key-value
-        pairs to the new node. To avoid redundant STORE RPCs, however, a node
-        only transfers a key-value pair if it's [sic] own ID is closer to the
-        key than are the IDs of other nodes."
-
-        Messages are only republished if the following requirements are met:
-
-        * They still exist in the local data store.
-        * They have not expired.
-        * They have not been updated for REPLICATE_INTERVAL seconds.
+        * The item still exists in the local data store (it may have been
+        deleted in the time between the time of the call and the time the call
+        was scheduled).
+        * The item has not expired.
+        * The item has not been updated for REPLICATE_INTERVAL seconds.
+        * The item has been requested during REPLICATE_INTERVAL seconds.
         """
-        pass
+        logging.info('Republish check for key: %s' % item_key)
+        if item_key in self.data_store:
+            item = self.data_store[item_key]
+            now = time.time()
+            if item.expires < now:
+                # The item has expired.
+                del self.data_store[item_key]
+                logging.info('%s item has expired. ' % (item_key) +
+                             'Deleted from local data store.')
+            else:
+                updated = self.data_store.updated(item_key)
+                accessed = self.data_store.accessed(item_key)
+                update_delta = now - updated
+                access_delta = now - accessed
+                replicated = False
+                if update_delta > REPLICATE_INTERVAL:
+                    # The item needs replicating.
+                    logging.info('Republishing item %s.' % item_key)
+                    self.replicate(K, item.key, item.value, item.timestamp,
+                                   item.expires, item.created_with,
+                                   item.public_key, item.name, item.signature)
+                    replicated = True
+                # Re-schedule the republication check.
+                handler = self.event_loop.call_later(REPLICATE_INTERVAL,
+                                                     self.republish, item_key)
+                if access_delta > REPLICATE_INTERVAL:
+                    # The item has not been accessed for a while so, if
+                    # required, replicate the item and then remove it from the
+                    # local data store. Remember to cancel the scheduled
+                    # republication check.
+                    logging.info('Removing item %s from local ' % item_key +
+                                 'data store due to lack of activity.')
+                    if not replicated:
+                        self.replicate(K, item.key, item.value,
+                                       item.timestamp, item.expires,
+                                       item.created_with, item.public_key,
+                                       item.name, item.signature)
+                    del self.data_store[item_key]
+                    handler.cancel()
+        else:
+            logging.info('%s no longer in local data store. Cancelled.' %
+                         item_key)

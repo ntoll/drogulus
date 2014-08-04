@@ -54,9 +54,25 @@ class DataStore(MutableMapping):
     def __setitem__(self, key, value):
         """
         Associate a key with a specified value.
+
+        The value is stored as a tuple. The first item is the value to be
+        stored, the second is a timestamp indicating when the value was
+        last updated and the third item is a timestamp indicating when the
+        item was last accessed.
+
+        The two timestamps are used to determine if, when and how the item
+        should be replicated to the wider network.
         """
+        if key in self:
+            item = self._get_item(key)
+        else:
+            item = False
         updated_on = time.time()
-        self._set_item(key, (value, updated_on))
+        if item:
+            # Need to keep the last access time if the item already exists.
+            self._set_item(key, (value, updated_on, item[2]))
+        else:
+            self._set_item(key, (value, updated_on, 0.0))
 
     def keys(self):
         """
@@ -64,12 +80,30 @@ class DataStore(MutableMapping):
         """
         raise NotImplementedError('keys() method needs implementing.')
 
+    def touch(self, key):
+        """
+        Updates the last-access timestamp associated with the key/value pair.
+
+        This value is used to help determine when to allow an item to
+        expire in the local datastore.
+        """
+        accessed_on = time.time()
+        item = self._get_item(key)
+        self._set_item(key, (item[0], item[1], accessed_on))
+
     def updated(self, key):
         """
         Get the timestamp when a key/value pair identified by the key were
         last updated in this data store.
         """
         return self._get_item(key)[1]
+
+    def accessed(self, key):
+        """
+        Get the timestamp indicating when a key/value pair identified by the
+        key were last accessed by the local node.
+        """
+        return self._get_item(key)[2]
 
     def publisher(self, key):
         """

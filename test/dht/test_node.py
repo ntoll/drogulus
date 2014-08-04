@@ -15,7 +15,9 @@ from drogulus.dht.crypto import (get_signed_item, get_seal, check_seal,
 from drogulus.dht.errors import (BadMessage, UnverifiableProvenance, TimedOut,
                                  RoutingTableEmpty)
 from drogulus.dht.contact import PeerNode
-from drogulus.dht.constants import REPLICATE_INTERVAL, RESPONSE_TIMEOUT
+from drogulus.dht.constants import (REPLICATE_INTERVAL, REFRESH_INTERVAL,
+                                    RESPONSE_TIMEOUT)
+from drogulus.dht.bucket import Bucket
 from .keys import PRIVATE_KEY, PUBLIC_KEY, BAD_PUBLIC_KEY
 from mock import MagicMock, patch
 from hashlib import sha512
@@ -128,15 +130,33 @@ class TestNode(unittest.TestCase):
         """
         Ensures the join method works with a valid set of seed_nodes.
         """
-        # TODO implement this.
-        pass
+        node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
+                    self.reply_port)
+        seed_nodes = []
+        for i in range(20):
+            uri = 'http://192.168.0.%d:9999/'
+            contact = PeerNode(PUBLIC_KEY, self.version, uri, 0)
+            seed_nodes.append(contact)
+        node.routing_table.add_contact = mock.MagicMock()
+        lookup_patcher = patch('drogulus.dht.node.Lookup')
+        mock_lookup = lookup_patcher.start()
+        with patch.object(self.event_loop, 'call_later') as mock_call:
+            node.join(seed_nodes)
+            mock_call.assert_called_once_with(REFRESH_INTERVAL, node.refresh)
+        mock_lookup.assert_called_once_with(FindNode, node.network_id, node,
+                                            node.event_loop)
+        lookup_patcher.stop()
+        self.assertEqual(len(seed_nodes),
+                         node.routing_table.add_contact.call_count)
 
     def test_join_no_seed_nodes(self):
         """
         Ensure the correct exception is raised if the seed_nodes don't exist.
         """
-        # TODO implement this.
-        pass
+        node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
+                    self.reply_port)
+        with self.assertRaises(ValueError):
+            node.join([])
 
     def test_message_received_checks_message_seal(self):
         """
@@ -361,7 +381,7 @@ class TestNode(unittest.TestCase):
             self.assertEqual(mock_call.call_args_list[0][0][1],
                              node.republish)
             self.assertEqual(mock_call.call_args_list[0][0][2],
-                             message)
+                             message.key)
         self.assertEqual(message, node.data_store[message.key])
         self.assertEqual(1, node.send_pong.call_count)
         node.send_pong.assert_called_once_with(message, self.contact)
@@ -551,13 +571,16 @@ class TestNode(unittest.TestCase):
     def test_handle_find_value_exists(self):
         """
         Make sure a FindValue message causes a Value message to be sent to the
-        remote peer if the local node has the requested key/value item.
+        remote peer if the local node has the requested key/value item. Also
+        check that the item is "touched" in the local data store to update its
+        last-access timestamp.
         """
         node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
                     self.reply_port)
         k = sha512('a key'.encode('utf-8')).hexdigest()
         node.data_store[k] = self.message
         node.send_value = mock.MagicMock()
+        node.data_store.touch = mock.MagicMock()
         msg_dict = {
             'uuid': str(uuid.uuid4()),
             'recipient': PUBLIC_KEY,
@@ -583,6 +606,8 @@ class TestNode(unittest.TestCase):
         self.assertEqual(self.message.public_key, args[7])
         self.assertEqual(self.message.name, args[8])
         self.assertEqual(self.message.signature, args[9])
+        self.assertEqual(1, node.data_store.touch.call_count)
+        node.data_store.touch.assert_called_once_with(k)
 
     def test_handle_find_value_unknown_key(self):
         """
@@ -1415,3 +1440,75 @@ class TestNode(unittest.TestCase):
         lookup.set_exception(ex)
         self.event_loop.run_until_complete(blip())
         self.assertEqual(0, node.send_store.call_count)
+
+    def test_refresh(self):
+        """
+        Ensure that the refresh method sends the required number of lookups to
+        keep the routing table fresh.
+        """
+        node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
+                    self.reply_port)
+        bucket1 = Bucket(1, 99999999)
+        # Set the lastAccessed flag on bucket 1 to be out of date
+        bucket1.last_accessed = time.time() - 3700
+        node.routing_table._buckets[0] = bucket1
+        bucket2 = Bucket(99999999, 9999999999)
+        # Bucket 2 will not need refreshing.
+        bucket2.last_accessed = time.time()
+        node.routing_table._buckets.append(bucket2)
+        result = node.routing_table.get_refresh_list(0)
+        lookup_patcher = patch('drogulus.dht.node.Lookup')
+        mock_lookup = lookup_patcher.start()
+        with patch.object(self.event_loop, 'call_later') as mock_call:
+            node.refresh()
+            mock_call.assert_called_once_with(REFRESH_INTERVAL, node.refresh)
+        self.assertEqual(1, mock_lookup.call_count)
+        lookup_patcher.stop()
+
+    def test_republish_no_item(self):
+        """
+        Check that the republish check works when the affected item has
+        already been removed from the data store.
+        """
+        assert False
+
+    def test_republish_item_expired(self):
+        """
+        Check that the republish check works as expected if the affected item
+        has expired.
+        """
+        assert False
+
+    def test_republish_needs_replication(self):
+        """
+        Check that the republish check kicks off replication if the
+        value has not been updated within REPLICATE_INTERVAL seconds.
+        """
+        assert False
+
+    def test_republish_no_replication_was_accessed(self):
+        """
+        Check that the republish check works as expected if the value HAS
+        been updated within REPLICATE_INTERVAL seconds and the value HAS also
+        been accessed within REPLICATE_INTERVAL seconds.
+        """
+        assert False
+
+    def test_republish_replication_lack_of_activity(self):
+        """
+        Check that the republish check kicks off replication if the
+        value has not been updated within REPLICATE_INTERVAL seconds. Also
+        ensure that if the value has NOT been accessed within
+        REPLICATE_INTERVAL seconds then remove it from the local data store.
+        """
+        assert False
+
+    def test_republish_no_replication_lack_of_activity(self):
+        """
+        Check that the republish check works as expected if the value HAS
+        been updated within REPLICATE_INTERVAL seconds. Also ensure that if
+        the value has NOT been accessed within REPLICATE_INTERVAL seconds then
+        remove it from the local data store only after a replication has been
+        kicked off.
+        """
+        assert False

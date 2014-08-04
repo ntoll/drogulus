@@ -23,6 +23,24 @@ class TestDataStore(unittest.TestCase):
         ds = DataStore()
         self.assertRaises(NotImplementedError, ds.keys)
 
+    def test_touch(self):
+        """
+        Ensure that the touch method updates the timestamp for a referenced
+        item.
+        """
+        self.assertTrue(hasattr(DataStore, 'touch'))
+        ds = DataStore()
+        timestamp = time.time()
+        ds._get_item = MagicMock(return_value=('bar', timestamp, timestamp))
+        ds._set_item = MagicMock()
+        ds.touch('foo')
+        self.assertEqual(1, ds._set_item.call_count)
+        args = ds._set_item.call_args_list[0][0]
+        self.assertEqual('foo', args[0])
+        self.assertEqual('bar', args[1][0])
+        self.assertEqual(args[1][1], timestamp)
+        self.assertTrue(args[1][2] > timestamp)
+
     def test_updated(self):
         """
         Check the DataStore base class gets the requested item and returns the
@@ -31,8 +49,21 @@ class TestDataStore(unittest.TestCase):
         self.assertTrue(hasattr(DataStore, 'updated'))
         ds = DataStore()
         timestamp = time.time()
-        ds._get_item = MagicMock(return_value=(None, timestamp, None))
+        ds._get_item = MagicMock(return_value=(None, timestamp, 0.0))
         result = ds.updated('foo')
+        self.assertEqual(timestamp, result)
+        ds._get_item.assert_called_once_with('foo')
+
+    def test_accessed(self):
+        """
+        Check the DataStore baase class gets the requested item and return the
+        timestamp in position 2 of the tuple.
+        """
+        self.assertTrue(hasattr(DataStore, 'accessed'))
+        ds = DataStore()
+        timestamp = time.time()
+        ds._get_item = MagicMock(return_value=(None, None, timestamp))
+        result = ds.accessed('foo')
         self.assertEqual(timestamp, result)
         ds._get_item.assert_called_once_with('foo')
 
@@ -46,7 +77,7 @@ class TestDataStore(unittest.TestCase):
         val = {
             'public_key': PUBLIC_KEY
         }
-        ds._get_item = MagicMock(return_value=(val, None, None))
+        ds._get_item = MagicMock(return_value=(val, None, 0.0))
         result = ds.publisher('foo')
         self.assertEqual(PUBLIC_KEY, result)
         ds._get_item.assert_called_once_with('foo')
@@ -62,7 +93,7 @@ class TestDataStore(unittest.TestCase):
         val = {
             'timestamp': timestamp
         }
-        ds._get_item = MagicMock(return_value=(val, None, None))
+        ds._get_item = MagicMock(return_value=(val, None, 0.0))
         result = ds.created('foo')
         self.assertEqual(timestamp, result)
         ds._get_item.assert_called_once_with('foo')
@@ -92,12 +123,12 @@ class TestDataStore(unittest.TestCase):
         self.assertTrue(hasattr(DataStore, '__getitem__'))
         ds = DataStore()
         val = 'some arbitrary yet meaningless value'
-        ds._get_item = MagicMock(return_value=(val, None, None))
+        ds._get_item = MagicMock(return_value=(val, None, 0.0))
         result = ds['foo']
         self.assertEqual(val, result)
         ds._get_item.assert_called_once_with('foo')
 
-    def test__setitem__(self):
+    def test__setitem__new_value(self):
         """
         Check the DataStore base class has a __setitem__ method.
         """
@@ -105,6 +136,11 @@ class TestDataStore(unittest.TestCase):
         ds = DataStore()
         val = 'some arbitrary yet meaningless value'
         ds._set_item = MagicMock()
+
+        def side_effect(*args, **kwargs):
+            raise KeyError()
+
+        ds._get_item = MagicMock(side_effect=side_effect)
         ds['foo'] = val
         self.assertEqual(1, ds._set_item.call_count)
         call_args = ds._set_item.call_args[0]
@@ -112,6 +148,26 @@ class TestDataStore(unittest.TestCase):
         self.assertIsInstance(call_args[1], tuple)
         self.assertEqual(val, call_args[1][0])
         self.assertIsInstance(call_args[1][1], float)
+        self.assertEqual(call_args[1][2], 0.0)
+
+    def test__setitem__existing_value(self):
+        """
+        Check the DataStore base class has a __setitem__ method.
+        """
+        self.assertTrue(hasattr(DataStore, '__setitem__'))
+        ds = DataStore()
+        val = 'some arbitrary yet meaningless value'
+        timestamp = time.time()
+        ds._get_item = MagicMock(return_value=(val, timestamp, 0.0))
+        ds._set_item = MagicMock()
+        ds['foo'] = val
+        self.assertEqual(1, ds._set_item.call_count)
+        call_args = ds._set_item.call_args[0]
+        self.assertEqual('foo', call_args[0])
+        self.assertIsInstance(call_args[1], tuple)
+        self.assertEqual(val, call_args[1][0])
+        self.assertTrue(timestamp < call_args[1][1])
+        self.assertEqual(0.0, call_args[1][2])
 
     def test__iter__(self):
         """
