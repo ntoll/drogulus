@@ -1470,21 +1470,118 @@ class TestNode(unittest.TestCase):
         Check that the republish check works when the affected item has
         already been removed from the data store.
         """
-        assert False
+        patcher = patch('drogulus.dht.node.logging.info')
+        node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
+                    self.reply_port)
+        mock_log = patcher.start()
+        node.republish('foo')
+        self.assertEqual(2, mock_log.call_count)
+        expected = 'Republish check for key: foo'
+        self.assertEqual(expected, mock_log.call_args_list[0][0][0])
+        expected = 'foo no longer in local data store. Cancelled.'
+        self.assertEqual(expected, mock_log.call_args_list[1][0][0])
+        patcher.stop()
 
     def test_republish_item_expired(self):
         """
         Check that the republish check works as expected if the affected item
         has expired.
         """
-        assert False
+        signed_item = get_signed_item(self.name, self.value, PUBLIC_KEY,
+                                      PRIVATE_KEY, 0)
+        # Signed item with out of date expires argument.
+        signed_item['expires'] = 123.456
+        signed_item['uuid'] = self.uuid
+        signed_item['sender'] = self.sender
+        signed_item['recipient'] = self.recipient
+        signed_item['reply_port'] = self.reply_port
+        signed_item['version'] = self.version
+        seal = get_seal(signed_item, PRIVATE_KEY)
+        signed_item['seal'] = self.seal
+        signed_item['message'] = 'store'
+        message = from_dict(signed_item)
+        node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
+                    self.reply_port)
+        node.data_store[message.key] = message
+        patcher = patch('drogulus.dht.node.logging.info')
+        mock_log = patcher.start()
+        node.republish(message.key)
+        self.assertEqual(2, mock_log.call_count)
+        expected = 'Republish check for key: %s' % message.key
+        self.assertEqual(expected, mock_log.call_args_list[0][0][0])
+        msg = '%s expired. Deleted from local data store.' % message.key
+        self.assertEqual(msg, mock_log.call_args_list[1][0][0])
+        patcher.stop()
+
+    def test_republish_item_zero_expiry(self):
+        """
+        If the item's expiry value is 0 then it should never expire.
+        """
+        signed_item = get_signed_item(self.name, self.value, PUBLIC_KEY,
+                                      PRIVATE_KEY, 0)
+        signed_item['uuid'] = self.uuid
+        signed_item['sender'] = self.sender
+        signed_item['recipient'] = self.recipient
+        signed_item['reply_port'] = self.reply_port
+        signed_item['version'] = self.version
+        seal = get_seal(signed_item, PRIVATE_KEY)
+        signed_item['seal'] = self.seal
+        signed_item['message'] = 'store'
+        message = from_dict(signed_item)
+        node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
+                    self.reply_port)
+        node.replicate = MagicMock()
+        node.data_store[message.key] = message
+        patcher = patch('drogulus.dht.node.logging.info')
+        mock_log = patcher.start()
+        mock_handler = MagicMock()
+        with patch.object(self.event_loop, 'call_later',
+                          return_value=mock_handler) as mock_call:
+            node.republish(message.key)
+            mock_call.assert_called_once_with(REPLICATE_INTERVAL,
+                                              node.republish, message.key)
+        self.assertEqual(2, mock_log.call_count)
+        expected = 'Republish check for key: %s' % message.key
+        self.assertEqual(expected, mock_log.call_args_list[0][0][0])
+        msg = 'Removing %s due to lack of activity.' % message.key
+        self.assertEqual(msg, mock_log.call_args_list[1][0][0])
+        patcher.stop()
 
     def test_republish_needs_replication(self):
         """
         Check that the republish check kicks off replication if the
         value has not been updated within REPLICATE_INTERVAL seconds.
         """
-        assert False
+        signed_item = get_signed_item(self.name, self.value, PUBLIC_KEY,
+                                      PRIVATE_KEY, 0)
+        signed_item['uuid'] = self.uuid
+        signed_item['sender'] = self.sender
+        signed_item['recipient'] = self.recipient
+        signed_item['reply_port'] = self.reply_port
+        signed_item['version'] = self.version
+        seal = get_seal(signed_item, PRIVATE_KEY)
+        signed_item['seal'] = self.seal
+        signed_item['message'] = 'store'
+        message = from_dict(signed_item)
+        node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
+                    self.reply_port)
+        node.replicate = MagicMock()
+        now = time.time()
+        node.data_store._set_item(message.key, (message, 123.45, now))
+        patcher = patch('drogulus.dht.node.logging.info')
+        mock_log = patcher.start()
+        mock_handler = MagicMock()
+        with patch.object(self.event_loop, 'call_later',
+                          return_value=mock_handler) as mock_call:
+            node.republish(message.key)
+            mock_call.assert_called_once_with(REPLICATE_INTERVAL,
+                                              node.republish, message.key)
+        self.assertEqual(2, mock_log.call_count)
+        expected = 'Republish check for key: %s' % message.key
+        self.assertEqual(expected, mock_log.call_args_list[0][0][0])
+        msg = 'Republishing item %s.' % message.key
+        self.assertEqual(msg, mock_log.call_args_list[1][0][0])
+        patcher.stop()
 
     def test_republish_no_replication_was_accessed(self):
         """
@@ -1492,7 +1589,34 @@ class TestNode(unittest.TestCase):
         been updated within REPLICATE_INTERVAL seconds and the value HAS also
         been accessed within REPLICATE_INTERVAL seconds.
         """
-        assert False
+        signed_item = get_signed_item(self.name, self.value, PUBLIC_KEY,
+                                      PRIVATE_KEY, 0)
+        signed_item['uuid'] = self.uuid
+        signed_item['sender'] = self.sender
+        signed_item['recipient'] = self.recipient
+        signed_item['reply_port'] = self.reply_port
+        signed_item['version'] = self.version
+        seal = get_seal(signed_item, PRIVATE_KEY)
+        signed_item['seal'] = self.seal
+        signed_item['message'] = 'store'
+        message = from_dict(signed_item)
+        node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
+                    self.reply_port)
+        node.replicate = MagicMock()
+        now = time.time()
+        node.data_store._set_item(message.key, (message, now, now))
+        patcher = patch('drogulus.dht.node.logging.info')
+        mock_log = patcher.start()
+        mock_handler = MagicMock()
+        with patch.object(self.event_loop, 'call_later',
+                          return_value=mock_handler) as mock_call:
+            node.republish(message.key)
+            mock_call.assert_called_once_with(REPLICATE_INTERVAL,
+                                              node.republish, message.key)
+        self.assertEqual(1, mock_log.call_count)
+        expected = 'Republish check for key: %s' % message.key
+        self.assertEqual(expected, mock_log.call_args_list[0][0][0])
+        patcher.stop()
 
     def test_republish_replication_lack_of_activity(self):
         """
@@ -1501,7 +1625,40 @@ class TestNode(unittest.TestCase):
         ensure that if the value has NOT been accessed within
         REPLICATE_INTERVAL seconds then remove it from the local data store.
         """
-        assert False
+        signed_item = get_signed_item(self.name, self.value, PUBLIC_KEY,
+                                      PRIVATE_KEY, 0)
+        signed_item['uuid'] = self.uuid
+        signed_item['sender'] = self.sender
+        signed_item['recipient'] = self.recipient
+        signed_item['reply_port'] = self.reply_port
+        signed_item['version'] = self.version
+        seal = get_seal(signed_item, PRIVATE_KEY)
+        signed_item['seal'] = self.seal
+        signed_item['message'] = 'store'
+        message = from_dict(signed_item)
+        node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
+                    self.reply_port)
+        node.replicate = MagicMock()
+        now = time.time()
+        node.data_store._set_item(message.key, (message, 123.45, 123.45))
+        patcher = patch('drogulus.dht.node.logging.info')
+        mock_log = patcher.start()
+        mock_handler = MagicMock()
+        mock_handler.cancel = MagicMock()
+        with patch.object(self.event_loop, 'call_later',
+                          return_value=mock_handler) as mock_call:
+            node.republish(message.key)
+            mock_call.assert_called_once_with(REPLICATE_INTERVAL,
+                                              node.republish, message.key)
+        self.assertEqual(3, mock_log.call_count)
+        expected = 'Republish check for key: %s' % message.key
+        self.assertEqual(expected, mock_log.call_args_list[0][0][0])
+        msg = 'Republishing item %s.' % message.key
+        self.assertEqual(msg, mock_log.call_args_list[1][0][0])
+        msg = 'Removing %s due to lack of activity.' % message.key
+        self.assertEqual(msg, mock_log.call_args_list[2][0][0])
+        self.assertEqual(1, mock_handler.cancel.call_count)
+        patcher.stop()
 
     def test_republish_no_replication_lack_of_activity(self):
         """
@@ -1511,4 +1668,34 @@ class TestNode(unittest.TestCase):
         remove it from the local data store only after a replication has been
         kicked off.
         """
-        assert False
+        signed_item = get_signed_item(self.name, self.value, PUBLIC_KEY,
+                                      PRIVATE_KEY, 0)
+        signed_item['uuid'] = self.uuid
+        signed_item['sender'] = self.sender
+        signed_item['recipient'] = self.recipient
+        signed_item['reply_port'] = self.reply_port
+        signed_item['version'] = self.version
+        seal = get_seal(signed_item, PRIVATE_KEY)
+        signed_item['seal'] = self.seal
+        signed_item['message'] = 'store'
+        message = from_dict(signed_item)
+        node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
+                    self.reply_port)
+        node.replicate = MagicMock()
+        node.data_store[message.key] = message
+        patcher = patch('drogulus.dht.node.logging.info')
+        mock_log = patcher.start()
+        mock_handler = MagicMock()
+        mock_handler.cancel = MagicMock()
+        with patch.object(self.event_loop, 'call_later',
+                          return_value=mock_handler) as mock_call:
+            node.republish(message.key)
+            mock_call.assert_called_once_with(REPLICATE_INTERVAL,
+                                              node.republish, message.key)
+        self.assertEqual(2, mock_log.call_count)
+        expected = 'Republish check for key: %s' % message.key
+        self.assertEqual(expected, mock_log.call_args_list[0][0][0])
+        msg = 'Removing %s due to lack of activity.' % message.key
+        self.assertEqual(msg, mock_log.call_args_list[1][0][0])
+        self.assertEqual(1, mock_handler.cancel.call_count)
+        patcher.stop()

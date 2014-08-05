@@ -619,11 +619,12 @@ class Node(object):
         if item_key in self.data_store:
             item = self.data_store[item_key]
             now = time.time()
-            if item.expires < now:
-                # The item has expired.
+            if item.expires > 0.0 and item.expires < now:
+                # The item has expired. If the item's expiry is 0 (or less)
+                # then the item should never expire.
                 del self.data_store[item_key]
-                logging.info('%s item has expired. ' % (item_key) +
-                             'Deleted from local data store.')
+                msg = '%s expired. Deleted from local data store.' % item_key
+                logging.info(msg)
             else:
                 updated = self.data_store.updated(item_key)
                 accessed = self.data_store.accessed(item_key)
@@ -645,8 +646,8 @@ class Node(object):
                     # required, replicate the item and then remove it from the
                     # local data store. Remember to cancel the scheduled
                     # republication check.
-                    logging.info('Removing item %s from local ' % item_key +
-                                 'data store due to lack of activity.')
+                    msg = 'Removing %s due to lack of activity.' % item_key
+                    logging.info(msg)
                     if not replicated:
                         self.replicate(K, item.key, item.value,
                                        item.timestamp, item.expires,
