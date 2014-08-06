@@ -1456,7 +1456,7 @@ class TestNode(unittest.TestCase):
         # Bucket 2 will not need refreshing.
         bucket2.last_accessed = time.time()
         node.routing_table._buckets.append(bucket2)
-        result = node.routing_table.get_refresh_list(0)
+        node.routing_table.get_refresh_list(0)
         lookup_patcher = patch('drogulus.dht.node.Lookup')
         mock_lookup = lookup_patcher.start()
         with patch.object(self.event_loop, 'call_later') as mock_call:
@@ -1497,7 +1497,7 @@ class TestNode(unittest.TestCase):
         signed_item['reply_port'] = self.reply_port
         signed_item['version'] = self.version
         seal = get_seal(signed_item, PRIVATE_KEY)
-        signed_item['seal'] = self.seal
+        signed_item['seal'] = seal
         signed_item['message'] = 'store'
         message = from_dict(signed_item)
         node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
@@ -1525,7 +1525,7 @@ class TestNode(unittest.TestCase):
         signed_item['reply_port'] = self.reply_port
         signed_item['version'] = self.version
         seal = get_seal(signed_item, PRIVATE_KEY)
-        signed_item['seal'] = self.seal
+        signed_item['seal'] = seal
         signed_item['message'] = 'store'
         message = from_dict(signed_item)
         node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
@@ -1560,7 +1560,7 @@ class TestNode(unittest.TestCase):
         signed_item['reply_port'] = self.reply_port
         signed_item['version'] = self.version
         seal = get_seal(signed_item, PRIVATE_KEY)
-        signed_item['seal'] = self.seal
+        signed_item['seal'] = seal
         signed_item['message'] = 'store'
         message = from_dict(signed_item)
         node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
@@ -1597,7 +1597,7 @@ class TestNode(unittest.TestCase):
         signed_item['reply_port'] = self.reply_port
         signed_item['version'] = self.version
         seal = get_seal(signed_item, PRIVATE_KEY)
-        signed_item['seal'] = self.seal
+        signed_item['seal'] = seal
         signed_item['message'] = 'store'
         message = from_dict(signed_item)
         node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
@@ -1633,13 +1633,12 @@ class TestNode(unittest.TestCase):
         signed_item['reply_port'] = self.reply_port
         signed_item['version'] = self.version
         seal = get_seal(signed_item, PRIVATE_KEY)
-        signed_item['seal'] = self.seal
+        signed_item['seal'] = seal
         signed_item['message'] = 'store'
         message = from_dict(signed_item)
         node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
                     self.reply_port)
         node.replicate = MagicMock()
-        now = time.time()
         node.data_store._set_item(message.key, (message, 123.45, 123.45))
         patcher = patch('drogulus.dht.node.logging.info')
         mock_log = patcher.start()
@@ -1676,7 +1675,7 @@ class TestNode(unittest.TestCase):
         signed_item['reply_port'] = self.reply_port
         signed_item['version'] = self.version
         seal = get_seal(signed_item, PRIVATE_KEY)
-        signed_item['seal'] = self.seal
+        signed_item['seal'] = seal
         signed_item['message'] = 'store'
         message = from_dict(signed_item)
         node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,

@@ -1,8 +1,1 @@
-* Expire cache.
-* Key republish.
-* Refresh k-bucket.
-* find_close_nodes in routing table to work across k-bucket edges.
-* Ensure version changes are updated in the local routing table (node ids are hash of a hash of the public key and drogulus version).
-* Keep track of last access for a value in the local hash-table.
-* Ensure more recent value trumps older values.
-* Use SSH for inter-node communication.
+* Handle out of date data.
