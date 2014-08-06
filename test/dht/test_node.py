@@ -7,7 +7,7 @@ from drogulus.version import get_version
 from drogulus.dht.node import Node
 from drogulus.dht.routingtable import RoutingTable
 from drogulus.dht.storage import DictDataStore
-from drogulus.dht.messages import (Error, Ping, Pong, Store, FindNode, Nodes,
+from drogulus.dht.messages import (Ping, Pong, Store, FindNode, Nodes,
                                    FindValue, Value, from_dict, to_dict)
 from drogulus.dht.crypto import (get_signed_item, get_seal, check_seal,
                                  construct_key, _get_hash, PKCS1_v1_5, RSA,

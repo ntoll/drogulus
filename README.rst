@@ -19,7 +19,7 @@ Developer Setup
 This project requires Python version 3.3 (or higher).
 
 Make a new virtualenv (see:
-http://virtualenvwrapper.readthedocs.org/en/latest/)::
+http://virtualenvwrapper.readthedocs.org/en/latest/) using Python > 3.3::
 
     $ mkvirtualenv drogulus
 
@@ -30,3 +30,6 @@ Install the requirements::
 The ``make`` command is a useful starting point. If you type ``make check``
 and see a passing test suite followed by a coverage report then you should be
 set up all fine and dandy.
+
+You can't do much with the drogulus at the moment although this should change
+very soon.
