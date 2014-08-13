@@ -1,18 +1,26 @@
 #!/usr/bin/env python
-from setuptools import setup, find_packages
+from setuptools import setup
 from drogulus.version import get_version
+
+with open('README.rst') as f:
+    readme = f.read()
+with open('HISTORY.rst') as f:
+    history = f.read()
 
 setup(
     name='drogulus',
     version=get_version(),
-    description='A peer-to-peer, decentralised, openly writable information' +
-                ' store.',
-    long_description=open('README.rst').read(),
-    author=open('AUTHORS').read(),
+    description=' '.join(['A peer-to-peer data store built for simplicity,'
+                         'security, openness and fun.']),
+    long_description=readme + '\n\n' + history,
+    author='Nicholas H.Tollervey',
     author_email='ntoll@ntoll.org',
     url='http://drogul.us/',
-    package_dir={'': 'drogulus'},
-    packages=find_packages('drogulus'),
+    package_dir={'drogulus': 'drogulus'},
+    package_data={'': ['ACCORD', 'AUTHORS', 'README.rst', 'HISTORY.rst',
+                       'LICENSE', 'UNLICENSE', 'WAIVER']},
+    packages=['drogulus', 'drogulus.contrib', 'drogulus.net',
+              'drogulus.commands', 'drogulus.dht'],
     license='Public Domain',
     classifiers=[
         'Development Status :: 3 - Alpha',
@@ -20,9 +28,18 @@ setup(
         'Intended Audience :: Developers',
         'Intended Audience :: Information Technology',
         'License :: Public Domain',
+        'Programming Language :: Python :: 3.3',
         'Topic :: Communications',
         'Topic :: Internet',
         'Topic :: System :: Distributed Computing',
     ],
-    install_requires=['pycrypto', ]
+    install_requires=['pycrypto', 'cliff'],
+    entry_points={
+        'console_scripts': ['drogulus=drogulus.drogulus:main'],
+        'drogulus.commands': [
+            'keygen = drogulus.commands.keygen:KeyGen',
+            'whoami = drogulus.commands.whoami:WhoAmI',
+            'start = drogulus.commands.start:Start',
+        ],
+    }
 )

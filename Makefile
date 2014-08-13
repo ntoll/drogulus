@@ -9,19 +9,25 @@ all:
 	@echo "make test - run the test suite."
 	@echo "make coverage - view a report on test coverage."
 	@echo "make check - run all the checkers and tests."
+	@echo "make package - create a deployable package for the project."
+	@echo "make publish - publish the project to PyPI."
 	@echo "make docs - run sphinx to create project documentation.\n"
 
 clean:
-	rm -rf dist docs/_build drogulus/drogulus.egg-info .coverage
+	rm -rf build
+	rm -rf dist
+	rm -rf drogulus.egg-info
+	rm -rf .coverage
+	rm -rf docs/_build
 	find . \( -name '*.py[co]' -o -name dropin.cache \) -print0 | $(XARGS) rm
 	find . \( -name '*.bak' -o -name dropin.cache \) -print0 | $(XARGS) rm
 	find . \( -name '*.tgz' -o -name dropin.cache \) -print0 | $(XARGS) rm
 
 pyflakes:
-	find . \( -name _build -o -name var \) -type d -prune -o -name '*.py' -print0 | $(XARGS) pyflakes
+	find . \( -name _build -o -name var -o -path ./drogulus/contrib \) -type d -prune -o -name '*.py' -print0 | $(XARGS) pyflakes
 
 pep8:
-	find . \( -name _build -o -name var \) -type d -prune -o -name '*.py' -print0 | $(XARGS) -n 1 pep8 --repeat
+	find . \( -name _build -o -name var \) -type d -prune -o -name '*.py' -print0 | $(XARGS) -n 1 pep8 --repeat --exclude=drogulus/contrib/*,build/*
 
 test: clean
 	coverage run -m unittest discover
@@ -29,7 +35,13 @@ test: clean
 coverage: test
 	coverage report -m --include=drogulus/*
 
-check: pep8 pyflakes coverage
+check: clean pep8 pyflakes coverage
+
+package: clean
+	python setup.py sdist
+
+publish: clean
+	python setup.py sdist upload
 
 docs: clean
 	$(MAKE) -C docs html

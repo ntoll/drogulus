@@ -2,6 +2,7 @@
 *.pyc
 *.bak
 *.tgz
+dist/*
 docs/_build/*
 build/*
 _trial_temp

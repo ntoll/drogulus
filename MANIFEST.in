@@ -1,6 +1,9 @@
 include ACCORD
 include AUTHORS
+include HISTORY.rst
+include LICENSE
 include README.rst
 include UNLICENSE
 include WAIVER
+include drogulus/contrib/README.rst
 recursive-include drogulus *.py
