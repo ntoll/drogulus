@@ -12,6 +12,9 @@ from .errors import RoutingTableEmpty, ValueNotFound
 from .messages import Nodes, FindValue, Value
 
 
+log = logging.getLogger(__name__)
+
+
 class Lookup(asyncio.Future):
     """
     Encapsulates a lookup in the DHT given a particular target key and message
@@ -163,7 +166,7 @@ class Lookup(asyncio.Future):
         """
         if self.done():
             return False
-        logging.info('Cancelling lookup for %s' % self.target)
+        log.info('Cancelling lookup for %s' % self.target)
         self._cancel_pending_requests()
         return asyncio.Future.cancel(self)
 
@@ -179,8 +182,8 @@ class Lookup(asyncio.Future):
         if uuid in self.pending_requests:
             self.pending_requests[uuid].cancel()
             del self.pending_requests[uuid]
-        logging.info('Error during interaction with %r' % contact)
-        logging.info(error)
+        log.info('Error during interaction with %r' % contact)
+        log.info(error)
         self._lookup()
 
     def _blacklist(self, contact):
@@ -191,7 +194,7 @@ class Lookup(asyncio.Future):
         if contact in self.shortlist:
             self.shortlist.remove(contact)
         self.local_node.routing_table.blacklist(contact)
-        logging.info('Blacklisting %r' % contact)
+        log.info('Blacklisting %r' % contact)
 
     def _handle_response(self, uuid, contact, response):
         """

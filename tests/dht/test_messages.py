@@ -10,9 +10,8 @@ much TDD as a reminder to my future self (and other maintainers).
 
 ;-)
 """
-from drogulus.dht.messages import (Error, Ping, Pong, Store, FindNode, Nodes,
-                                   FindValue, Value, to_dict, from_dict,
-                                   make_message)
+from drogulus.dht.messages import (OK, Store, FindNode, Nodes, FindValue,
+                                   Value, to_dict, from_dict, make_message)
 from drogulus.dht.crypto import get_signed_item, construct_key
 from drogulus.version import get_version
 from hashlib import sha512
@@ -37,46 +36,18 @@ class TestMessages(unittest.TestCase):
         self.version = get_version()
         self.seal = 'afakesealthatwillnotwork'
 
-    def test_error(self):
+    def test_ok(self):
         """
-        Expected behaviour of an error message.
+        Expected behaviour of a ok message.
         """
-        error = Error(self.uuid, self.recipient, self.sender, self.reply_port,
-                      self.version, self.seal, 'ErrorType', {'foo': 'bar'})
-        self.assertEqual(self.uuid, error.uuid)
-        self.assertEqual(self.recipient, error.recipient)
-        self.assertEqual(self.sender, error.sender)
-        self.assertEqual(self.reply_port, error.reply_port)
-        self.assertEqual(self.version, error.version)
-        self.assertEqual(self.seal, error.seal)
-        self.assertEqual('ErrorType', error.error)
-        self.assertEqual({'foo': 'bar'}, error.details)
-
-    def test_ping(self):
-        """
-        Expected behaviour of a ping message.
-        """
-        ping = Ping(self.uuid, self.recipient, self.sender, self.reply_port,
-                    self.version, self.seal)
-        self.assertEqual(self.uuid, ping.uuid)
-        self.assertEqual(self.recipient, ping.recipient)
-        self.assertEqual(self.sender, ping.sender)
-        self.assertEqual(self.reply_port, ping.reply_port)
-        self.assertEqual(self.version, ping.version)
-        self.assertEqual(self.seal, ping.seal)
-
-    def test_pong(self):
-        """
-        Expected behaviour of a pong message.
-        """
-        pong = Pong(self.uuid, self.recipient, self.sender, self.reply_port,
-                    self.version, self.seal)
-        self.assertEqual(self.uuid, pong.uuid)
-        self.assertEqual(self.recipient, pong.recipient)
-        self.assertEqual(self.sender, pong.sender)
-        self.assertEqual(self.reply_port, pong.reply_port)
-        self.assertEqual(self.version, pong.version)
-        self.assertEqual(self.seal, pong.seal)
+        ok = OK(self.uuid, self.recipient, self.sender, self.reply_port,
+                self.version, self.seal)
+        self.assertEqual(self.uuid, ok.uuid)
+        self.assertEqual(self.recipient, ok.recipient)
+        self.assertEqual(self.sender, ok.sender)
+        self.assertEqual(self.reply_port, ok.reply_port)
+        self.assertEqual(self.version, ok.version)
+        self.assertEqual(self.seal, ok.seal)
 
     def test_store(self):
         """
@@ -217,38 +188,12 @@ class TestDictConversion(unittest.TestCase):
             self.assertIn(k, result.keys())
             self.assertEqual(result[k], getattr(self, k))
 
-    def test_from_dict_error(self):
+    def test_from_dict_ok(self):
         """
-        Ensures a valid error message is correctly parsed.
-        """
-        mock_message = {
-            'message': 'error',
-            'uuid': self.uuid,
-            'recipient': self.node,
-            'sender': self.node,
-            'reply_port': self.reply_port,
-            'version': self.version,
-            'seal': self.seal,
-            'error': 'AnError',
-            'details': 'Arbitrary error information',
-        }
-        result = from_dict(mock_message)
-        self.assertIsInstance(result, Error)
-        self.assertEqual(result.uuid, self.uuid)
-        self.assertEqual(result.recipient, self.node)
-        self.assertEqual(result.sender, self.node)
-        self.assertEqual(result.reply_port, self.reply_port)
-        self.assertEqual(result.version, self.version)
-        self.assertEqual(result.seal, self.seal)
-        self.assertEqual(result.error, 'AnError')
-        self.assertEqual(result.details, 'Arbitrary error information')
-
-    def test_from_dict_ping(self):
-        """
-        Ensures a valid ping message is correctly parsed.
+        Ensures a valid OK message is correctly parsed.
         """
         mock_message = {
-            'message': 'ping',
+            'message': 'ok',
             'uuid': self.uuid,
             'recipient': self.node,
             'sender': self.node,
@@ -257,29 +202,7 @@ class TestDictConversion(unittest.TestCase):
             'seal': self.seal
         }
         result = from_dict(mock_message)
-        self.assertIsInstance(result, Ping)
-        self.assertEqual(result.uuid, self.uuid)
-        self.assertEqual(result.recipient, self.node)
-        self.assertEqual(result.reply_port, self.reply_port)
-        self.assertEqual(result.sender, self.node)
-        self.assertEqual(result.version, self.version)
-        self.assertEqual(result.seal, self.seal)
-
-    def test_from_dict_pong(self):
-        """
-        Ensures a valid pong message is correctly parsed.
-        """
-        mock_message = {
-            'message': 'pong',
-            'uuid': self.uuid,
-            'recipient': self.node,
-            'sender': self.node,
-            'reply_port': self.reply_port,
-            'version': self.version,
-            'seal': self.seal
-        }
-        result = from_dict(mock_message)
-        self.assertIsInstance(result, Pong)
+        self.assertIsInstance(result, OK)
         self.assertEqual(result.uuid, self.uuid)
         self.assertEqual(result.recipient, self.node)
         self.assertEqual(result.sender, self.node)
@@ -451,10 +374,10 @@ class TestMakeMessage(unittest.TestCase):
         node = PUBLIC_KEY
         reply_port = 1908
         version = get_version()
-        result = make_message(Ping, {'uuid': uuid, 'recipient': node,
-                                     'sender': node, 'reply_port': reply_port,
-                                     'version': version, 'seal': 'fakeseal'})
-        self.assertIsInstance(result, Ping)
+        result = make_message(OK, {'uuid': uuid, 'recipient': node,
+                                   'sender': node, 'reply_port': reply_port,
+                                   'version': version, 'seal': 'fakeseal'})
+        self.assertIsInstance(result, OK)
         self.assertEqual(uuid, result.uuid)
         self.assertEqual(node, result.recipient)
         self.assertEqual(node, result.sender)
@@ -468,9 +391,9 @@ class TestMakeMessage(unittest.TestCase):
         the correct exception is raised.
         """
         with self.assertRaises(ValueError) as cm:
-            make_message(Ping, {'uuid': 1, 'recipient': 2, 'sender': 3,
-                                'reply_port': '1908', 'version': 4,
-                                'seal': 5})
+            make_message(OK, {'uuid': 1, 'recipient': 2, 'sender': 3,
+                              'reply_port': '1908', 'version': 4,
+                              'seal': 5})
         ex = cm.exception
         details = ex.args[0]
         self.assertEqual(6, len(details))
@@ -486,7 +409,7 @@ class TestMakeMessage(unittest.TestCase):
         The correct fields must all exist in the provided data dictionary.
         """
         with self.assertRaises(ValueError) as cm:
-            make_message(Ping, {'foo': 1, 'bar': 2})
+            make_message(OK, {'foo': 1, 'bar': 2})
         ex = cm.exception
         details = ex.args[0]
         self.assertEqual(6, len(details))

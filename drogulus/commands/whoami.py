@@ -17,7 +17,7 @@ class WhoAmI(Command):
 
     def get_description(self):
         return ' '.join(['Generates a whoami data structure to self-identify',
-                        'the owner of a public key used in the drogulus.'])
+                        'a user.'])
 
     def take_action(self, parsed_args):
         """

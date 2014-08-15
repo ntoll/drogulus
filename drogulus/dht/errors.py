@@ -35,6 +35,22 @@ class BadMessage(Exception):
     pass
 
 
+class ExpiredMessage(Exception):
+    """
+    The value in the incoming message appears to be expired from the local
+    node's point of view.
+    """
+    pass
+
+
+class OutOfDateMessage(Exception):
+    """
+    The value of the incoming message is out of date - the local node holds
+    a later version of the value.
+    """
+    pass
+
+
 class UnknownMessageType(Exception):
     """
     The incoming message was parsed but not recognised.

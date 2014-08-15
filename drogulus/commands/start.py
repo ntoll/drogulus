@@ -49,7 +49,6 @@ class Start(Command):
         whoami = parsed_args.whoami
         alias = parsed_args.alias
         key_file = parsed_args.keyfile
-
         # RSA key config.
         try:
             private_key, public_key = get_keys(passphrase, key_file)

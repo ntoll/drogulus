@@ -4,7 +4,7 @@ Ensures the cryptographic signing and related functions work as expected.
 """
 from drogulus.dht.crypto import (get_seal, check_seal, get_signed_item,
                                  verify_item, _get_hash, construct_key)
-from drogulus.dht.messages import Ping
+from drogulus.dht.messages import OK
 from drogulus.version import get_version
 from hashlib import sha512
 from Crypto.Signature import PKCS1_v1_5
@@ -55,41 +55,39 @@ class TestCheckSeal(unittest.TestCase):
         Make sure message objects that contain a valid seal are correctly
         checked.
         """
-        ping_dict = {
+        ok_dict = {
             'uuid': str(uuid.uuid4()),
             'recipient': PUBLIC_KEY,
             'sender': PUBLIC_KEY,
             'reply_port': 1908,
             'version': get_version()
         }
-        seal = get_seal(ping_dict, PRIVATE_KEY)
-        ping = Ping(ping_dict['uuid'], ping_dict['recipient'],
-                    ping_dict['sender'], ping_dict['reply_port'],
-                    ping_dict['version'], seal)
-        self.assertTrue(check_seal(ping))
+        seal = get_seal(ok_dict, PRIVATE_KEY)
+        ok = OK(ok_dict['uuid'], ok_dict['recipient'], ok_dict['sender'],
+                ok_dict['reply_port'], ok_dict['version'], seal)
+        self.assertTrue(check_seal(ok))
 
     def test_check_seal_invalid_seal(self):
         """
         Ensure a message with an invalid seal fails the check.
         """
-        ping_dict = {
+        ok_dict = {
             'uuid': str(uuid.uuid4()),
             'recipient': PUBLIC_KEY,
             'sender': BAD_PUBLIC_KEY,
             'reply_port': 1908,
             'version': get_version()
         }
-        seal = get_seal(ping_dict, PRIVATE_KEY)
-        ping = Ping(ping_dict['uuid'], ping_dict['recipient'],
-                    ping_dict['sender'], ping_dict['reply_port'],
-                    ping_dict['version'], seal)
-        self.assertFalse(check_seal(ping))
+        seal = get_seal(ok_dict, PRIVATE_KEY)
+        ok = OK(ok_dict['uuid'], ok_dict['recipient'], ok_dict['sender'],
+                ok_dict['reply_port'], ok_dict['version'], seal)
+        self.assertFalse(check_seal(ok))
 
     def test_check_seal_bad_seal(self):
         """
         Ensure a message with a bad seal (i.e. malformed junk) fails the check.
         """
-        ping_dict = {
+        ok_dict = {
             'uuid': str(uuid.uuid4()),
             'recipient': PUBLIC_KEY,
             'sender': BAD_PUBLIC_KEY,
@@ -97,10 +95,9 @@ class TestCheckSeal(unittest.TestCase):
             'version': get_version()
         }
         seal = 'not a seal'
-        ping = Ping(ping_dict['uuid'], ping_dict['recipient'],
-                    ping_dict['sender'], ping_dict['reply_port'],
-                    ping_dict['version'], seal)
-        self.assertFalse(check_seal(ping))
+        ok = OK(ok_dict['uuid'], ok_dict['recipient'], ok_dict['sender'],
+                ok_dict['reply_port'], ok_dict['version'], seal)
+        self.assertFalse(check_seal(ok))
 
 
 class TestGetSignedItem(unittest.TestCase):

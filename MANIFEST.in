@@ -1,6 +1,6 @@
 include ACCORD
 include AUTHORS
-include HISTORY.rst
+include CHANGES.rst
 include LICENSE
 include README.rst
 include UNLICENSE

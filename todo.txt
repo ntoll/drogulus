@@ -1,5 +1,4 @@
-* Switch to cryptography library for asymmetric key signing.
+* Look at cryptography library for asymmetric key signing.
 * Handle out of date data.
-* Error message generation.
 * Docs
 * Website

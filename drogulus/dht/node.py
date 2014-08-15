@@ -7,8 +7,9 @@ from .lookup import Lookup
 from .storage import DictDataStore
 from .contact import PeerNode
 from .crypto import check_seal, get_seal, verify_item, construct_key
-from .errors import BadMessage, UnverifiableProvenance, TimedOut
-from .messages import (Error, Ping, Pong, Store, FindNode, Nodes, FindValue,
+from .errors import (BadMessage, ExpiredMessage, OutOfDateMessage,
+                     UnverifiableProvenance, TimedOut)
+from .messages import (OK, Store, FindNode, Nodes, FindValue,
                        Value, from_dict, to_dict)
 from .constants import (REPLICATE_INTERVAL, REFRESH_INTERVAL,
                         RESPONSE_TIMEOUT, K)
@@ -18,6 +19,9 @@ import time
 import asyncio
 from hashlib import sha512
 from uuid import uuid4
+
+
+log = logging.getLogger(__name__)
 
 
 class Node(object):
@@ -57,7 +61,7 @@ class Node(object):
         self.pending = {}
         # The version of Drogulus that this node implements.
         self.version = get_version()
-        logging.info('Initialised node with id: %r' % self.network_id)
+        log.info('Initialised node with id: %r' % self.network_id)
 
     def join(self, seed_nodes=None):
         """
@@ -91,26 +95,27 @@ class Node(object):
         uri = '%s://%s:%d' % (protocol, address, port)
         other_node = PeerNode(message.sender, message.version, uri,
                               time.time())
-        logging.info('Message received from %s' % other_node)
-        logging.info(message)
+        log.info('Message received from %s' % other_node)
+        log.info(message)
         self.routing_table.add_contact(other_node)
         # Sort on message type and pass to handler method. Explicit > implicit.
-        if isinstance(message, Ping):
-            self.handle_ping(message, other_node)
-        elif isinstance(message, Pong):
-            self.handle_pong(message)
-        elif isinstance(message, Store):
-            self.handle_store(message, other_node)
-        elif isinstance(message, FindNode):
-            self.handle_find_node(message, other_node)
-        elif isinstance(message, FindValue):
-            self.handle_find_value(message, other_node)
-        elif isinstance(message, Error):
-            self.handle_error(message, other_node)
-        elif isinstance(message, Value):
-            self.handle_value(message, other_node)
-        elif isinstance(message, Nodes):
-            self.handle_nodes(message)
+        try:
+            if isinstance(message, OK):
+                self.handle_ok(message)
+            elif isinstance(message, Store):
+                self.handle_store(message, other_node)
+            elif isinstance(message, FindNode):
+                self.handle_find_node(message, other_node)
+            elif isinstance(message, FindValue):
+                self.handle_find_value(message, other_node)
+            elif isinstance(message, Value):
+                self.handle_value(message, other_node)
+            elif isinstance(message, Nodes):
+                self.handle_nodes(message)
+        except Exception as ex:
+            log.error('Problem handling message from %s' % other_node)
+            log.error(message)
+            log.error(ex)
 
     def send_message(self, contact, message, fire_and_forget=False):
         """
@@ -178,16 +183,9 @@ class Node(object):
             # Remove the resolved task from the pending dictionary.
             del self.pending[message.uuid]
 
-    def handle_ping(self, message, contact):
+    def handle_ok(self, message):
         """
-        Handles an incoming Ping message. Returns a Pong message using the
-        referenced protocol object.
-        """
-        self.send_pong(message, contact)
-
-    def handle_pong(self, message):
-        """
-        Handles an incoming Pong message.
+        Handles an incoming ok message.
         """
         self.trigger_task(message)
 
@@ -200,8 +198,7 @@ class Node(object):
         to replicate the Store message elsewhere in the DHT if such time is
         <= the message's expiry time.
 
-        Sends a Pong message if successful otherwise replies with an
-        appropriate Error.
+        Sends an OK message if successful.
         """
         # Check provenance
         if verify_item(to_dict(message)):
@@ -216,27 +213,27 @@ class Node(object):
             if message.expires > 0 and (message.expires < now):
                 # There's a non-zero expiry and it's less than the current
                 # time, so return an error.
-                raise BadMessage('Expired at %r (current time: %r)' %
-                                 (message.expires, now))
+                raise ExpiredMessage('Expired at %r (current time: %r)' %
+                                     (message.expires, now))
             # Ensure the node doesn't already have a more up-to-date version
             # of the value.
             current = self.data_store.get(message.key, False)
             if current and (message.timestamp < current.timestamp):
                 # The node already has a later version of the value so
                 # return an error.
-                raise BadMessage('Out of date. New timestamp: %r' %
-                                 current.timestamp)
+                raise OutOfDateMessage('Out of date. New timestamp: %r' %
+                                       current.timestamp, current)
             # Good to go, so store value.
             self.data_store[message.key] = message
-            # Reply with a pong so the other end updates its routing table.
-            self.send_pong(message, contact)
+            # Reply with an OK so the other end updates its routing table.
+            self.send_ok(message, contact)
             # At some future time attempt to replicate the Store message
             # around the network IF it is within the message's expiry time.
             self.event_loop.call_later(REPLICATE_INTERVAL, self.republish,
                                        message.key)
         else:
             # Remove from the routing table.
-            logging.info('Problem with Store command from %s' % contact)
+            log.info('Problem with Store command from %s' % contact)
             self.routing_table.blacklist(contact)
             raise UnverifiableProvenance('Blacklisted')
 
@@ -273,17 +270,6 @@ class Node(object):
         else:
             self.handle_find_node(message, contact)
 
-    def handle_error(self, message, contact):
-        """
-        Handles an incoming Error message. Currently, this simply logs the
-        error. In future this *may* remove the sender from the routing table
-        (depending on the sort of error - for example, it's running an
-        incompatible version of the drogulus).
-        """
-        # TODO: Handle out of date data
-        logging.info('***** ERROR ***** from %s' % contact)
-        logging.info(message)
-
     def handle_value(self, message, contact):
         """
         Handles an incoming Value message containing a value retrieved from
@@ -297,11 +283,10 @@ class Node(object):
         if verify_item(to_dict(message)):
             self.trigger_task(message)
         else:
-            logging.info('Problem with incoming Value message from %r' %
-                         contact)
-            logging.info(message)
+            log.info('Problem with incoming Value message from %r' % contact)
+            log.info(message)
             self.routing_table.remove_contact(contact.network_id, True)
-            logging.info('Remote peer removed from routing table.')
+            log.info('Remote peer removed from routing table.')
             self.trigger_task(message,
                               error=UnverifiableProvenance('Blacklisted'))
 
@@ -312,40 +297,22 @@ class Node(object):
         """
         self.trigger_task(message)
 
-    def send_ping(self, contact):
+    def send_ok(self, message, contact):
         """
-        Sends a ping request to the given contact and returns a future
-        that is fired when the reply arrives or an error occurs.
-        """
-        ping = {
-            'uuid': str(uuid4()),
-            'recipient': contact.public_key,
-            'sender': self.public_key,
-            'reply_port': self.reply_port,
-            'version': self.version
-        }
-        seal = get_seal(ping, self.private_key)
-        ping['seal'] = seal
-        ping['message'] = 'ping'
-        message = from_dict(ping)
-        return self.send_message(contact, message)
-
-    def send_pong(self, message, contact):
-        """
-        Returns a Pong acknowledgement to the remote contact for the given
+        Returns an OK  acknowledgement to the remote contact for the given
         message.
         """
-        pong = {
+        ok = {
             'uuid': message.uuid,
             'recipient': message.sender,
             'sender': self.public_key,
             'reply_port': self.reply_port,
             'version': self.version
         }
-        seal = get_seal(pong, self.private_key)
-        pong['seal'] = seal
-        pong['message'] = 'pong'
-        reply = from_dict(pong)
+        seal = get_seal(ok, self.private_key)
+        ok['seal'] = seal
+        ok['message'] = 'ok'
+        reply = from_dict(ok)
         return self.send_message(contact, reply, fire_and_forget=True)
 
     def send_store(self, contact, key, value, timestamp, expires,
@@ -555,7 +522,7 @@ class Node(object):
                     caching_contact = candidate
                     break
             if caching_contact:
-                logging.info("Caching to %r" % caching_contact)
+                log.info("Caching to %r" % caching_contact)
                 result = lookup.result()
                 self.send_store(caching_contact, lookup.target, result.value,
                                 result.timestamp, result.expires,
@@ -571,7 +538,7 @@ class Node(object):
         in the node's routing table.
         """
         refresh_ids = self.routing_table.get_refresh_list()
-        logging.info('Refreshing buckets with ids: %r' % refresh_ids)
+        log.info('Refreshing buckets with ids: %r' % refresh_ids)
         for network_id in refresh_ids:
             Lookup(FindNode, network_id, self, self.event_loop)
         # schedule the next refresh.
@@ -615,7 +582,7 @@ class Node(object):
         * The item has not been updated for REPLICATE_INTERVAL seconds.
         * The item has been requested during REPLICATE_INTERVAL seconds.
         """
-        logging.info('Republish check for key: %s' % item_key)
+        log.info('Republish check for key: %s' % item_key)
         if item_key in self.data_store:
             item = self.data_store[item_key]
             now = time.time()
@@ -624,7 +591,7 @@ class Node(object):
                 # then the item should never expire.
                 del self.data_store[item_key]
                 msg = '%s expired. Deleted from local data store.' % item_key
-                logging.info(msg)
+                log.info(msg)
             else:
                 updated = self.data_store.updated(item_key)
                 accessed = self.data_store.accessed(item_key)
@@ -633,7 +600,7 @@ class Node(object):
                 replicated = False
                 if update_delta > REPLICATE_INTERVAL:
                     # The item needs replicating.
-                    logging.info('Republishing item %s.' % item_key)
+                    log.info('Republishing item %s.' % item_key)
                     self.replicate(K, item.key, item.value, item.timestamp,
                                    item.expires, item.created_with,
                                    item.public_key, item.name, item.signature)
@@ -647,7 +614,7 @@ class Node(object):
                     # local data store. Remember to cancel the scheduled
                     # republication check.
                     msg = 'Removing %s due to lack of activity.' % item_key
-                    logging.info(msg)
+                    log.info(msg)
                     if not replicated:
                         self.replicate(K, item.key, item.value,
                                        item.timestamp, item.expires,
@@ -656,5 +623,5 @@ class Node(object):
                     del self.data_store[item_key]
                     handler.cancel()
         else:
-            logging.info('%s no longer in local data store. Cancelled.' %
-                         item_key)
+            log.info('%s no longer in local data store. Cancelled.' %
+                     item_key)

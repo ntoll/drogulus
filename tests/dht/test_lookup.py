@@ -6,7 +6,7 @@ from drogulus.dht.lookup import Lookup
 from drogulus.dht.contact import PeerNode
 from drogulus.dht.node import Node
 from drogulus.dht.routingtable import RoutingTable
-from drogulus.dht.messages import FindNode, Nodes, FindValue, Value, Ping
+from drogulus.dht.messages import FindNode, Nodes, FindValue, Value, OK
 from drogulus.dht.errors import RoutingTableEmpty
 from drogulus.dht.constants import LOOKUP_TIMEOUT, K, ALPHA
 from drogulus.dht.utils import sort_peer_nodes
@@ -181,7 +181,7 @@ class TestLookup(unittest.TestCase):
         The _handle_error method cleanly deals with the fallout of
         encountering an error generated from an interaction with a peer node.
         """
-        patcher = mock.patch('logging.info')
+        patcher = mock.patch('drogulus.dht.lookup.log.info')
         mock_info = patcher.start()
         lookup = Lookup(FindNode, self.target, self.node, self.event_loop)
         lookup._lookup = mock.MagicMock()
@@ -218,8 +218,8 @@ class TestLookup(unittest.TestCase):
         lookup = Lookup(FindNode, self.target, self.node, self.event_loop)
         uuid = [uuid for uuid in lookup.pending_requests.keys()][0]
         contact = lookup.shortlist[0]
-        msg = Ping(uuid, self.node.network_id, self.node.network_id,
-                   self.reply_port, self.version, self.seal)
+        msg = OK(uuid, self.node.network_id, self.node.network_id,
+                 self.reply_port, self.version, self.seal)
         response = asyncio.Future()
         response.set_result(msg)
         lookup._blacklist = mock.MagicMock()

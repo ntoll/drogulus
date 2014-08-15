@@ -18,6 +18,9 @@ LENGTH, DATA, COMMA = range(3)
 NUMBER = re.compile('(\d*)(:?)')
 
 
+log = logging.getLogger(__name__)
+
+
 class NetstringParseError(ValueError):
     """
     The incoming data is not in a valid Netstring format.
@@ -226,6 +229,6 @@ class NetstringConnector(Connector):
         except Exception as ex:
             # There's not a lot that can be usefully done at this stage except
             # to log the problem in a way that may aid further investigation.
-            logging.info('Problem message received from %s' % sender)
-            logging.info(ex)
-            logging.info(raw)
+            log.info('Problem message received from %s' % sender)
+            log.info(ex)
+            log.info(raw)

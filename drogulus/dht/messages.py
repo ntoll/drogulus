@@ -43,40 +43,9 @@ def _make_message_class(name, field_names, docstring=None):
 
 
 d = """
-    Represents an error message to be sent to the calling node on the network.
-
-    * uuid - the ID of the interaction that generated the error.
-    * recipient - the public key of the recipient (the local node's public
-      key).
-    * sender - the public key of the sender of the message.
-    * version - the protocol version the message conforms to.
-    * seal - a cryptographic signature provided by the sender of the message
-             to act as a "wax seal" to prove the sender's identity.
-    * error - the type of error generated.
-    * details - diagnostic details expressed as a dict of string key/values.
-    """
-Error = _make_message_class('Error', ['error', 'details'], d)
-
-
-d = """
-    A "ping" message is sent to another node on the network to determine if it
-    is still contactable.
-
-    * uuid - identifies the interaction.
-    * recipient - the public key of the recipient (the local node's public
-      key).
-    * sender - the public key of the sender of the message.
-    * version - the protocol version the message conforms to.
-    * seal - a cryptographic signature provided by the sender of the message
-             to act as a "wax seal" to prove the sender's identity.
-    """
-Ping = _make_message_class('Ping', [], d)
-
-
-d = """
-    A "pong" message is sent as a confirmation response. This is usually the
-    result of a ping request but may be used to confirm reciept of any other
-    sort of request when no further data is expected to be returned.
+    An "OK" message is sent as a confirmation response. This is usually the
+    result of a "Store" request but may be used to confirm reciept of any
+    other sort of request when no further data is expected to be returned.
 
     * uuid - the interaction ID of the source of this response.
     * recipient - the public key of the recipient (the local node's public
@@ -86,7 +55,7 @@ d = """
     * seal - a cryptographic signature provided by the sender of the message
              to act as a "wax seal" to prove the sender's identity.
     """
-Pong = _make_message_class('Pong', [], d)
+OK = _make_message_class('OK', [], d)
 
 d = """
     A "store" message instructs another node on the network to store the given
@@ -238,12 +207,8 @@ def from_dict(data):
     """
     message = data['message']
     # Explicit is better than implicit (Zen of Python).
-    if message == 'error':
-        return make_message(Error, data)
-    elif message == 'ping':
-        return make_message(Ping, data)
-    elif message == 'pong':
-        return make_message(Pong, data)
+    if message == 'ok':
+        return make_message(OK, data)
     elif message == 'store':
         return make_message(Store, data)
     elif message == 'findnode':

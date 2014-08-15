@@ -7,12 +7,13 @@ from drogulus.version import get_version
 from drogulus.dht.node import Node
 from drogulus.dht.routingtable import RoutingTable
 from drogulus.dht.storage import DictDataStore
-from drogulus.dht.messages import (Ping, Pong, Store, FindNode, Nodes,
+from drogulus.dht.messages import (OK, Store, FindNode, Nodes,
                                    FindValue, Value, from_dict, to_dict)
 from drogulus.dht.crypto import (get_signed_item, get_seal, check_seal,
                                  construct_key, _get_hash, PKCS1_v1_5, RSA,
                                  verify_item)
-from drogulus.dht.errors import (BadMessage, UnverifiableProvenance, TimedOut,
+from drogulus.dht.errors import (BadMessage, ExpiredMessage, OutOfDateMessage,
+                                 UnverifiableProvenance, TimedOut,
                                  RoutingTableEmpty)
 from drogulus.dht.contact import PeerNode
 from drogulus.dht.constants import (REPLICATE_INTERVAL, REFRESH_INTERVAL,
@@ -202,74 +203,44 @@ class TestNode(unittest.TestCase):
         self.assertEqual(argument.uri, uri)
         self.assertIsInstance(argument.last_seen, float)
 
-    def test_message_received_ping(self):
+    def test_message_received_logs_exceptions(self):
         """
-        Make sure a Ping message is handled correctly.
+        Ensure that any exception raise handling the incoming message is
+        logged correctly.
         """
+        patcher = patch('drogulus.dht.node.log.error')
         node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
                     self.reply_port)
-        node.handle_ping = mock.MagicMock()
-        ping = {
+        ex = Exception('BANG!')
+        node.handle_ok = mock.MagicMock(side_effect=ex)
+        ok = {
             'uuid': str(uuid.uuid4()),
             'recipient': PUBLIC_KEY,
             'sender': PUBLIC_KEY,
             'reply_port': 1908,
             'version': self.version,
         }
-        seal = get_seal(ping, PRIVATE_KEY)
-        ping['seal'] = seal
-        ping['message'] = 'ping'
-        message = from_dict(ping)
+        seal = get_seal(ok, PRIVATE_KEY)
+        ok['seal'] = seal
+        ok['message'] = 'ok'
+        message = from_dict(ok)
+        mock_log = patcher.start()
         node.message_received(message, 'http', '192.168.0.1', 1908)
-        node.handle_ping.assert_called_once_with(message, self.contact)
+        self.assertEqual(3, mock_log.call_count)
+        expected = 'Problem handling message from '
+        self.assertTrue(mock_log.call_args_list[0][0][0].startswith(expected))
+        self.assertEqual(mock_log.call_args_list[1][0][0], message)
+        self.assertEqual(mock_log.call_args_list[2][0][0], ex)
+        patcher.stop()
 
-    def test_handle_ping(self):
+    def test_message_received_ok(self):
         """
-        Ensure that the handle_ping method returns a pong.
-        """
-        node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
-                    self.reply_port)
-        ping = {
-            'uuid': str(uuid.uuid4()),
-            'recipient': PUBLIC_KEY,
-            'sender': PUBLIC_KEY,
-            'reply_port': 1908,
-            'version': self.version,
-        }
-        seal = get_seal(ping, PRIVATE_KEY)
-        ping['seal'] = seal
-        ping['message'] = 'ping'
-        message = from_dict(ping)
-        node.handle_ping(message, self.contact)
-        self.event_loop.run_until_complete(blip())
-        self.assertEqual(1, len(self.connector.messages))
-        contact = self.connector.messages[0][0]
-        sent = self.connector.messages[0][1]
-        # Contact is good from data in ping message.
-        self.assertEqual(contact.public_key, PUBLIC_KEY)
-        self.assertEqual(contact.uri, 'http://192.168.0.1:1908')
-        self.assertEqual(contact.version, message.version)
-        self.assertEqual(contact.failed_RPCs, 0)
-        self.assertIsInstance(contact.last_seen, float)
-        expected = sha512(contact.public_key.encode('utf-8')).hexdigest()
-        self.assertEqual(contact.network_id, expected)
-        # Pong message is correct.
-        self.assertEqual(sent.uuid, message.uuid)
-        self.assertEqual(sent.recipient, PUBLIC_KEY)
-        self.assertEqual(sent.sender, PUBLIC_KEY)
-        self.assertEqual(sent.version, self.version)
-        self.assertEqual(sent.reply_port, 1908)
-        self.assertTrue(check_seal(sent))
-        self.assertIsInstance(sent, Pong)
-
-    def test_message_received_pong(self):
-        """
-        Make sure a Pong message is handled correctly by resolving the
+        Make sure an OK message is handled correctly by resolving the
         correct pending Future.
         """
         node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
                     self.reply_port)
-        node.handle_pong = mock.MagicMock()
+        node.handle_ok = mock.MagicMock()
         msg_dict = {
             'uuid': str(uuid.uuid4()),
             'recipient': PUBLIC_KEY,
@@ -279,73 +250,43 @@ class TestNode(unittest.TestCase):
         }
         seal = get_seal(msg_dict, PRIVATE_KEY)
         msg_dict['seal'] = seal
-        msg_dict['message'] = 'pong'
+        msg_dict['message'] = 'ok'
         message = from_dict(msg_dict)
         node.message_received(message, 'http', '192.168.0.1', 1908)
-        node.handle_pong.assert_called_once_with(message)
+        node.handle_ok.assert_called_once_with(message)
 
-    def test_handle_pong(self):
+    def test_handle_ok(self):
         """
-        Make sure a Pong message is handled correctly by resolving the
+        Make sure an OK message is handled correctly by resolving the
         correct pending Future.
         """
-        # Make a source ping message.
+        # Make a source store message.
         node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
                     self.reply_port)
-        msg_dict = {
-            'uuid': str(uuid.uuid4()),
-            'recipient': PUBLIC_KEY,
-            'sender': PUBLIC_KEY,
-            'reply_port': 1908,
-            'version': self.version,
-        }
-        seal = get_seal(msg_dict, PRIVATE_KEY)
-        msg_dict['seal'] = seal
-        msg_dict['message'] = 'ping'
-        message = from_dict(msg_dict)
+        self.signed_item['message'] = 'store'
+        message = from_dict(self.signed_item)
         node.send_message(self.contact, message)
         self.event_loop.run_until_complete(blip())
         # Check the task is in the node's pending dictionary.
         self.assertIn(message.uuid, node.pending)
         self.assertIsInstance(node.pending[message.uuid], asyncio.Future)
         task = node.pending[message.uuid]
-        # Receive the Ping response
-        msg_dict['message'] = 'pong'
+        # Receive the OK response
+        msg_dict = {
+            'uuid': message.uuid,
+            'recipient': PUBLIC_KEY,
+            'sender': PUBLIC_KEY,
+            'reply_port': 1908,
+            'version': self.version,
+        }
+        seal = get_seal(msg_dict, PRIVATE_KEY)
+        msg_dict['seal'] = seal
+        msg_dict['message'] = 'ok'
         reply = from_dict(msg_dict)
         node.message_received(reply, 'http', '192.168.0.1', 1908)
         self.event_loop.run_until_complete(blip())
         # Check the task is no longer in the node's pending dictionary and has
-        # been resolved with the Pong message.
-        self.assertNotIn(message.uuid, node.pending)
-        self.assertEqual(True, task.done())
-        self.assertEqual(reply, task.result())
-        # Make a source ping message.
-        node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
-                    self.reply_port)
-        msg_dict = {
-            'uuid': str(uuid.uuid4()),
-            'recipient': PUBLIC_KEY,
-            'sender': PUBLIC_KEY,
-            'reply_port': 1908,
-            'version': self.version,
-        }
-        seal = get_seal(msg_dict, PRIVATE_KEY)
-        msg_dict['seal'] = seal
-        msg_dict['message'] = 'ping'
-        message = from_dict(msg_dict)
-        node.send_message(self.contact, message)
-        self.event_loop.run_until_complete(blip())
-        # Check the task is in the node's pending dictionary.
-        self.assertIn(message.uuid, node.pending)
-        self.assertIsInstance(node.pending[message.uuid], asyncio.Future)
-        task = node.pending[message.uuid]
-        # Receive the Pong response
-        msg_dict['message'] = 'pong'
-        reply = from_dict(msg_dict)
-        node.handle_pong(reply)
-        self.event_loop.run_until_complete(blip())
-        # Check the task is no longer in the node's pending dictionary and has
-        # been resolved with the Pong message.
+        # been resolved with the OK message.
         self.assertNotIn(message.uuid, node.pending)
         self.assertEqual(True, task.done())
         self.assertEqual(reply, task.result())
@@ -370,7 +311,7 @@ class TestNode(unittest.TestCase):
         """
         node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
                     self.reply_port)
-        node.send_pong = mock.MagicMock()
+        node.send_ok = mock.MagicMock()
         self.signed_item['message'] = 'store'
         message = from_dict(self.signed_item)
         with patch.object(self.event_loop, 'call_later') as mock_call:
@@ -383,8 +324,8 @@ class TestNode(unittest.TestCase):
             self.assertEqual(mock_call.call_args_list[0][0][2],
                              message.key)
         self.assertEqual(message, node.data_store[message.key])
-        self.assertEqual(1, node.send_pong.call_count)
-        node.send_pong.assert_called_once_with(message, self.contact)
+        self.assertEqual(1, node.send_ok.call_count)
+        node.send_ok.assert_called_once_with(message, self.contact)
 
     def test_handle_store_bad_signature(self):
         """
@@ -458,7 +399,7 @@ class TestNode(unittest.TestCase):
         signed_item['seal'] = self.seal
         signed_item['message'] = 'store'
         message = from_dict(signed_item)
-        with self.assertRaises(BadMessage) as ex:
+        with self.assertRaises(ExpiredMessage) as ex:
             node.handle_store(message, self.contact)
         self.assertIn('Expired at ', ex.exception.args[0])
         self.assertIn('current time: ', ex.exception.args[0])
@@ -494,7 +435,7 @@ class TestNode(unittest.TestCase):
         newer_message = from_dict(new_signed_item)
         node.handle_store(newer_message, self.contact)
         # Try to store the older message.
-        with self.assertRaises(BadMessage) as ex:
+        with self.assertRaises(OutOfDateMessage) as ex:
             node.handle_store(older_message, self.contact)
         self.assertIn('Out of date. New timestamp: ', ex.exception.args[0])
 
@@ -633,57 +574,6 @@ class TestNode(unittest.TestCase):
         node.handle_find_value(message, self.contact)
         node.handle_find_node.assert_called_once_with(message, self.contact)
 
-    def test_message_received_error(self):
-        """
-        Make sure error messages are handled correctly.
-        """
-        node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
-                    self.reply_port)
-        node.handle_error = mock.MagicMock()
-        msg_dict = {
-            'uuid': str(uuid.uuid4()),
-            'recipient': PUBLIC_KEY,
-            'sender': PUBLIC_KEY,
-            'reply_port': 1908,
-            'version': self.version,
-            'error': 'ValueError',
-            'details': 'Some arbitrary but useful text about the error',
-        }
-        seal = get_seal(msg_dict, PRIVATE_KEY)
-        msg_dict['seal'] = seal
-        msg_dict['message'] = 'error'
-        message = from_dict(msg_dict)
-        node.message_received(message, 'http', '192.168.0.1', 1908)
-        node.handle_error.assert_called_once_with(message, self.contact)
-
-    def test_handle_error(self):
-        """
-        Makes sure remote errors are logged in the expected manner.
-        """
-        patcher = patch('drogulus.dht.node.logging.info')
-        node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
-                    self.reply_port)
-        msg_dict = {
-            'uuid': str(uuid.uuid4()),
-            'recipient': PUBLIC_KEY,
-            'sender': PUBLIC_KEY,
-            'reply_port': 1908,
-            'version': self.version,
-            'error': 'ValueError',
-            'details': 'Some arbitrary but useful text about the error',
-        }
-        seal = get_seal(msg_dict, PRIVATE_KEY)
-        msg_dict['seal'] = seal
-        msg_dict['message'] = 'error'
-        message = from_dict(msg_dict)
-        mock_log = patcher.start()
-        node.handle_error(message, self.contact)
-        self.assertEqual(2, mock_log.call_count)
-        expected = '***** ERROR ***** from '
-        self.assertTrue(mock_log.call_args_list[0][0][0].startswith(expected))
-        self.assertEqual(mock_log.call_args_list[1][0][0], message)
-        patcher.stop()
-
     def test_message_received_value(self):
         """
         Ensure that Value messages are handled correctly.
@@ -712,7 +602,7 @@ class TestNode(unittest.TestCase):
         forcibly removed from the local node's routing table. Finally, such
         activity is appropriately logged.
         """
-        patcher = patch('drogulus.dht.node.logging.info')
+        patcher = patch('drogulus.dht.node.log.info')
         node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
                     self.reply_port)
         node.trigger_task = mock.MagicMock()
@@ -888,36 +778,20 @@ class TestNode(unittest.TestCase):
         self.assertIsInstance(task.exception(), Exception)
         self.assertEqual('Danger Will Robinson!', task.exception().args[0])
 
-    def test_send_ping(self):
-        """
-        Ensures a Ping message is correctly constructed and sent to the remote
-        peer and a task to be resolved when the reply arrives is found in the
-        local node's pending dict.
-        """
-        node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
-                    self.reply_port)
-        node.send_message = MagicMock()
-        node.send_ping(self.contact)
-        self.assertEqual(1, node.send_message.call_count)
-        self.assertEqual(node.send_message.call_args_list[0][0][0],
-                         self.contact)
-        self.assertIsInstance(node.send_message.call_args_list[0][0][1],
-                              Ping)
-
     def test_send_pong(self):
         """
-        Ensure a Pong message is correctly constructed and sent to the remote
-        peer. A Pong is fire-and-forget.
+        Ensure an OK message is correctly constructed and sent to the remote
+        peer. An OK is fire-and-forget.
         """
         node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
                     self.reply_port)
         node.send_message = MagicMock()
-        node.send_pong(self.message, self.contact)
+        node.send_ok(self.message, self.contact)
         self.assertEqual(1, node.send_message.call_count)
         self.assertEqual(node.send_message.call_args_list[0][0][0],
                          self.contact)
         self.assertIsInstance(node.send_message.call_args_list[0][0][1],
-                              Pong)
+                              OK)
         faf = node.send_message.call_args_list[0][1]['fire_and_forget']
         self.assertEqual(faf, True)
 
@@ -1470,7 +1344,7 @@ class TestNode(unittest.TestCase):
         Check that the republish check works when the affected item has
         already been removed from the data store.
         """
-        patcher = patch('drogulus.dht.node.logging.info')
+        patcher = patch('drogulus.dht.node.log.info')
         node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
                     self.reply_port)
         mock_log = patcher.start()
@@ -1503,7 +1377,7 @@ class TestNode(unittest.TestCase):
         node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
                     self.reply_port)
         node.data_store[message.key] = message
-        patcher = patch('drogulus.dht.node.logging.info')
+        patcher = patch('drogulus.dht.node.log.info')
         mock_log = patcher.start()
         node.republish(message.key)
         self.assertEqual(2, mock_log.call_count)
@@ -1532,7 +1406,7 @@ class TestNode(unittest.TestCase):
                     self.reply_port)
         node.replicate = MagicMock()
         node.data_store[message.key] = message
-        patcher = patch('drogulus.dht.node.logging.info')
+        patcher = patch('drogulus.dht.node.log.info')
         mock_log = patcher.start()
         mock_handler = MagicMock()
         with patch.object(self.event_loop, 'call_later',
@@ -1568,7 +1442,7 @@ class TestNode(unittest.TestCase):
         node.replicate = MagicMock()
         now = time.time()
         node.data_store._set_item(message.key, (message, 123.45, now))
-        patcher = patch('drogulus.dht.node.logging.info')
+        patcher = patch('drogulus.dht.node.log.info')
         mock_log = patcher.start()
         mock_handler = MagicMock()
         with patch.object(self.event_loop, 'call_later',
@@ -1605,7 +1479,7 @@ class TestNode(unittest.TestCase):
         node.replicate = MagicMock()
         now = time.time()
         node.data_store._set_item(message.key, (message, now, now))
-        patcher = patch('drogulus.dht.node.logging.info')
+        patcher = patch('drogulus.dht.node.log.info')
         mock_log = patcher.start()
         mock_handler = MagicMock()
         with patch.object(self.event_loop, 'call_later',
@@ -1640,7 +1514,7 @@ class TestNode(unittest.TestCase):
                     self.reply_port)
         node.replicate = MagicMock()
         node.data_store._set_item(message.key, (message, 123.45, 123.45))
-        patcher = patch('drogulus.dht.node.logging.info')
+        patcher = patch('drogulus.dht.node.log.info')
         mock_log = patcher.start()
         mock_handler = MagicMock()
         mock_handler.cancel = MagicMock()
@@ -1682,7 +1556,7 @@ class TestNode(unittest.TestCase):
                     self.reply_port)
         node.replicate = MagicMock()
         node.data_store[message.key] = message
-        patcher = patch('drogulus.dht.node.logging.info')
+        patcher = patch('drogulus.dht.node.log.info')
         mock_log = patcher.start()
         mock_handler = MagicMock()
         mock_handler.cancel = MagicMock()
