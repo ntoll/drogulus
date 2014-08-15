@@ -35,7 +35,10 @@ test: clean
 coverage: test
 	coverage report -m --include=drogulus/*
 
-check: clean pep8 pyflakes coverage
+integration:
+	python integration_tests/run.py
+
+check: clean pep8 pyflakes coverage integration
 
 package: clean
 	python setup.py sdist
