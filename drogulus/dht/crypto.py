@@ -41,7 +41,6 @@ def check_seal(item):
         verifier = PKCS1_v1_5.new(public_key)
         return verifier.verify(root_hash, signature)
     except:
-        # TODO: do something with this..? (Probably not - tbc)
         pass
     return False
 
@@ -98,7 +97,6 @@ def verify_item(item):
         verifier = PKCS1_v1_5.new(public_key)
         return verifier.verify(root_hash, signature)
     except:
-        # TODO: do something with this..? (Probably not - tbc)
         pass
     return False
 

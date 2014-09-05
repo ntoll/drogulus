@@ -221,7 +221,7 @@ def from_dict(data):
         return make_message(Value, data)
     else:
         # Unknown request.
-        raise ValueError('%s is not a valid message type.' % message)
+        raise ValueError('{} is not a valid message type.'.format(message))
 
 
 def make_message(klass, data):

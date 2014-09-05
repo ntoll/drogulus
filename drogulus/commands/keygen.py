@@ -44,4 +44,4 @@ class KeyGen(Command):
         key = RSA.generate(size, random_generator)
         with open(output_file, 'w') as f:
             f.write(key.exportKey('PEM', passphrase).decode('ascii'))
-        print('Key written to %s' % output_file)
+        print('Key written to {}'.format(output_file))

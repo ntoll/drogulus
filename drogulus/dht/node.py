@@ -61,7 +61,7 @@ class Node(object):
         self.pending = {}
         # The version of Drogulus that this node implements.
         self.version = get_version()
-        log.info('Initialised node with id: %r' % self.network_id)
+        log.info('Initialised node with id: {}'.format(self.network_id))
 
     def join(self, seed_nodes=None):
         """
@@ -92,28 +92,30 @@ class Node(object):
         if not check_seal(message):
             raise BadMessage()
         # Update the routing table.
-        uri = '%s://%s:%d' % (protocol, address, port)
+        uri = '{protocol}://{address}:{port}'.format(protocol=protocol,
+                                                     address=address,
+                                                     port=port)
         other_node = PeerNode(message.sender, message.version, uri,
                               time.time())
-        log.info('Message received from %s' % other_node)
+        log.info('Message received from {}'.format(other_node))
         log.info(message)
         self.routing_table.add_contact(other_node)
         # Sort on message type and pass to handler method. Explicit > implicit.
         try:
             if isinstance(message, OK):
-                self.handle_ok(message)
+                return self.handle_ok(message)
             elif isinstance(message, Store):
-                self.handle_store(message, other_node)
+                return self.handle_store(message, other_node)
             elif isinstance(message, FindNode):
-                self.handle_find_node(message, other_node)
+                return self.handle_find_node(message, other_node)
             elif isinstance(message, FindValue):
-                self.handle_find_value(message, other_node)
+                return self.handle_find_value(message, other_node)
             elif isinstance(message, Value):
-                self.handle_value(message, other_node)
+                return self.handle_value(message, other_node)
             elif isinstance(message, Nodes):
-                self.handle_nodes(message)
+                return self.handle_nodes(message)
         except Exception as ex:
-            log.error('Problem handling message from %s' % other_node)
+            log.error('Problem handling message from {}'.format(other_node))
             log.error(message)
             log.error(ex)
 
@@ -127,7 +129,7 @@ class Node(object):
         task if the remote peer doesn't respond in a timely fashion.
         """
         # A Future that represents the delivery of the message.
-        delivery = self.connector.send(contact, message)
+        delivery = self.connector.send(contact, message, self)
         # A Future that resolves with the response to the outgoing message.
         response_received = asyncio.Future()
         self.pending[message.uuid] = response_received
@@ -213,27 +215,28 @@ class Node(object):
             if message.expires > 0 and (message.expires < now):
                 # There's a non-zero expiry and it's less than the current
                 # time, so return an error.
-                raise ExpiredMessage('Expired at %r (current time: %r)' %
-                                     (message.expires, now))
+                raise ExpiredMessage(
+                    'Expired at {} (current time: {})'.format(message.expires,
+                                                              now))
             # Ensure the node doesn't already have a more up-to-date version
             # of the value.
             current = self.data_store.get(message.key, False)
             if current and (message.timestamp < current.timestamp):
                 # The node already has a later version of the value so
                 # return an error.
-                raise OutOfDateMessage('Out of date. New timestamp: %r' %
-                                       current.timestamp, current)
+                raise OutOfDateMessage(
+                    'Most recent timestamp: {}'.format(current.timestamp))
             # Good to go, so store value.
             self.data_store[message.key] = message
-            # Reply with an OK so the other end updates its routing table.
-            self.send_ok(message, contact)
             # At some future time attempt to replicate the Store message
             # around the network IF it is within the message's expiry time.
             self.event_loop.call_later(REPLICATE_INTERVAL, self.republish,
                                        message.key)
+            # Reply with an OK so the other end updates its routing table.
+            return self.make_ok(message)
         else:
             # Remove from the routing table.
-            log.info('Problem with Store command from %s' % contact)
+            log.error('Problem with Store command from {}'.format(contact))
             self.routing_table.blacklist(contact)
             raise UnverifiableProvenance('Blacklisted')
 
@@ -246,9 +249,9 @@ class Node(object):
         """
         target_key = message.key
         # List containing tuples of information about the matching contacts.
-        other_nodes = [(n.public_key, n.version, n.uri) for n in
+        other_nodes = [[n.public_key, n.version, n.uri] for n in
                        self.routing_table.find_close_nodes(target_key)]
-        self.send_nodes(message, contact, other_nodes)
+        return self.make_nodes(message, other_nodes)
 
     def handle_find_value(self, message, contact):
         """
@@ -261,14 +264,14 @@ class Node(object):
         """
         match = self.data_store.get(message.key, False)
         if match:
-            self.send_value(message, contact, match.key, match.value,
-                            match.timestamp, match.expires,
-                            match.created_with, match.public_key, match.name,
-                            match.signature)
             # Update the last access time for the matching value.
             self.data_store.touch(message.key)
+            return self.make_value(message, match.key, match.value,
+                                   match.timestamp, match.expires,
+                                   match.created_with, match.public_key,
+                                   match.name, match.signature)
         else:
-            self.handle_find_node(message, contact)
+            return self.handle_find_node(message, contact)
 
     def handle_value(self, message, contact):
         """
@@ -283,10 +286,11 @@ class Node(object):
         if verify_item(to_dict(message)):
             self.trigger_task(message)
         else:
-            log.info('Problem with incoming Value message from %r' % contact)
-            log.info(message)
+            log.error(
+                'Problem with incoming Value message from {}'.format(contact))
+            log.error(message)
             self.routing_table.remove_contact(contact.network_id, True)
-            log.info('Remote peer removed from routing table.')
+            log.error('Remote peer removed from routing table.')
             self.trigger_task(message,
                               error=UnverifiableProvenance('Blacklisted'))
 
@@ -297,10 +301,9 @@ class Node(object):
         """
         self.trigger_task(message)
 
-    def send_ok(self, message, contact):
+    def make_ok(self, message):
         """
-        Returns an OK  acknowledgement to the remote contact for the given
-        message.
+        Returns an OK acknowledgement appropriate given the incoming message.
         """
         ok = {
             'uuid': message.uuid,
@@ -312,8 +315,50 @@ class Node(object):
         seal = get_seal(ok, self.private_key)
         ok['seal'] = seal
         ok['message'] = 'ok'
-        reply = from_dict(ok)
-        return self.send_message(contact, reply, fire_and_forget=True)
+        return from_dict(ok)
+
+    def make_value(self, message, key, value, timestamp, expires,
+                   created_with, public_key, name, signature):
+        """
+        Returns a valid Value message in response to the referenced message.
+        """
+        msg_dict = {
+            'uuid': message.uuid,
+            'recipient': message.sender,
+            'sender': self.public_key,
+            'reply_port': self.reply_port,
+            'version': self.version,
+            'key': key,
+            'value': value,
+            'timestamp': timestamp,
+            'expires': expires,
+            'created_with': created_with,
+            'public_key': public_key,
+            'name': name,
+            'signature': signature,
+        }
+        seal = get_seal(msg_dict, self.private_key)
+        msg_dict['seal'] = seal
+        msg_dict['message'] = 'value'
+        return from_dict(msg_dict)
+
+    def make_nodes(self, message, nodes):
+        """
+        Returns a valid Nodes message in response to the referenced incoming
+        message.
+        """
+        msg_dict = {
+            'uuid': message.uuid,
+            'recipient': message.sender,
+            'sender': self.public_key,
+            'reply_port': self.reply_port,
+            'version': self.version,
+            'nodes': nodes,
+        }
+        seal = get_seal(msg_dict, self.private_key)
+        msg_dict['seal'] = seal
+        msg_dict['message'] = 'nodes'
+        return from_dict(msg_dict)
 
     def send_store(self, contact, key, value, timestamp, expires,
                    created_with, public_key, name, signature):
@@ -368,52 +413,6 @@ class Node(object):
             msg_dict['message'] = 'findvalue'
         message = from_dict(msg_dict)
         return self.send_message(contact, message)
-
-    def send_value(self, message, contact, key, value, timestamp, expires,
-                   created_with, public_key, name, signature):
-        """
-        Sends a fire and forget Value message to the referenced contact as a
-        result of teh referenced incoming message.
-        """
-        msg_dict = {
-            'uuid': message.uuid,
-            'recipient': contact.public_key,
-            'sender': self.public_key,
-            'reply_port': self.reply_port,
-            'version': self.version,
-            'key': key,
-            'value': value,
-            'timestamp': timestamp,
-            'expires': expires,
-            'created_with': created_with,
-            'public_key': public_key,
-            'name': name,
-            'signature': signature,
-        }
-        seal = get_seal(msg_dict, self.private_key)
-        msg_dict['seal'] = seal
-        msg_dict['message'] = 'value'
-        reply = from_dict(msg_dict)
-        return self.send_message(contact, reply, fire_and_forget=True)
-
-    def send_nodes(self, message, contact, nodes):
-        """
-        Sends a fire and forget Nodes message to the referenced contact as
-        a result of the referenced incoming message.
-        """
-        msg_dict = {
-            'uuid': message.uuid,
-            'recipient': contact.public_key,
-            'sender': self.public_key,
-            'reply_port': self.reply_port,
-            'version': self.version,
-            'nodes': nodes,
-        }
-        seal = get_seal(msg_dict, self.private_key)
-        msg_dict['seal'] = seal
-        msg_dict['message'] = 'nodes'
-        reply = from_dict(msg_dict)
-        return self.send_message(contact, reply, fire_and_forget=True)
 
     def _store_to_nodes(self, nearest_nodes, duplicate, key, value, timestamp,
                         expires, created_with, public_key, name, signature):
@@ -522,7 +521,7 @@ class Node(object):
                     caching_contact = candidate
                     break
             if caching_contact:
-                log.info("Caching to %r" % caching_contact)
+                log.info("Caching to {}".format(caching_contact))
                 result = lookup.result()
                 self.send_store(caching_contact, lookup.target, result.value,
                                 result.timestamp, result.expires,
@@ -538,7 +537,7 @@ class Node(object):
         in the node's routing table.
         """
         refresh_ids = self.routing_table.get_refresh_list()
-        log.info('Refreshing buckets with ids: %r' % refresh_ids)
+        log.info('Refreshing buckets with ids: {}'.format(refresh_ids))
         for network_id in refresh_ids:
             Lookup(FindNode, network_id, self, self.event_loop)
         # schedule the next refresh.
@@ -580,9 +579,14 @@ class Node(object):
         was scheduled).
         * The item has not expired.
         * The item has not been updated for REPLICATE_INTERVAL seconds.
-        * The item has been requested during REPLICATE_INTERVAL seconds.
+
+        Furthermore, the item is deleted from the local data store (after
+        republication) if the item has not been requested during the proceeding
+        REPLICATE_INTERVAL seconds. This ensures items are not over-cached but
+        remain stored at peer nodes whose network ids are closest to the
+        item's key.
         """
-        log.info('Republish check for key: %s' % item_key)
+        log.info('Republish check for key: {}'.format(item_key))
         if item_key in self.data_store:
             item = self.data_store[item_key]
             now = time.time()
@@ -590,8 +594,8 @@ class Node(object):
                 # The item has expired. If the item's expiry is 0 (or less)
                 # then the item should never expire.
                 del self.data_store[item_key]
-                msg = '%s expired. Deleted from local data store.' % item_key
-                log.info(msg)
+                log.info('{} expired. Deleted from local data store.'
+                         .format(item_key))
             else:
                 updated = self.data_store.updated(item_key)
                 accessed = self.data_store.accessed(item_key)
@@ -599,8 +603,9 @@ class Node(object):
                 access_delta = now - accessed
                 replicated = False
                 if update_delta > REPLICATE_INTERVAL:
-                    # The item needs replicating.
-                    log.info('Republishing item %s.' % item_key)
+                    # The item needs republishing because it hasn't been
+                    # updated within the specified time interval.
+                    log.info('Republishing item {}.'.format(item_key))
                     self.replicate(K, item.key, item.value, item.timestamp,
                                    item.expires, item.created_with,
                                    item.public_key, item.name, item.signature)
@@ -613,8 +618,8 @@ class Node(object):
                     # required, replicate the item and then remove it from the
                     # local data store. Remember to cancel the scheduled
                     # republication check.
-                    msg = 'Removing %s due to lack of activity.' % item_key
-                    log.info(msg)
+                    log.info('Removing {} due to lack of activity.'
+                             .format(item_key))
                     if not replicated:
                         self.replicate(K, item.key, item.value,
                                        item.timestamp, item.expires,
@@ -623,5 +628,5 @@ class Node(object):
                     del self.data_store[item_key]
                     handler.cancel()
         else:
-            log.info('%s no longer in local data store. Cancelled.' %
-                     item_key)
+            log.info('{} is no longer in local data store. Cancelled.'
+                     .format(item_key))

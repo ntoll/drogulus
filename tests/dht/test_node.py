@@ -51,7 +51,7 @@ class FakeConnector:
     def __init__(self):
         self.messages = []
 
-    def send(self, contact, message):
+    def send(self, contact, message, sender):
         """
         Pretends to send a message to the specified contact.
         """
@@ -240,7 +240,15 @@ class TestNode(unittest.TestCase):
         """
         node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
                     self.reply_port)
-        node.handle_ok = mock.MagicMock()
+        # Make a source store message to be OK'd to.
+        self.signed_item['message'] = 'store'
+        message = from_dict(self.signed_item)
+        node.send_message(self.contact, message)
+        self.event_loop.run_until_complete(blip())
+        # Check the task is in the node's pending dictionary.
+        self.assertIn(message.uuid, node.pending)
+        self.assertIsInstance(node.pending[message.uuid], asyncio.Future)
+        # Check the OK message is handled correctly.
         msg_dict = {
             'uuid': str(uuid.uuid4()),
             'recipient': PUBLIC_KEY,
@@ -252,8 +260,8 @@ class TestNode(unittest.TestCase):
         msg_dict['seal'] = seal
         msg_dict['message'] = 'ok'
         message = from_dict(msg_dict)
-        node.message_received(message, 'http', '192.168.0.1', 1908)
-        node.handle_ok.assert_called_once_with(message)
+        result = node.message_received(message, 'http', '192.168.0.1', 1908)
+        self.assertEqual(None, result)
 
     def test_handle_ok(self):
         """
@@ -283,7 +291,8 @@ class TestNode(unittest.TestCase):
         msg_dict['seal'] = seal
         msg_dict['message'] = 'ok'
         reply = from_dict(msg_dict)
-        node.message_received(reply, 'http', '192.168.0.1', 1908)
+        result = node.message_received(reply, 'http', '192.168.0.1', 1908)
+        self.assertEqual(None, result)
         self.event_loop.run_until_complete(blip())
         # Check the task is no longer in the node's pending dictionary and has
         # been resolved with the OK message.
@@ -306,16 +315,18 @@ class TestNode(unittest.TestCase):
     def test_handle_store(self):
         """
         Ensure a Store message results in the data being checked, data
-        being stored, a pong being returned to the remote peer and a
+        being stored, an OK being returned to the remote peer and a
         republish command being scheduled in the future.
         """
         node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
                     self.reply_port)
-        node.send_ok = mock.MagicMock()
         self.signed_item['message'] = 'store'
         message = from_dict(self.signed_item)
         with patch.object(self.event_loop, 'call_later') as mock_call:
-            node.handle_store(message, self.contact)
+            result = node.handle_store(message, self.contact)
+            self.assertIsInstance(result, OK)
+            self.assertEqual(result.uuid, message.uuid)
+            self.assertEqual(result.recipient, message.sender)
             self.assertEqual(1, mock_call.call_count)
             self.assertEqual(mock_call.call_args_list[0][0][0],
                              REPLICATE_INTERVAL)
@@ -324,8 +335,6 @@ class TestNode(unittest.TestCase):
             self.assertEqual(mock_call.call_args_list[0][0][2],
                              message.key)
         self.assertEqual(message, node.data_store[message.key])
-        self.assertEqual(1, node.send_ok.call_count)
-        node.send_ok.assert_called_once_with(message, self.contact)
 
     def test_handle_store_bad_signature(self):
         """
@@ -437,7 +446,7 @@ class TestNode(unittest.TestCase):
         # Try to store the older message.
         with self.assertRaises(OutOfDateMessage) as ex:
             node.handle_store(older_message, self.contact)
-        self.assertIn('Out of date. New timestamp: ', ex.exception.args[0])
+        self.assertIn('Most recent timestamp: ', ex.exception.args[0])
 
     def test_message_received_find_node(self):
         """
@@ -445,7 +454,6 @@ class TestNode(unittest.TestCase):
         """
         node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
                     self.reply_port)
-        node.handle_find_node = mock.MagicMock()
         msg_dict = {
             'uuid': str(uuid.uuid4()),
             'recipient': PUBLIC_KEY,
@@ -458,8 +466,8 @@ class TestNode(unittest.TestCase):
         msg_dict['seal'] = seal
         msg_dict['message'] = 'findnode'
         message = from_dict(msg_dict)
-        node.message_received(message, 'http', '192.168.0.1', 1908)
-        node.handle_find_node.assert_called_once_with(message, self.contact)
+        result = node.message_received(message, 'http', '192.168.0.1', 1908)
+        self.assertIsInstance(result, Nodes)
 
     def test_handle_find_node(self):
         """
@@ -467,7 +475,6 @@ class TestNode(unittest.TestCase):
         """
         node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
                     self.reply_port)
-        node.send_nodes = mock.MagicMock()
         msg_dict = {
             'uuid': str(uuid.uuid4()),
             'recipient': PUBLIC_KEY,
@@ -480,20 +487,17 @@ class TestNode(unittest.TestCase):
         msg_dict['seal'] = seal
         msg_dict['message'] = 'findnode'
         message = from_dict(msg_dict)
-        node.handle_find_node(message, self.contact)
-        self.assertEqual(1, node.send_nodes.call_count)
-        m, c, n = node.send_nodes.call_args_list[0][0]
-        self.assertEqual(m, message)
-        self.assertEqual(c, self.contact)
-        self.assertIsInstance(n, list)
+        result = node.handle_find_node(message, self.contact)
+        self.assertIsInstance(result, Nodes)
+        self.assertEqual(result.uuid, message.uuid)
+        self.assertEqual(result.recipient, message.sender)
 
-    def test_message_received_find_value(self):
+    def test_message_received_find_value_no_match(self):
         """
         Make sure a FindValue message is handled correctly.
         """
         node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
                     self.reply_port)
-        node.handle_find_value = mock.MagicMock()
         msg_dict = {
             'uuid': str(uuid.uuid4()),
             'recipient': PUBLIC_KEY,
@@ -506,8 +510,31 @@ class TestNode(unittest.TestCase):
         msg_dict['seal'] = seal
         msg_dict['message'] = 'findvalue'
         message = from_dict(msg_dict)
-        node.message_received(message, 'http', '192.168.0.1', 1908)
-        node.handle_find_value.assert_called_once_with(message, self.contact)
+        result = node.message_received(message, 'http', '192.168.0.1', 1908)
+        self.assertIsInstance(result, Nodes)
+
+    def test_message_received_find_value_with_match(self):
+        """
+        Make sure a FindValue message is handled correctly.
+        """
+        node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
+                    self.reply_port)
+        k = sha512('a key'.encode('utf-8')).hexdigest()
+        node.data_store[k] = self.message
+        msg_dict = {
+            'uuid': str(uuid.uuid4()),
+            'recipient': PUBLIC_KEY,
+            'sender': PUBLIC_KEY,
+            'reply_port': 1908,
+            'version': self.version,
+            'key': k,
+        }
+        seal = get_seal(msg_dict, PRIVATE_KEY)
+        msg_dict['seal'] = seal
+        msg_dict['message'] = 'findvalue'
+        message = from_dict(msg_dict)
+        result = node.message_received(message, 'http', '192.168.0.1', 1908)
+        self.assertIsInstance(result, Value)
 
     def test_handle_find_value_exists(self):
         """
@@ -520,7 +547,7 @@ class TestNode(unittest.TestCase):
                     self.reply_port)
         k = sha512('a key'.encode('utf-8')).hexdigest()
         node.data_store[k] = self.message
-        node.send_value = mock.MagicMock()
+        node.make_value = mock.MagicMock()
         node.data_store.touch = mock.MagicMock()
         msg_dict = {
             'uuid': str(uuid.uuid4()),
@@ -535,18 +562,17 @@ class TestNode(unittest.TestCase):
         msg_dict['message'] = 'findvalue'
         message = from_dict(msg_dict)
         node.handle_find_value(message, self.contact)
-        self.assertEqual(1, node.send_value.call_count)
-        args = node.send_value.call_args_list[0][0]
+        self.assertEqual(1, node.make_value.call_count)
+        args = node.make_value.call_args_list[0][0]
         self.assertEqual(message, args[0])
-        self.assertEqual(self.contact, args[1])
-        self.assertEqual(self.message.key, args[2])
-        self.assertEqual(self.message.value, args[3])
-        self.assertEqual(self.message.timestamp, args[4])
-        self.assertEqual(self.message.expires, args[5])
-        self.assertEqual(self.message.created_with, args[6])
-        self.assertEqual(self.message.public_key, args[7])
-        self.assertEqual(self.message.name, args[8])
-        self.assertEqual(self.message.signature, args[9])
+        self.assertEqual(self.message.key, args[1])
+        self.assertEqual(self.message.value, args[2])
+        self.assertEqual(self.message.timestamp, args[3])
+        self.assertEqual(self.message.expires, args[4])
+        self.assertEqual(self.message.created_with, args[5])
+        self.assertEqual(self.message.public_key, args[6])
+        self.assertEqual(self.message.name, args[7])
+        self.assertEqual(self.message.signature, args[8])
         self.assertEqual(1, node.data_store.touch.call_count)
         node.data_store.touch.assert_called_once_with(k)
 
@@ -592,7 +618,8 @@ class TestNode(unittest.TestCase):
         node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
                     self.reply_port)
         node.trigger_task = mock.MagicMock()
-        node.handle_value(self.message, self.contact)
+        result = node.handle_value(self.message, self.contact)
+        self.assertEqual(None, result)
         node.trigger_task.assert_called_once_with(self.message)
 
     def test_handle_value_not_valid(self):
@@ -602,7 +629,7 @@ class TestNode(unittest.TestCase):
         forcibly removed from the local node's routing table. Finally, such
         activity is appropriately logged.
         """
-        patcher = patch('drogulus.dht.node.log.info')
+        patcher = patch('drogulus.dht.node.log.error')
         node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
                     self.reply_port)
         node.trigger_task = mock.MagicMock()
@@ -610,7 +637,8 @@ class TestNode(unittest.TestCase):
         self.signed_item['public_key'] = BAD_PUBLIC_KEY
         message = from_dict(self.signed_item)
         mock_log = patcher.start()
-        node.handle_value(message, self.contact)
+        result = node.handle_value(message, self.contact)
+        self.assertEqual(None, result)
         self.assertEqual(3, mock_log.call_count)
         node.routing_table.remove_contact.\
             assert_called_once_with(self.contact.network_id, True)
@@ -634,15 +662,17 @@ class TestNode(unittest.TestCase):
             'sender': PUBLIC_KEY,
             'reply_port': 1908,
             'version': self.version,
-            'nodes': ((PUBLIC_KEY, self.version, 'http://192.168.0.1:1908/'),)
+            'nodes': [[PUBLIC_KEY, self.version,
+                      'http://192.168.0.1:1908/'], ]
         }
         seal = get_seal(msg_dict, PRIVATE_KEY)
         msg_dict['seal'] = seal
         msg_dict['message'] = 'nodes'
         message = from_dict(msg_dict)
-        node.handle_nodes = mock.MagicMock()
-        node.message_received(message, 'http', '192.168.0.1', 1908)
-        node.handle_nodes.assert_called_once_with(message)
+        node.trigger_task = mock.MagicMock()
+        result = node.message_received(message, 'http', '192.168.0.1', 1908)
+        self.assertEqual(None, result)
+        node.trigger_task.assert_called_once_with(message)
 
     def test_handle_nodes(self):
         """
@@ -659,7 +689,8 @@ class TestNode(unittest.TestCase):
             'sender': PUBLIC_KEY,
             'reply_port': 1908,
             'version': self.version,
-            'nodes': ((PUBLIC_KEY, self.version, 'http://192.168.0.1:1908/'),)
+            'nodes': [[PUBLIC_KEY, self.version,
+                      'http://192.168.0.1:1908/'], ]
         }
         seal = get_seal(msg_dict, PRIVATE_KEY)
         msg_dict['seal'] = seal
@@ -778,22 +809,15 @@ class TestNode(unittest.TestCase):
         self.assertIsInstance(task.exception(), Exception)
         self.assertEqual('Danger Will Robinson!', task.exception().args[0])
 
-    def test_send_pong(self):
+    def test_make_ok(self):
         """
-        Ensure an OK message is correctly constructed and sent to the remote
+        Ensure an OK message is correctly constructed to be sent to the remote
         peer. An OK is fire-and-forget.
         """
         node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
                     self.reply_port)
-        node.send_message = MagicMock()
-        node.send_ok(self.message, self.contact)
-        self.assertEqual(1, node.send_message.call_count)
-        self.assertEqual(node.send_message.call_args_list[0][0][0],
-                         self.contact)
-        self.assertIsInstance(node.send_message.call_args_list[0][0][1],
-                              OK)
-        faf = node.send_message.call_args_list[0][1]['fire_and_forget']
-        self.assertEqual(faf, True)
+        result = node.make_ok(self.message)
+        self.assertIsInstance(result, OK)
 
     def test_send_store(self):
         """
@@ -845,46 +869,33 @@ class TestNode(unittest.TestCase):
         msg = node.send_message.call_args_list[0][0][1]
         self.assertIsInstance(msg, FindValue)
 
-    def test_send_value(self):
+    def test_make_value(self):
         """
         Ensure that a Value message is correctly constructed and sent to
         the remote peer. A Value message is fire-and-forget.
         """
         node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
                     self.reply_port)
-        node.send_message = MagicMock()
-        node.send_value(self.message, self.contact, self.message.key,
-                        self.message.value, self.message.timestamp,
-                        self.message.expires, self.message.created_with,
-                        self.message.public_key, self.message.name,
-                        self.message.signature)
-        self.assertEqual(1, node.send_message.call_count)
-        self.assertEqual(node.send_message.call_args_list[0][0][0],
-                         self.contact)
-        msg = node.send_message.call_args_list[0][0][1]
-        self.assertIsInstance(msg, Value)
-        self.assertTrue(check_seal(msg))
-        self.assertTrue(verify_item(to_dict(msg)))
-        faf = node.send_message.call_args_list[0][1]['fire_and_forget']
-        self.assertEqual(faf, True)
+        result = node.make_value(self.message, self.message.key,
+                                 self.message.value, self.message.timestamp,
+                                 self.message.expires,
+                                 self.message.created_with,
+                                 self.message.public_key, self.message.name,
+                                 self.message.signature)
+        self.assertIsInstance(result, Value)
+        self.assertTrue(check_seal(result))
+        self.assertTrue(verify_item(to_dict(result)))
 
-    def test_send_nodes(self):
+    def test_make_nodes(self):
         """
-        Ensure that Nodes message is correctly constructed and sent to the
-        remote peer. A Nodes message is fire-and-forget.
+        Ensure that Nodes message is correctly constructed for sending to the
+        remote peer.
         """
         node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
                     self.reply_port)
-        node.send_message = MagicMock()
-        nodes = ((PUBLIC_KEY, self.version, 'http://192.168.0.1:1908/'),)
-        node.send_nodes(self.message, self.contact, nodes)
-        self.assertEqual(1, node.send_message.call_count)
-        self.assertEqual(node.send_message.call_args_list[0][0][0],
-                         self.contact)
-        msg = node.send_message.call_args_list[0][0][1]
-        self.assertIsInstance(msg, Nodes)
-        faf = node.send_message.call_args_list[0][1]['fire_and_forget']
-        self.assertEqual(faf, True)
+        nodes = [[PUBLIC_KEY, self.version, 'http://192.168.0.1:1908/'], ]
+        result = node.make_nodes(self.message, nodes)
+        self.assertIsInstance(result, Nodes)
 
     def test_store_to_nodes(self):
         """
@@ -1070,13 +1081,12 @@ class TestNode(unittest.TestCase):
         """
         node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
                     self.reply_port)
-        contacts = []
+        nodes = []
         for i in range(20):
             uri = 'http://192.168.0.%d:9999/' % i
             contact = PeerNode(str(i), self.version, uri, 0)
             node.routing_table.add_contact(contact)
-            contacts.append((PUBLIC_KEY, self.version, uri))
-        nodes = tuple(contacts)
+            nodes.append([PUBLIC_KEY, self.version, uri])
 
         def side_effect(*args):
             """
@@ -1352,7 +1362,7 @@ class TestNode(unittest.TestCase):
         self.assertEqual(2, mock_log.call_count)
         expected = 'Republish check for key: foo'
         self.assertEqual(expected, mock_log.call_args_list[0][0][0])
-        expected = 'foo no longer in local data store. Cancelled.'
+        expected = 'foo is no longer in local data store. Cancelled.'
         self.assertEqual(expected, mock_log.call_args_list[1][0][0])
         patcher.stop()
 

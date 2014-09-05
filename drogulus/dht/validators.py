@@ -47,7 +47,7 @@ def validate_node(val):
     * A string representation of the URI identifying how to connect to the
       remote note.
     """
-    if isinstance(val, tuple):
+    if isinstance(val, list):
         if len(val) == 3:
             valid_public_key = validate_string(val[0])
             valid_version = validate_string(val[1])
@@ -61,13 +61,12 @@ def validate_nodes(val):
     Returns a boolean to indicate that a field is a tuple that may contain
     information about nodes.
     """
-    if isinstance(val, tuple):
+    if isinstance(val, list):
         for node in val:
             if not validate_node(node):
                 return False
-    else:
-        return False
-    return True
+        return True
+    return False
 
 
 def validate_value(val):

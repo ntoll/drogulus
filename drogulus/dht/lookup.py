@@ -166,7 +166,7 @@ class Lookup(asyncio.Future):
         """
         if self.done():
             return False
-        log.info('Cancelling lookup for %s' % self.target)
+        log.info('Cancelling lookup for {}'.format(self.target))
         self._cancel_pending_requests()
         return asyncio.Future.cancel(self)
 
@@ -182,7 +182,7 @@ class Lookup(asyncio.Future):
         if uuid in self.pending_requests:
             self.pending_requests[uuid].cancel()
             del self.pending_requests[uuid]
-        log.info('Error during interaction with %r' % contact)
+        log.info('Problem during interaction with {}'.format(contact))
         log.info(error)
         self._lookup()
 
@@ -194,7 +194,7 @@ class Lookup(asyncio.Future):
         if contact in self.shortlist:
             self.shortlist.remove(contact)
         self.local_node.routing_table.blacklist(contact)
-        log.info('Blacklisting %r' % contact)
+        log.info('Blacklisting {}'.format(repr(contact)))
 
     def _handle_response(self, uuid, contact, response):
         """
@@ -250,19 +250,20 @@ class Lookup(asyncio.Future):
                 # Blacklist the problem contact from the routing table (since
                 # it doesn't behave).
                 self._blacklist(contact)
-                raise TypeError("Unexpected response type from %r" % contact)
+                raise TypeError("Unexpected response type from {}"
+                                .format(contact))
 
             # Is the response the expected Value we're looking for..?
             if isinstance(result, Value):
                 # Check if it's a suitable value (the key matches)
                 if result.key == self.target:
                     # Ensure the Value has not expired.
-                    if result.expires < time.time():
+                    if result.expires > 0 and (result.expires < time.time()):
                         # Do not blacklist expired nodes but simply remove
                         # them from the shortlist (handled by the
                         # _handle_error method).
-                        raise ValueError("Expired value returned by %r" %
-                                         contact)
+                        raise ValueError("Expired value returned by {}"
+                                         .format(contact))
                     # Cancel outstanding requests.
                     self._cancel_pending_requests()
                     # Ensure the returning contact is removed from the
@@ -278,8 +279,8 @@ class Lookup(asyncio.Future):
                     # Blacklist the problem contact from the routing table
                     # since it's not behaving properly.
                     self._blacklist(contact)
-                    raise ValueError("Value with wrong key returned by %r" %
-                                     contact)
+                    raise ValueError("Value with wrong key returned by {}"
+                                     .format(contact))
             else:
                 # Otherwise it must be a Nodes message containing closer
                 # nodes. Add the returned nodes to the shortlist. Sort the
@@ -303,8 +304,8 @@ class Lookup(asyncio.Future):
                             # There is a result.
                             if self.message_type == FindValue:
                                 # Can't find a value at the key.
-                                msg = ("Unable to find value for key: %r" %
-                                       self.target)
+                                msg = "Unable to find value for key: {}"\
+                                    .format(self.target)
                                 self.set_exception(ValueNotFound(msg))
                             else:
                                 # Success! Found nodes close to the specified

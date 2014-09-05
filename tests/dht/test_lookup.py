@@ -232,7 +232,7 @@ class TestLookup(unittest.TestCase):
         self.assertEqual(args[1], contact)
         self.assertIsInstance(args[2], TypeError)
         self.assertEqual(args[2].args[0],
-                         "Unexpected response type from %r" % contact)
+                         "Unexpected response type from {}".format(contact))
 
     def test_handle_response_wrong_value_for_findnode_message(self):
         """
@@ -259,7 +259,7 @@ class TestLookup(unittest.TestCase):
         self.assertEqual(args[1], contact)
         self.assertIsInstance(args[2], TypeError)
         self.assertEqual(args[2].args[0],
-                         "Unexpected response type from %r" % contact)
+                         "Unexpected response type from {}".format(contact))
 
     def test_handle_response_remove_request_from_pending(self):
         """
@@ -336,7 +336,8 @@ class TestLookup(unittest.TestCase):
         self.assertEqual(args[1], contact)
         self.assertIsInstance(args[2], ValueError)
         self.assertEqual(args[2].args[0],
-                         "Value with wrong key returned by %r" % contact)
+                         "Value with wrong key returned by {}"
+                         .format(contact))
 
     def test_handle_response_value_expired(self):
         """
@@ -360,7 +361,24 @@ class TestLookup(unittest.TestCase):
         self.assertEqual(args[1], contact)
         self.assertIsInstance(args[2], ValueError)
         self.assertEqual(args[2].args[0],
-                         "Expired value returned by %r" % contact)
+                         "Expired value returned by {}".format(contact))
+
+    def test_handle_response_value_never_expires(self):
+        """
+        Ensures an expired Value is handled correctly.
+        """
+        lookup = Lookup(FindValue, self.target, self.node, self.event_loop)
+        uuids = [uuid for uuid in lookup.pending_requests.keys()]
+        uuid = uuids[0]
+        contact = lookup.shortlist[0]
+        msg = Value(uuid, self.node.network_id, self.node.network_id,
+                    self.reply_port, self.version, self.seal, self.target,
+                    'value', time.time(), 0.0, self.version, PUBLIC_KEY,
+                    'name', 'signature')
+        response = asyncio.Future()
+        response.set_result(msg)
+        lookup._handle_response(uuid, contact, response)
+        self.assertEqual(lookup.result(), msg)
 
     def test_handle_response_nodes_adds_closest_nodes_to_shortlist(self):
         """
@@ -546,7 +564,8 @@ class TestLookup(unittest.TestCase):
             lookup.result()
         self.assertIsInstance(result.exception, ValueNotFound)
         self.assertEqual(result.exception.args[0],
-                         "Unable to find value for key: %r" % self.target)
+                         "Unable to find value for key: {}"
+                         .format(self.target))
 
     def test_lookup_none_pending_none_contacted(self):
         """

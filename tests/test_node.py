@@ -7,11 +7,10 @@ from drogulus.node import Drogulus
 from drogulus.dht.node import Node
 from drogulus.dht.contact import PeerNode
 from drogulus.dht.crypto import construct_key
-from drogulus.dht.constants import DUPLICATION_COUNT, EXPIRY_DURATION
+from drogulus.dht.constants import DUPLICATION_COUNT
 from drogulus.net.netstring import NetstringConnector
 from .dht.keys import PUBLIC_KEY, PRIVATE_KEY
 from mock import MagicMock
-from asyncio.tasks import _GatheringFuture
 import unittest
 import asyncio
 
@@ -30,6 +29,7 @@ class TestDrogulus(unittest.TestCase):
         asyncio.set_event_loop(loop)
         self.event_loop = asyncio.get_event_loop()
         self.connector = NetstringConnector(self.event_loop)
+        self.version = get_version()
 
     def tearDown(self):
         """
@@ -41,7 +41,7 @@ class TestDrogulus(unittest.TestCase):
         """
         Ensure the Drogulus instance is created as expected.
         """
-        d = Drogulus(PRIVATE_KEY, PUBLIC_KEY, self.event_loop, self.connector)
+        d = Drogulus(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector)
         self.assertEqual(d.private_key, PRIVATE_KEY)
         self.assertEqual(d.public_key, PUBLIC_KEY)
         self.assertEqual(d.event_loop, self.event_loop)
@@ -81,7 +81,7 @@ class TestDrogulus(unittest.TestCase):
         whoami = {
             'name': 'fred'
         }
-        d = Drogulus(PRIVATE_KEY, PUBLIC_KEY, self.event_loop, self.connector,
+        d = Drogulus(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
                      whoami=whoami)
         self.assertEqual(d.whoami['public_key'], PUBLIC_KEY)
         self.assertEqual(d.whoami['version'], get_version())
@@ -150,58 +150,70 @@ class TestDrogulus(unittest.TestCase):
         """
         Ensure a basic set operation works as expected.
         """
-        drog = Drogulus(PRIVATE_KEY, PUBLIC_KEY, self.event_loop,
+        drog = Drogulus(PUBLIC_KEY, PRIVATE_KEY, self.event_loop,
                         self.connector)
         result = []
         for i in range(20):
             result.append(asyncio.Future())
         drog._node.replicate = MagicMock(return_value=result)
         pending_result = drog.set('foo', 'bar')
-        self.assertIsInstance(pending_result, _GatheringFuture)
+        self.assertIsInstance(pending_result, list)
         self.assertEqual(1, drog._node.replicate.call_count)
         called_with = drog._node.replicate.call_args_list[0][0]
-        self.assertEqual(called_with[0], 'foo')
-        self.assertEqual(called_with[1], 'bar')
-        self.assertIsInstance(called_with[2], float)
-        self.assertEqual(called_with[3], EXPIRY_DURATION)
-        self.assertEqual(called_with[4], DUPLICATION_COUNT)
+        self.assertEqual(called_with[0], DUPLICATION_COUNT)
+        self.assertEqual(called_with[1], construct_key(PUBLIC_KEY, 'foo'))
+        self.assertEqual(called_with[2], 'bar')
+        self.assertIsInstance(called_with[3], float)
+        self.assertEqual(called_with[4], 0.0)
+        self.assertEqual(called_with[5], self.version)
+        self.assertEqual(called_with[6], PUBLIC_KEY)
+        self.assertEqual(called_with[7], 'foo')
+        self.assertIsInstance(called_with[8], str)
 
     def test_set_with_expiry(self):
         """
         Ensure the expiry setting is passed into the replicate method.
         """
-        drog = Drogulus(PRIVATE_KEY, PUBLIC_KEY, self.event_loop,
+        drog = Drogulus(PUBLIC_KEY, PRIVATE_KEY, self.event_loop,
                         self.connector)
         result = []
         for i in range(20):
             result.append(asyncio.Future())
         drog._node.replicate = MagicMock(return_value=result)
         pending_result = drog.set('foo', 'bar', expires=99999)
-        self.assertIsInstance(pending_result, _GatheringFuture)
+        self.assertIsInstance(pending_result, list)
         self.assertEqual(1, drog._node.replicate.call_count)
         called_with = drog._node.replicate.call_args_list[0][0]
-        self.assertEqual(called_with[0], 'foo')
-        self.assertEqual(called_with[1], 'bar')
-        self.assertIsInstance(called_with[2], float)
-        self.assertEqual(called_with[3], called_with[2] + 99999)
-        self.assertEqual(called_with[4], DUPLICATION_COUNT)
+        self.assertEqual(called_with[0], DUPLICATION_COUNT)
+        self.assertEqual(called_with[1], construct_key(PUBLIC_KEY, 'foo'))
+        self.assertEqual(called_with[2], 'bar')
+        self.assertIsInstance(called_with[3], float)
+        self.assertEqual(called_with[4], called_with[3] + 99999)
+        self.assertEqual(called_with[5], self.version)
+        self.assertEqual(called_with[6], PUBLIC_KEY)
+        self.assertEqual(called_with[7], 'foo')
+        self.assertIsInstance(called_with[8], str)
 
     def test_set_bespoke_duplication_count(self):
         """
         Ensure the duplication count is passed into the replicate method.
         """
-        drog = Drogulus(PRIVATE_KEY, PUBLIC_KEY, self.event_loop,
+        drog = Drogulus(PUBLIC_KEY, PRIVATE_KEY, self.event_loop,
                         self.connector)
         result = []
         for i in range(20):
             result.append(asyncio.Future())
         drog._node.replicate = MagicMock(return_value=result)
         pending_result = drog.set('foo', 'bar', duplicate=5)
-        self.assertIsInstance(pending_result, _GatheringFuture)
+        self.assertIsInstance(pending_result, list)
         self.assertEqual(1, drog._node.replicate.call_count)
         called_with = drog._node.replicate.call_args_list[0][0]
-        self.assertEqual(called_with[0], 'foo')
-        self.assertEqual(called_with[1], 'bar')
-        self.assertIsInstance(called_with[2], float)
-        self.assertEqual(called_with[3], EXPIRY_DURATION)
-        self.assertEqual(called_with[4], 5)
+        self.assertEqual(called_with[0], 5)
+        self.assertEqual(called_with[1], construct_key(PUBLIC_KEY, 'foo'))
+        self.assertEqual(called_with[2], 'bar')
+        self.assertIsInstance(called_with[3], float)
+        self.assertEqual(called_with[4], 0.0)
+        self.assertEqual(called_with[5], self.version)
+        self.assertEqual(called_with[6], PUBLIC_KEY)
+        self.assertEqual(called_with[7], 'foo')
+        self.assertIsInstance(called_with[8], str)

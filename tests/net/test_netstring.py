@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-A rather silly test but added all the same for completeness and to check the
-initial test suite works as expected.
+Ensures that the netstring example Protocol and Connector class implementations
+work as expected.
 """
 from drogulus.net.netstring import (NetstringProtocol, NetstringConnector,
                                     LENGTH)
@@ -62,7 +62,8 @@ class TestNetstringProtocol(unittest.TestCase):
         Ensure the string_received method works as expected.
         """
         transport = mock.MagicMock()
-        transport.get_extra_info = mock.MagicMock(return_value='192.168.0.1')
+        addr = ('192.168.0.1', 9999)
+        transport.get_extra_info = mock.MagicMock(return_value=addr)
         connector = mock.MagicMock()
         connector.receive = mock.MagicMock()
         node = mock.MagicMock()
@@ -233,7 +234,7 @@ class TestNetstringConnector(unittest.TestCase):
         protocol.send_string = mock.MagicMock()
         msg = OK('uuid', 'recipient', 'sender', 9999, 'version', 'seal')
         nc._send_message_with_protocol(msg, protocol)
-        protocol.send_string.assert_called_once_with({
+        expected = {
             'message': 'ok',
             'uuid': 'uuid',
             'recipient': 'recipient',
@@ -241,7 +242,9 @@ class TestNetstringConnector(unittest.TestCase):
             'reply_port': 9999,
             'version': 'version',
             'seal': 'seal'
-        })
+        }
+        actual = json.loads(protocol.send_string.call_args[0][0])
+        self.assertEqual(expected, actual)
 
     def test_send_with_cached_protocol(self):
         """
@@ -254,8 +257,9 @@ class TestNetstringConnector(unittest.TestCase):
                            'netstring://192.168.0.1:1908')
         msg = OK('uuid', 'recipient', 'sender', 9999, 'version', 'seal')
         protocol = mock.MagicMock()
+        sender = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, nc, 1908)
         nc._connections[contact.network_id] = protocol
-        result = nc.send(contact, msg)
+        result = nc.send(contact, msg, sender)
         self.assertIsInstance(result, asyncio.Future)
         self.assertTrue(result.done())
         self.assertEqual(result.result(), True)
@@ -281,6 +285,7 @@ class TestNetstringConnector(unittest.TestCase):
 
         new_protocol = mock.MagicMock()
         new_protocol.send_string = mock.MagicMock()
+        sender = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, nc, 1908)
 
         @asyncio.coroutine
         def faux_connect(protocol=new_protocol):
@@ -288,7 +293,7 @@ class TestNetstringConnector(unittest.TestCase):
 
         with mock.patch.object(self.event_loop, 'create_connection',
                                return_value=faux_connect()):
-            result = nc.send(contact, msg)
+            result = nc.send(contact, msg, sender)
             self.event_loop.run_until_complete(result)
             self.assertEqual(1, new_protocol.send_string.call_count)
             self.assertTrue(result.done())
@@ -296,8 +301,9 @@ class TestNetstringConnector(unittest.TestCase):
             self.assertIn(contact.network_id, nc._connections)
             self.assertEqual(nc._connections[contact.network_id],
                              new_protocol)
-            m = to_dict(msg)
-            new_protocol.send_string.assert_called_once_with(m)
+            expected = to_dict(msg)
+            actual = json.loads(protocol.send_string.call_args[0][0])
+            self.assertEqual(expected, actual)
 
     def test_send_to_new_contact_successful_connection(self):
         """
@@ -310,6 +316,7 @@ class TestNetstringConnector(unittest.TestCase):
         msg = OK('uuid', 'recipient', 'sender', 9999, 'version', 'seal')
         protocol = mock.MagicMock()
         protocol.send_string = mock.MagicMock()
+        sender = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, nc, 1908)
 
         @asyncio.coroutine
         def faux_connect(protocol=protocol):
@@ -317,15 +324,16 @@ class TestNetstringConnector(unittest.TestCase):
 
         with mock.patch.object(self.event_loop, 'create_connection',
                                return_value=faux_connect()):
-            result = nc.send(contact, msg)
+            result = nc.send(contact, msg, sender)
             self.event_loop.run_until_complete(result)
             self.assertEqual(1, protocol.send_string.call_count)
             self.assertTrue(result.done())
             self.assertEqual(True, result.result())
             self.assertIn(contact.network_id, nc._connections)
             self.assertEqual(nc._connections[contact.network_id], protocol)
-            m = to_dict(msg)
-            protocol.send_string.assert_called_once_with(m)
+            expected = to_dict(msg)
+            actual = json.loads(protocol.send_string.call_args[0][0])
+            self.assertEqual(expected, actual)
 
     def test_send_to_new_contact_failed_to_connect(self):
         """
@@ -342,6 +350,7 @@ class TestNetstringConnector(unittest.TestCase):
             raise ValueError()
 
         protocol.send_string = mock.MagicMock(side_effect=side_effect)
+        sender = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, nc, 1908)
 
         @asyncio.coroutine
         def faux_connect(protocol=protocol):
@@ -349,7 +358,7 @@ class TestNetstringConnector(unittest.TestCase):
 
         with mock.patch.object(self.event_loop, 'create_connection',
                                return_value=faux_connect()):
-            result = nc.send(contact, msg)
+            result = nc.send(contact, msg, sender)
             with self.assertRaises(ValueError) as ex:
                 self.event_loop.run_until_complete(result)
             self.assertEqual(1, protocol.send_string.call_count)
@@ -426,7 +435,7 @@ class TestNetstringConnector(unittest.TestCase):
         If a message is received that contains bad json then log the incident
         for later analysis.
         """
-        patcher = mock.patch('drogulus.net.netstring.log.info')
+        patcher = mock.patch('drogulus.net.netstring.log.error')
         nc = NetstringConnector(self.event_loop)
         sender = '192.168.0.1'
         handler = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, nc, 1908)
@@ -442,7 +451,7 @@ class TestNetstringConnector(unittest.TestCase):
         If a message is received that consists of valid json but a malformed
         message then log the incident for later analysis.
         """
-        patcher = mock.patch('drogulus.net.netstring.log.info')
+        patcher = mock.patch('drogulus.net.netstring.log.error')
         nc = NetstringConnector(self.event_loop)
         ping = {
             'uuid': str(uuid.uuid4()),

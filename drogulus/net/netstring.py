@@ -65,7 +65,7 @@ class NetstringProtocol(asyncio.Protocol):
         """
         Process the raw data with the connector and local node.
         """
-        peer = self.transport.get_extra_info('peername')
+        peer = self.transport.get_extra_info('peername')[0]
         self._connector.receive(data, peer, self._node, self)
 
     def connection_made(self, transport):
@@ -138,7 +138,7 @@ class NetstringProtocol(asyncio.Protocol):
         self.transport.
         """
         length = len(data.encode('utf-8'))
-        output = '%d:%s,' % (length, data)
+        output = '{}:{},'.format(length, data)
         self.transport.write(output.encode('utf-8'))
 
 
@@ -162,10 +162,9 @@ class NetstringConnector(Connector):
         Sends the referenced message to the remote peer using the passed in
         protocol object.
         """
-        msg = to_dict(message)
-        protocol.send_string(msg)
+        protocol.send_string(json.dumps(to_dict(message)))
 
-    def send(self, contact, message):
+    def send(self, contact, message, sender):
         """
         Sends the message to the referenced contact.
         """
@@ -184,8 +183,9 @@ class NetstringConnector(Connector):
                 del self._connections[contact.network_id]
         # Create a new connection and then cache it.
         uri = urllib.parse.urlsplit(contact.uri)
-        coro = self.event_loop.create_connection(NetstringProtocol,
-                                                 uri.hostname, uri.port)
+        protocol = lambda: NetstringProtocol(self, sender)
+        coro = self.event_loop.create_connection(protocol, uri.hostname,
+                                                 uri.port)
         connection = asyncio.Task(coro)
 
         def on_connect(task, contact=contact, message=message, nc=self,
@@ -217,6 +217,11 @@ class NetstringConnector(Connector):
             message_dict = json.loads(raw)
             message = from_dict(message_dict)
             network_id = sha512(message.sender.encode('ascii')).hexdigest()
+            reply = handler.message_received(message, 'netstring', sender,
+                                             message.reply_port)
+            if reply:
+                self._send_message_with_protocol(reply, protocol)
+            # Cache the connection.
             if network_id not in self._connections:
                 # If the remote node is a new peer cache the protocol.
                 self._connections[network_id] = protocol
@@ -224,11 +229,9 @@ class NetstringConnector(Connector):
                 # If the remote node has a cached protocol that appears to
                 # have expired cache the replacement protocol object.
                 self._connections[network_id] = protocol
-            handler.message_received(message, 'netstring', sender,
-                                     message.reply_port)
         except Exception as ex:
             # There's not a lot that can be usefully done at this stage except
             # to log the problem in a way that may aid further investigation.
-            log.info('Problem message received from %s' % sender)
-            log.info(ex)
-            log.info(raw)
+            log.error('Problem message received from {}'.format(sender))
+            log.exception(ex)
+            log.error(raw)

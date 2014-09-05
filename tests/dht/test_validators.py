@@ -78,61 +78,61 @@ class TestValidators(unittest.TestCase):
 
     def test_validate_node(self):
         """
-        A tuple containing id and IP address strings, a port integer and
+        A list containing id and IP address strings, a port integer and
         version string passes.
         """
-        self.assertTrue(validate_node(('id', '0.1',
-                                      'http://192.168.0.1:9999/')))
+        self.assertTrue(validate_node(['id', '0.1',
+                                      'http://192.168.0.1:9999/']))
 
     def test_validate_node_wrong_type(self):
         """
-        The node should be expressed within a tuple.
+        The node should be expressed within a list.
         """
-        self.assertFalse(validate_node(['id', '0.1',
-                                       'http://192.168.0.1:9999/']))
+        self.assertFalse(validate_node(('id', '0.1',
+                                       'http://192.168.0.1:9999/')))
 
     def test_validate_node_bad_id(self):
         """
         The node's id should be a string.
         """
-        self.assertFalse(validate_node((123, '0.1',
-                                       'http://192.168.0.1:9999/')))
+        self.assertFalse(validate_node([123, '0.1',
+                                       'http://192.168.0.1:9999/']))
 
     def test_validate_node_invalid_version(self):
         """
         The version number should be a string.
         """
-        self.assertFalse(validate_node(('id', 0.1,
-                                       'http://192.168.0.1:9999/')))
+        self.assertFalse(validate_node(['id', 0.1,
+                                       'http://192.168.0.1:9999/']))
 
     def test_validate_node_bad_uri(self):
         """
         The URI should be a string.
         """
-        self.assertFalse(validate_node(('id', '0.1',
-                                       ['http://192.168.0.1:9999/'])))
+        self.assertFalse(validate_node(['id', '0.1',
+                                       ['http://192.168.0.1:9999/']]))
 
     def test_validate_nodes(self):
         """
-        A tuple of zero or more nodes is valid.
+        A list of zero or more nodes is valid.
         """
-        self.assertTrue(validate_nodes((('id', '0.1',
-                                       'http://192.168.0.1:9999/'), )))
+        self.assertTrue(validate_nodes([['id', '0.1',
+                                       'http://192.168.0.1:9999/'], ]))
 
     def test_validate_nodes_wrong_type(self):
         """
-        Nodes can only be expressed in tuples.
+        Nodes can only be expressed in lists.
         """
-        self.assertFalse(validate_nodes([('id', '0.1',
-                                        'http://192.168.0.1:9999/'), ]))
+        self.assertFalse(validate_nodes((['id', '0.1',
+                                        'http://192.168.0.1:9999/'], )))
 
     def test_validate_nodes_bad_node(self):
         """
-        A tuple of nodes is only valid is the nodes contained therein are also
+        A list of nodes is only valid is the nodes contained therein are also
         valid.
         """
-        self.assertFalse(validate_nodes(((123, '0.1',
-                                         'http://192.168.0.1:9999/'))))
+        self.assertFalse(validate_nodes([[123, '0.1',
+                                         'http://192.168.0.1:9999/']]))
 
     def test_validate_value(self):
         """

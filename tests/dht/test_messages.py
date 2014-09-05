@@ -92,14 +92,14 @@ class TestMessages(unittest.TestCase):
         """
         nodes = Nodes(self.uuid, self.recipient, self.sender, self.reply_port,
                       self.version, self.seal,
-                      ((self.node, '127.0.0.1', 1908, self.version)))
+                      [[self.node, '127.0.0.1', 1908, self.version], ])
         self.assertEqual(self.uuid, nodes.uuid)
         self.assertEqual(self.recipient, nodes.recipient)
         self.assertEqual(self.sender, nodes.sender)
         self.assertEqual(self.reply_port, nodes.reply_port)
         self.assertEqual(self.version, nodes.version)
         self.assertEqual(self.seal, nodes.seal)
-        self.assertEqual(((self.node, '127.0.0.1', 1908, self.version)),
+        self.assertEqual([[self.node, '127.0.0.1', 1908, self.version], ],
                          nodes.nodes)
 
     def test_find_value(self):
@@ -168,7 +168,7 @@ class TestDictConversion(unittest.TestCase):
         self.signature = signed_dict['signature']
         self.message = 'value'
         self.seal = 'afakesealthatwillnotwork'
-        self.nodes = ((self.node, self.version, 'http://192.168.0.1:8080/'),)
+        self.nodes = [[self.node, self.version, 'http://192.168.0.1:8080/'], ]
         self.mock_message = Value(self.uuid, self.node, self.node,
                                   self.reply_port, self.version, self.seal,
                                   self.key, self.value, self.timestamp,

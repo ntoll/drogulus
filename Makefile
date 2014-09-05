@@ -8,6 +8,7 @@ all:
 	@echo "make pep8 - run the PEP8 style checker."
 	@echo "make test - run the test suite."
 	@echo "make coverage - view a report on test coverage."
+	@echo "make integration - run the integration tests."
 	@echo "make check - run all the checkers and tests."
 	@echo "make package - create a deployable package for the project."
 	@echo "make publish - publish the project to PyPI."
@@ -30,9 +31,10 @@ pep8:
 	find . \( -name _build -o -name var \) -type d -prune -o -name '*.py' -print0 | $(XARGS) -n 1 pep8 --repeat --exclude=drogulus/contrib/*,build/*
 
 test: clean
-	coverage run -m unittest discover
+	python -m unittest discover --buffer
 
-coverage: test
+coverage: clean
+	coverage run -m unittest discover --buffer
 	coverage report -m --include=drogulus/*
 
 integration:

@@ -4,10 +4,8 @@ Contains the class that defines a node in the drogulus network.
 """
 from .dht.node import Node
 from .dht.constants import DUPLICATION_COUNT, EXPIRY_DURATION
-from .dht.crypto import construct_key
+from .dht.crypto import construct_key, get_signed_item
 from .version import get_version
-import asyncio
-import time
 
 
 class Drogulus:
@@ -17,7 +15,7 @@ class Drogulus:
     drogulus.dht.node.Node).
     """
 
-    def __init__(self, private_key, public_key, event_loop, connector,
+    def __init__(self, public_key, private_key, event_loop, connector,
                  port=1908, alias=None, whoami=None):
         """
         The private and public keys are required for signing and verifying
@@ -33,7 +31,7 @@ class Drogulus:
         self.public_key = public_key
         self.event_loop = event_loop
         self.connector = connector
-        self._node = Node(private_key, public_key, event_loop,
+        self._node = Node(public_key, private_key, event_loop,
                           connector, port)
         if alias:
             self.alias = alias
@@ -98,11 +96,9 @@ class Drogulus:
         to indicate when the supplied value should be removed from the DHT.
         This defaults to the EXPIRY_DURATION setting.
         """
-        timestamp = time.time()
-        if expires < 1:
-            expires = -1
-        else:
-            expires = timestamp + expires
-        tasks = self._node.replicate(key_name, value, timestamp, expires,
-                                     duplicate)
-        return asyncio.gather(*tasks, return_exceptions=True)
+        item = get_signed_item(key_name, value, self.public_key,
+                               self.private_key, expires)
+        return self._node.replicate(duplicate, item['key'], item['value'],
+                                    item['timestamp'], item['expires'],
+                                    item['created_with'], item['public_key'],
+                                    item['name'], item['signature'])

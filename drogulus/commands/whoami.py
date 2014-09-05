@@ -25,22 +25,23 @@ class WhoAmI(Command):
         is associated with some sort of contact details.
         """
         whoami = {}
-        fields = ['name', 'nickname', 'organization', 'website', 'contact',
-                  'bio', 'notes']
+        fields = ['Name', 'Nickname', 'Organizational affiliation', 'Website',
+                  'Contact information (e.g. email)', 'Biography',
+                  'Miscellaneous notes']
         print('Create a whoami profile.')
         print('(Blank fields will be left out of the profile.)')
         while True:
             for field in fields:
-                val = input('%s: ' % field).strip()
+                val = input('{}: '.format(field)).strip()
                 if val:
                     whoami[field] = val
             print('\nPlease check:')
             for k, v in iter(whoami.items()):
-                print('%s: %s' % (k, v))
-            check = input('ok [y/n]?')
+                print('{}: {}'.format(k, v))
+            check = input('OK [y/n]?')
             if check.lower() == 'y':
                 break
         output_file = os.path.join(data_dir(), 'whoami.json')
         with open(output_file, 'w') as f:
             json.dump(whoami, f)
-        print('Written details to: %s' % output_file)
+        print('Written details to: {}'.format(output_file))

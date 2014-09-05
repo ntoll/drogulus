@@ -46,7 +46,7 @@ def get_keys(passphrase, input_file=None):
     If input_file is None then the sane default location and name is used.
     """
     if not input_file:
-        input_file = os.path.join(data_dir(), '%s.pem' % APPNAME)
+        input_file = os.path.join(data_dir(), '{}.pem'.format(APPNAME))
     f = open(input_file, 'r')
     key = RSA.importKey(f.read(), passphrase)
     return (key.exportKey('PEM').decode('ascii'),
