@@ -11,8 +11,9 @@ from drogulus.dht import constants
 from drogulus.version import get_version
 import unittest
 import time
+import json
 from mock import MagicMock
-from .keys import PUBLIC_KEY
+from .keys import PUBLIC_KEY, BAD_PUBLIC_KEY
 
 
 class TestRoutingTable(unittest.TestCase):
@@ -301,10 +302,108 @@ class TestRoutingTable(unittest.TestCase):
             self.assertEqual(high_cache[i + 10],
                              r._replacement_cache[(50, 100)][i])
 
+    def test_dump(self):
+        """
+        Ensures that the expected dictionary is returned from a call to the
+        dump method (used to back up the routing table).
+        """
+        contacts = []
+        blacklist = [BAD_PUBLIC_KEY, ]
+        uri = 'netstring://192.168.0.1:9999/'
+        contacts.append({
+            'public_key': PUBLIC_KEY,
+            'version': self.version,
+            'uri': uri,
+        })
+        data_dump = {
+            'contacts': contacts,
+            'blacklist': blacklist,
+        }
+        parent_node_id = 'deadbeef'
+        rt = RoutingTable(parent_node_id)
+        rt.restore(data_dump)
+        result = rt.dump()
+        self.assertIn('blacklist', result)
+        self.assertIn('contacts', result)
+        self.assertEqual(1, len(result['blacklist']))
+        self.assertIn(BAD_PUBLIC_KEY, result['blacklist'])
+        self.assertEqual(1, len(result['contacts']))
+        self.assertEqual(PUBLIC_KEY, result['contacts'][0]['public_key'])
+        self.assertEqual(self.version, result['contacts'][0]['version'])
+        self.assertEqual(uri, result['contacts'][0]['uri'])
+        # check it can be serialised into JSON
+        dump = json.dumps(result)
+        self.assertIsInstance(dump, str)
+
+    def test_restore_with_contacts(self):
+        """
+        Ensures the routing table can be restored with a list of contacts.
+        """
+        contacts = []
+        uri = 'netstring://192.168.0.1:9999/'
+        contacts.append({
+            'public_key': PUBLIC_KEY,
+            'version': self.version,
+            'uri': uri,
+        })
+        data_dump = {
+            'contacts': contacts,
+        }
+        parent_node_id = 'deadbeef'
+        r = RoutingTable(parent_node_id)
+        self.assertEqual(len(r._buckets[0]), 0)
+        r.restore(data_dump)
+        self.assertEqual(len(r._buckets[0]), 1)
+        self.assertEqual(PUBLIC_KEY, r._buckets[0]._contacts[0].public_key)
+
+    def test_restore_with_blacklist(self):
+        """
+        Ensures that a list of network_ids of blacklisted peers can be restored
+        into the newly created object.
+        """
+        data_dump = {
+            'blacklist': [PUBLIC_KEY, ],
+        }
+        parent_node_id = 'deadbeef'
+        r = RoutingTable(parent_node_id)
+        self.assertEqual(len(r._blacklist), 0)
+        r.restore(data_dump)
+        self.assertEqual(len(r._blacklist), 1)
+        self.assertIn(PUBLIC_KEY, r._blacklist)
+
+    def test_restore_with_contacts_and_blacklist(self):
+        """
+        Ensures that any contacts also in the blacklist are actually
+        blacklisted and removed from the routing table.
+        """
+        blacklist = [BAD_PUBLIC_KEY, ]
+        contacts = []
+        uri = 'netstring://192.168.0.1:9999/'
+        contacts.append({
+            'public_key': PUBLIC_KEY,
+            'version': self.version,
+            'uri': uri,
+        })
+        contacts.append({
+            'public_key': BAD_PUBLIC_KEY,
+            'version': self.version,
+            'uri': uri,
+        })
+        data_dump = {
+            'contacts': contacts,
+            'blacklist': blacklist,
+        }
+        parent_node_id = 'deadbeef'
+        rt = RoutingTable(parent_node_id)
+        rt.restore(data_dump)
+        self.assertEqual(len(rt._buckets[0]), 1)
+        self.assertEqual(len(rt._blacklist), 1)
+
     def test_blacklist(self):
         """
         Ensures a misbehaving peer is correctly blacklisted. The remove_contact
-        method is called and the contact's id is added to the _blacklist set.
+        method is called and the contact's public key is added to the
+        _blacklist set.
         """
         parent_node_id = 'deadbeef'
         r = RoutingTable(parent_node_id)
@@ -312,7 +411,20 @@ class TestRoutingTable(unittest.TestCase):
         r.remove_contact = MagicMock()
         r.blacklist(contact)
         r.remove_contact.called_once_with(contact, True)
-        self.assertIn(contact.network_id, r._blacklist)
+        self.assertIn(contact.public_key, r._blacklist)
+
+    def test_blacklist_public_key(self):
+        """
+        Ensure that a contact is removed from the routing table and blacklist
+        given a matching public_key.
+        """
+        parent_node_id = 'deadbeef'
+        r = RoutingTable(parent_node_id)
+        contact = PeerNode(PUBLIC_KEY, '192.168.0.1', 9999, 0)
+        r.remove_contact = MagicMock()
+        r._blacklist_public_key(PUBLIC_KEY)
+        r.remove_contact.called_once_with(contact, True)
+        self.assertIn(contact.public_key, r._blacklist)
 
     def test_add_contact_with_parent_node_id(self):
         """
@@ -335,7 +447,7 @@ class TestRoutingTable(unittest.TestCase):
         r = RoutingTable(parent_node_id)
         contact1 = PeerNode(PUBLIC_KEY, '192.168.0.1', 9999, 0)
         contact1.network_id = hex(2)
-        contact2 = PeerNode(PUBLIC_KEY, '192.168.0.2', 9999, 0)
+        contact2 = PeerNode(BAD_PUBLIC_KEY, '192.168.0.2', 9999, 0)
         contact2.network_id = hex(4)
         r.blacklist(contact2)
         r.add_contact(contact1)
@@ -623,10 +735,8 @@ class TestRoutingTable(unittest.TestCase):
         r = RoutingTable(parent_node_id)
         contact1 = PeerNode(PUBLIC_KEY, self.version,
                             'netstring://192.168.0.1:9999/', 0)
-        contact1.network_id = 'a'
-        contact2 = PeerNode(PUBLIC_KEY, self.version,
+        contact2 = PeerNode(BAD_PUBLIC_KEY, self.version,
                             'netstring://192.168.0.1:9999/', 0)
-        contact2.network_id = 'b'
         r.add_contact(contact1)
         # contact2 will have the wrong number of failedRPCs
         r.add_contact(contact2)
@@ -634,7 +744,7 @@ class TestRoutingTable(unittest.TestCase):
         # Sanity check
         self.assertEqual(len(r._buckets[0]), 2)
 
-        r.remove_contact('b')
+        r.remove_contact(BAD_PUBLIC_KEY)
         self.assertEqual(len(r._buckets[0]), 1)
         self.assertEqual(contact1, r._buckets[0]._contacts[0])
 
@@ -666,16 +776,13 @@ class TestRoutingTable(unittest.TestCase):
         cache_key = (r._buckets[0].range_min, r._buckets[0].range_max)
         contact1 = PeerNode(PUBLIC_KEY, self.version,
                             'netstring://192.168.0.1:9999/', 0)
-        contact1.network_id = 'a'
-        contact2 = PeerNode(PUBLIC_KEY, self.version,
+        contact2 = PeerNode(BAD_PUBLIC_KEY, self.version,
                             'netstring://192.168.0.1:9999/', 0)
-        contact2.network_id = 'b'
         r.add_contact(contact1)
-        # contact2 will have the wrong number of failedRPCs
         r.add_contact(contact2)
         contact2.failed_RPCs = constants.ALLOWED_RPC_FAILS
         # Add something into the cache.
-        contact3 = PeerNode(PUBLIC_KEY, self.version,
+        contact3 = PeerNode(PUBLIC_KEY+'foo', self.version,
                             'netstring://192.168.0.1:9999/', 0)
         contact3.network_id = '3'
         r._replacement_cache[cache_key] = [contact3, ]
@@ -683,7 +790,7 @@ class TestRoutingTable(unittest.TestCase):
         self.assertEqual(len(r._buckets[0]), 2)
         self.assertEqual(len(r._replacement_cache[cache_key]), 1)
 
-        r.remove_contact('b')
+        r.remove_contact(BAD_PUBLIC_KEY)
         self.assertEqual(len(r._buckets[0]), 2)
         self.assertEqual(contact1, r._buckets[0]._contacts[0])
         self.assertEqual(contact3, r._buckets[0]._contacts[1])
@@ -720,16 +827,14 @@ class TestRoutingTable(unittest.TestCase):
         r = RoutingTable(parent_node_id)
         contact1 = PeerNode(PUBLIC_KEY, self.version,
                             'netstring://192.168.0.1:9999/', 0)
-        contact1.network_id = 'a'
-        contact2 = PeerNode(PUBLIC_KEY, self.version,
+        contact2 = PeerNode(BAD_PUBLIC_KEY, self.version,
                             'netstring://192.168.0.1:9999/', 0)
-        contact2.network_id = 'b'
         r.add_contact(contact1)
         r.add_contact(contact2)
         # Sanity check
         self.assertEqual(len(r._buckets[0]), 2)
 
-        r.remove_contact('b', forced=True)
+        r.remove_contact(BAD_PUBLIC_KEY, forced=True)
         self.assertEqual(len(r._buckets[0]), 1)
 
     def test_remove_contact_removes_from_replacement_cache(self):
@@ -742,10 +847,8 @@ class TestRoutingTable(unittest.TestCase):
         r = RoutingTable(parent_node_id)
         contact1 = PeerNode(PUBLIC_KEY, self.version,
                             'netstring://192.168.0.1:9999/', 0)
-        contact1.network_id = 'a'
-        contact2 = PeerNode(PUBLIC_KEY, self.version,
+        contact2 = PeerNode(BAD_PUBLIC_KEY, self.version,
                             'netstring://192.168.0.1:9999/', 0)
-        contact2.network_id = 'b'
         r.add_contact(contact1)
         r.add_contact(contact2)
         cache_key = (r._buckets[0].range_min, r._buckets[0].range_max)
@@ -755,7 +858,7 @@ class TestRoutingTable(unittest.TestCase):
         self.assertEqual(len(r._buckets[0]), 2)
         self.assertEqual(len(r._replacement_cache[cache_key]), 1)
 
-        r.remove_contact('b', forced=True)
+        r.remove_contact(BAD_PUBLIC_KEY, forced=True)
         self.assertEqual(len(r._buckets[0]), 1)
         self.assertNotIn(contact2, r._replacement_cache[cache_key])
 

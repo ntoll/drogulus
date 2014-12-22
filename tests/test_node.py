@@ -5,13 +5,13 @@ Tests for the core Drogulus class
 from drogulus.version import get_version
 from drogulus.node import Drogulus
 from drogulus.dht.node import Node
-from drogulus.dht.contact import PeerNode
 from drogulus.dht.crypto import construct_key
 from drogulus.dht.constants import DUPLICATION_COUNT
 from drogulus.net.netstring import NetstringConnector
-from .dht.keys import PUBLIC_KEY, PRIVATE_KEY
+from .dht.keys import PUBLIC_KEY, BAD_PUBLIC_KEY, PRIVATE_KEY
 from mock import MagicMock
 import unittest
+import json
 import asyncio
 
 
@@ -93,17 +93,22 @@ class TestDrogulus(unittest.TestCase):
         existing contacts on the network.
         """
         version = get_version()
-        seed_nodes = []
-        for i in range(20):
-            uri = 'http://192.168.0.%d:9999/'
-            contact = PeerNode(PUBLIC_KEY, version, uri, 0)
-            seed_nodes.append(contact)
+        data_dump = {
+            'contacts': [
+                {
+                    'public_key': PUBLIC_KEY,
+                    'version': version,
+                    'uri': 'http://192.168.0.1:1908',
+                },
+            ],
+            'blacklist': [BAD_PUBLIC_KEY, ]
+        }
         drog = Drogulus(PRIVATE_KEY, PUBLIC_KEY, self.event_loop,
                         self.connector)
         result = asyncio.Future()
         drog._node.join = MagicMock(return_value=result)
-        drog.join(seed_nodes)
-        drog._node.join.assert_called_once_with(seed_nodes)
+        drog.join(data_dump)
+        drog._node.join.assert_called_once_with(data_dump)
         drog.set = MagicMock()
         result.set_result(True)
         self.event_loop.run_until_complete(result)
@@ -118,7 +123,33 @@ class TestDrogulus(unittest.TestCase):
         drog = Drogulus(PRIVATE_KEY, PUBLIC_KEY, self.event_loop,
                         self.connector)
         with self.assertRaises(ValueError):
-            drog.join([])
+            drog.join({})
+
+    def test_dump_routing_table(self):
+        """
+        Ensure the routing table is dumped into a data structure that can be
+        serialised into JSON.
+        """
+        version = get_version()
+        data_dump = {
+            'contacts': [
+                {
+                    'public_key': PUBLIC_KEY,
+                    'version': version,
+                    'uri': 'http://192.168.0.1:1908',
+                },
+            ],
+            'blacklist': [BAD_PUBLIC_KEY, ]
+        }
+        drog = Drogulus(PRIVATE_KEY, PUBLIC_KEY, self.event_loop,
+                        self.connector)
+        drog._node.routing_table.restore(data_dump)
+        result = drog.dump_routing_table()
+        self.assertIsInstance(result, dict)
+        self.assertIn('contacts', result)
+        self.assertIn('blacklist', result)
+        serialised = json.dumps(result)
+        self.assertIsInstance(serialised, str)
 
     def test_whois(self):
         """

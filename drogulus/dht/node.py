@@ -63,23 +63,21 @@ class Node(object):
         self.version = get_version()
         log.info('Initialised node with id: {}'.format(self.network_id))
 
-    def join(self, seed_nodes=None):
+    def join(self, data_dump):
         """
         Causes the Node to join the DHT network. This should be called before
         any other DHT operations. The seed_nodes argument must be a list of
         already known contacts describing existing nodes on the network.
         """
-        if not seed_nodes:
-            raise ValueError('Seed nodes required for node to join network')
-        for contact in seed_nodes:
-            self.routing_table.add_contact(contact)
+        if not data_dump.get('contacts', []):
+            raise ValueError('Cannot join network: no contacts supplied')
+        self.routing_table.restore(data_dump)
+        # Ensure the refresh of k-buckets is set up properly.
+        self.event_loop.call_later(REFRESH_INTERVAL, self.refresh)
         # Looking up the node's ID on the network will populate the routing
         # table with fresh nodes as well as tell us who our nearest neighbours
         # are.
-        lookup = Lookup(FindNode, self.network_id, self, self.event_loop)
-        # Ensure the refresh of k-buckets is set up properly.
-        self.event_loop.call_later(REFRESH_INTERVAL, self.refresh)
-        return lookup
+        return Lookup(FindNode, self.network_id, self, self.event_loop)
 
     def message_received(self, message, protocol, address, port):
         """

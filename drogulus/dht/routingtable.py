@@ -9,6 +9,7 @@ from . import constants
 from .bucket import Bucket
 from .utils import sort_peer_nodes
 from .errors import BucketFull
+from .contact import PeerNode, make_network_id
 
 
 class RoutingTable(object):
@@ -118,6 +119,37 @@ class RoutingTable(object):
         self._replacement_cache[old_bucket_cache_key] = old_bucket_cache
         self._replacement_cache[new_bucket_cache_key] = new_bucket_cache
 
+    def dump(self):
+        """
+        Returns a dict object containing all the contacts found within the
+        routing table and the blacklisted contact's public keys.
+
+        Can be directly serialised into JSON.
+        """
+        result = {}
+        result['blacklist'] = list(self._blacklist)
+        contacts = []
+        for bucket in self._buckets:
+            for contact in bucket._contacts:
+                contacts.append(contact.dump())
+        result['contacts'] = contacts
+        return result
+
+    def restore(self, dump):
+        """
+        Reconstitute the routing table from a previous dump.
+        """
+        contacts = dump.get('contacts', [])
+        blacklist = dump.get('blacklist', [])
+        if contacts:
+            for contact in contacts:
+                self.add_contact(PeerNode(contact['public_key'],
+                                          contact['version'],
+                                          contact['uri']))
+        if blacklist:
+            for public_key in blacklist:
+                self._blacklist_public_key(public_key)
+
     def blacklist(self, contact):
         """
         Marks the referenced contact as blacklisted because it has misbehaved
@@ -126,15 +158,21 @@ class RoutingTable(object):
         Once blacklisted a contact is never allowed to be in the routing
         table or replacement cache.
         """
-        self.remove_contact(contact.network_id, forced=True)
-        self._blacklist.add(contact.network_id)
+        self._blacklist_public_key(contact.public_key)
+
+    def _blacklist_public_key(self, public_key):
+        """
+        Blacklists a specific public_key.
+        """
+        self.remove_contact(public_key, forced=True)
+        self._blacklist.add(public_key)
 
     def add_contact(self, contact):
         """
         Add the given contact (PeerNode) to the correct bucket; if it already
         exists, its status will be updated.
         """
-        if contact.network_id in self._blacklist:
+        if contact.public_key in self._blacklist:
             return
         if contact.network_id == self._parent_node_id:
             return
@@ -253,9 +291,9 @@ class RoutingTable(object):
             bucket_index += 1
         return refresh_IDs
 
-    def remove_contact(self, network_id, forced=False):
+    def remove_contact(self, public_key, forced=False):
         """
-        Attempt to remove the contact (PeerNode) with the specified network_id
+        Attempt to remove the contact (PeerNode) with the specified public_key
         from the routing table.
 
         The operation will only succeed if either the number of failed RPCs
@@ -266,6 +304,7 @@ class RoutingTable(object):
         bucket then the most up-to-date contact in the replacement cache will
         be used as a replacement.
         """
+        network_id = make_network_id(public_key)
         bucket_index = self._bucket_index(network_id)
         try:
             contact = self._buckets[bucket_index].get_contact(network_id)

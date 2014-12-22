@@ -102,6 +102,16 @@ class TestNode(unittest.TestCase):
         self.message = from_dict(signed_item)
         self.contact = PeerNode(PUBLIC_KEY, self.version,
                                 'http://192.168.0.1:1908')
+        self.data_dump = {
+            'contacts': [
+                {
+                    'public_key': PUBLIC_KEY,
+                    'version': self.version,
+                    'uri': 'http://192.168.0.1:1908',
+                },
+            ],
+            'blacklist': [BAD_PUBLIC_KEY, ]
+        }
 
     def tearDown(self):
         """
@@ -129,25 +139,20 @@ class TestNode(unittest.TestCase):
 
     def test_join(self):
         """
-        Ensures the join method works with a valid set of seed_nodes.
+        Ensures the join method works with a populated routing table.
         """
         node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
                     self.reply_port)
-        seed_nodes = []
-        for i in range(20):
-            uri = 'http://192.168.0.%d:9999/'
-            contact = PeerNode(PUBLIC_KEY, self.version, uri, 0)
-            seed_nodes.append(contact)
         node.routing_table.add_contact = mock.MagicMock()
         lookup_patcher = patch('drogulus.dht.node.Lookup')
         mock_lookup = lookup_patcher.start()
         with patch.object(self.event_loop, 'call_later') as mock_call:
-            node.join(seed_nodes)
+            node.join(self.data_dump)
             mock_call.assert_called_once_with(REFRESH_INTERVAL, node.refresh)
         mock_lookup.assert_called_once_with(FindNode, node.network_id, node,
                                             node.event_loop)
         lookup_patcher.stop()
-        self.assertEqual(len(seed_nodes),
+        self.assertEqual(len(self.data_dump['contacts']),
                          node.routing_table.add_contact.call_count)
 
     def test_join_no_seed_nodes(self):
@@ -157,7 +162,7 @@ class TestNode(unittest.TestCase):
         node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
                     self.reply_port)
         with self.assertRaises(ValueError):
-            node.join([])
+            node.join({})
 
     def test_message_received_checks_message_seal(self):
         """

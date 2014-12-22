@@ -4,10 +4,32 @@ Ensures details of contacts (peer nodes on the network) are represented
 correctly.
 """
 from hashlib import sha512
-from drogulus.dht.contact import PeerNode
+from drogulus.dht.contact import PeerNode, make_network_id
 from drogulus.version import get_version
 from .keys import PUBLIC_KEY
 import unittest
+
+
+class TestMakeNetworkId(unittest.TestCase):
+    """
+    Ensures the canonical network_id is generated as the hexdigest of the
+    SHA512 of the passed in string representation of a public key.
+    """
+
+    def test_make_network_id(self):
+        """
+        Ensures that an input public key is hashed in the right way.
+        """
+        result = make_network_id(PUBLIC_KEY)
+        expected = sha512(PUBLIC_KEY.encode('ascii')).hexdigest()
+        self.assertEqual(expected, result)
+
+    def test_make_network_id_with_blank_key(self):
+        """
+        If the public key is empty ensure a ValueError is raised.
+        """
+        with self.assertRaises(ValueError):
+            make_network_id('')
 
 
 class TestPeerNode(unittest.TestCase):
@@ -25,10 +47,25 @@ class TestPeerNode(unittest.TestCase):
         contact = PeerNode(PUBLIC_KEY, version, uri, last_seen)
         hex_digest = sha512(PUBLIC_KEY.encode('ascii')).hexdigest()
         self.assertEqual(contact.network_id, hex_digest)
+        self.assertEqual(PUBLIC_KEY, contact.public_key)
         self.assertEqual(version, contact.version)
         self.assertEqual(uri, contact.uri)
         self.assertEqual(last_seen, contact.last_seen)
         self.assertEqual(0, contact.failed_RPCs)
+
+    def test_dump(self):
+        """
+        Ensure the expected dictionary object is returned from a call to the
+        instance's dump method (used for backing up the routing table).
+        """
+        uri = 'netstring://192.168.0.1:9999'
+        version = get_version()
+        contact = PeerNode(PUBLIC_KEY, version, uri)
+        result = contact.dump()
+        self.assertEqual(result['public_key'], PUBLIC_KEY)
+        self.assertEqual(result['version'], version)
+        self.assertEqual(result['uri'], uri)
+        self.assertEqual(3, len(result))
 
     def test_eq(self):
         """

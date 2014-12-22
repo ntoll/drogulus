@@ -65,14 +65,6 @@ def start_node(event_loop, port):
     return instance
 
 
-@asyncio.coroutine
-def set_value(node, key, value):
-    """
-    Sets a value to the node.
-    """
-    yield from node.set(key, value)
-
-
 def show_result(task):
     """
     Prints the result
@@ -91,7 +83,6 @@ if __name__ == '__main__':
     root = logging.getLogger()
     root.addHandler(handler)
     root.setLevel(logging.DEBUG)
-    root.info('Starting node in new process')
     event_loop = asyncio.get_event_loop()
     nodes = []
     for i in range(SIZE):

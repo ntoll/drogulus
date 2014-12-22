@@ -5,6 +5,21 @@ Defines a peer node on the network.
 from hashlib import sha512
 
 
+def make_network_id(public_key):
+    """
+    Given a public_key as a string will return a canonical network_id.
+
+    The network id is created as the hexdigest of the SHA512 of the public
+    key.
+
+    Will raise a ValueError if the incoming public_key is empty.
+    """
+    if public_key:
+        return sha512(public_key.encode('ascii')).hexdigest()
+    else:
+        raise ValueError('Cannot create network_id from empty public key.')
+
+
 class PeerNode(object):
     """
     Represents another node on the network.
@@ -17,11 +32,8 @@ class PeerNode(object):
         URI that identifies where to contact the peer node and a timestamp
         indicating when the last connection was made with the contact
         (defaults to 0).
-
-        The network id is created as the hexdigest of the SHA512 of the public
-        key.
         """
-        self.network_id = sha512(public_key.encode('ascii')).hexdigest()
+        self.network_id = make_network_id(public_key)
         self.public_key = public_key
         self.version = version
         self.uri = uri
@@ -30,6 +42,17 @@ class PeerNode(object):
         # If this number reaches a threshold then it is evicted from a
         # bucket and replaced with another node that is more reliable.
         self.failed_RPCs = 0
+
+    def dump(self):
+        """
+        Returns a dictionary representation of the peer node that can be
+        serialised into JSON. Useful for backing up the routing table.
+        """
+        return {
+            'public_key': self.public_key,
+            'version': self.version,
+            'uri': self.uri,
+        }
 
     def __eq__(self, other):
         """

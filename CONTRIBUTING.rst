@@ -53,7 +53,7 @@ Code Contribution Checklist
 
 * If you're submitting code, include tests!
 
-* Your code should be commented in *plain English*.
+* Your code should be commented in *plain English* (British spelling).
 
 * Ensure you run ``make check`` to tell you that you're following PEP8,
   PyFlakes isn't complaining about redundant code, all the tests pass and you

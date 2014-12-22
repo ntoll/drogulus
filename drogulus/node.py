@@ -44,24 +44,31 @@ class Drogulus:
         self.whoami['public_key'] = self.public_key
         self.whoami['version'] = get_version()
 
-    def join(self, peers):
+    def join(self, dump):
         """
         Causes the node to join the distributed hash table by attempting to
-        ping the passed in list of peer nodes. Returns a future that fires
+        ping the passed in dump of peer nodes. Returns a future that fires
         when the operation is complete. Attempts to populate whoami data about
         the local node to the wider network.
         """
-        future = self._node.join(peers)
+        future = self._node.join(dump)
 
-        def on_joined(result, whois=self.whoami, node=self):
+        def on_joined(result, whoami=self.whoami, node=self):
             """
             Called when the node has joined the network. Sets the node's
             whoami dict within the wider network.
             """
-            node.set(whois['public_key'], whois)
+            node.set(whoami['public_key'], whoami)
 
         future.add_done_callback(on_joined)
         return future
+
+    def dump_routing_table(self):
+        """
+        Returns a dictionary containing a list of all the contacts currently
+        in the routing table along with a list of blacklisted public keys.
+        """
+        return self._node.routing_table.dump()
 
     def whois(self, public_key):
         """
