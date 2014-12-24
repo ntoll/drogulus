@@ -94,7 +94,7 @@ class Start(Command):
         # Asyncio boilerplate.
         event_loop = asyncio.get_event_loop()
         connector = HttpConnector(event_loop)  # NetstringConnector(event_loop)
-        instance = Drogulus(private_key, public_key, event_loop, connector,
+        instance = Drogulus(public_key, private_key, event_loop, connector,
                             port, alias, whoami)
 
         def protocol_factory(connector=connector, node=instance._node):

@@ -23,7 +23,8 @@ def _make_message_class(name, field_names, docstring=None):
     Ensures all messages have the correct mandatory fields:
 
     uuid - identifies the interaction.
-    recipient - the public key of the recipient (the local node's public key).
+    recipient - the public key of the recipient (this should be the local
+                node's public key since it is the one receiving the message).
     sender - the public key of the sender of the message.
     reply_port - the port number to which we can connect back to the remote
                  node in future interactions.

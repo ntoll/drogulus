@@ -11,6 +11,7 @@ import aiohttp.server
 import logging
 import asyncio
 import json
+import traceback
 
 
 log = logging.getLogger(__name__)
@@ -38,7 +39,7 @@ class HttpConnector(Connector):
         Called when a message is received from a remote node on the network.
         """
         try:
-            message_dict = json.loads(raw)
+            message_dict = json.loads(raw.decode('utf-8'))
             message = from_dict(message_dict)
             return handler.message_received(message, 'http', sender,
                                             message.reply_port)
@@ -47,6 +48,7 @@ class HttpConnector(Connector):
             # to log the problem in a way that may aid further investigation.
             log.error('Problem message received from {}'.format(sender))
             log.exception(ex)
+            log.error(traceback.format_exc())
             log.error(raw)
             # Will cause generic 5** HTTP error response.
             raise ex
@@ -78,8 +80,11 @@ class HttpRequestHandler(aiohttp.server.ServerHttpProtocol):
             try:
                 raw_data = yield from payload.read()
                 peer = self.transport.get_extra_info('peername')[0]
+                log.info(peer)
+                log.info(raw_data)
                 result = self.connector.receive(raw_data, peer, self.node)
-                data = to_dict(result)
+                if result:
+                    data = to_dict(result)
                 response_code = 200  # OK
             except:
                 # We log any errors in the connector / node instances so,
@@ -87,7 +92,7 @@ class HttpRequestHandler(aiohttp.server.ServerHttpProtocol):
                 # client.
                 response_code = 500  # Internal Server Error
         raw_output = json.dumps(data).encode('utf-8')
-        headers['Content-Length'] = len(raw_output)
+        headers['Content-Length'] = str(len(raw_output))
         response = aiohttp.Response(self.writer, response_code,
                                     http_version=message.version)
         for k, v in headers.items():

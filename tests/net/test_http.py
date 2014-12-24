@@ -76,7 +76,7 @@ class TestHttpConnector(unittest.TestCase):
         seal = get_seal(ok, PRIVATE_KEY)
         ok['seal'] = seal
         ok['message'] = 'ok'
-        raw = json.dumps(ok)
+        raw = json.dumps(ok).encode('utf-8')
         sender = '192.168.0.1'
         handler = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, connector,
                        1908)
@@ -93,13 +93,13 @@ class TestHttpConnector(unittest.TestCase):
         """
         patcher = mock.patch('drogulus.net.http.log.error')
         connector = HttpConnector(self.event_loop)
-        raw = "junk from the network"
+        raw = "junk from the network".encode('utf-8')
         sender = '192.168.0.1'
         handler = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, connector,
                        1908)
         mock_log = patcher.start()
         self.assertRaises(ValueError, connector.receive, raw, sender, handler)
-        self.assertEqual(3, mock_log.call_count)
+        self.assertEqual(4, mock_log.call_count)
         patcher.stop()
 
     def test_receive_bad_message(self):
@@ -116,13 +116,13 @@ class TestHttpConnector(unittest.TestCase):
             'reply_port': 1908,
             'version': self.version,
         }
-        raw = json.dumps(ok)
+        raw = json.dumps(ok).encode('utf-8')
         sender = '192.168.0.1'
         handler = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, connector,
                        1908)
         mock_log = patcher.start()
         self.assertRaises(KeyError, connector.receive, raw, sender, handler)
-        self.assertEqual(3, mock_log.call_count)
+        self.assertEqual(4, mock_log.call_count)
         patcher.stop()
 
 
