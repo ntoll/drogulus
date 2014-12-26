@@ -4,4 +4,6 @@ pycrypto
 pyflakes
 sphinx
 coverage
+requests
 asyncio
+aiohttp

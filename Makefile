@@ -35,7 +35,8 @@ test: clean
 
 coverage: clean
 	coverage run -m unittest discover --buffer
-	coverage report -m --include=drogulus/*
+	coverage report -m --include=drogulus/* --omit=drogulus/net/*
+	coverage report -m --include=drogulus/net/*
 
 integration:
 	python integration_tests/run.py
