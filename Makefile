@@ -46,7 +46,8 @@ check: clean pep8 pyflakes coverage integration
 package: clean
 	python setup.py sdist
 
-publish: clean
+publish: check
+	@echo "\nChecks pass, good to publish..."
 	python setup.py sdist upload
 
 docs: clean
