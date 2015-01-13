@@ -99,7 +99,7 @@ class Start(Command):
 
         def protocol_factory(connector=connector, node=instance._node):
             """
-            Returns an appropriately configured NetstringProtocol object for
+            Returns an appropriately configured Protocol object for
             each connection.
             """
             # return NetstringProtocol(connector, node)
