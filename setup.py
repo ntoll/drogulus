@@ -33,7 +33,7 @@ setup(
         'Topic :: Internet',
         'Topic :: System :: Distributed Computing',
     ],
-    install_requires=['pycrypto', 'cliff'],
+    install_requires=['aiohttp', 'rsa', 'cliff', 'pyscrypt'],
     entry_points={
         'console_scripts': ['drogulus=drogulus.drogulus:main'],
         'drogulus.commands': [
