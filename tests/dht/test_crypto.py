@@ -7,12 +7,11 @@ from drogulus.dht.crypto import (get_seal, check_seal, get_signed_item,
 from drogulus.dht.messages import OK
 from drogulus.version import get_version
 from hashlib import sha512
-from Crypto.Signature import PKCS1_v1_5
-from Crypto.PublicKey import RSA
 from .keys import PRIVATE_KEY, PUBLIC_KEY, BAD_PUBLIC_KEY
 import unittest
 import uuid
-import base64
+import binascii
+import rsa
 
 
 class TestGetSeal(unittest.TestCase):
@@ -36,13 +35,14 @@ class TestGetSeal(unittest.TestCase):
             },
         }
         seal = get_seal(values, PRIVATE_KEY)
+        # Check it's a string and valid hexdecimal value
         self.assertIsInstance(seal, str)
+        self.assertIsInstance(int(seal, 16), int)
         # Check it's a seal that can be validated with the correct public key.
-        sig = base64.decodebytes(seal.encode('utf-8'))
-        public_key = RSA.importKey(PUBLIC_KEY)
-        root_hash = _get_hash(values)
-        verifier = PKCS1_v1_5.new(public_key)
-        self.assertTrue(verifier.verify(root_hash, sig))
+        sig = binascii.unhexlify(seal.encode('ascii'))
+        key = rsa.PublicKey.load_pkcs1(PUBLIC_KEY.encode('ascii'))
+        root_hash = _get_hash(values).hexdigest()
+        self.assertTrue(rsa.verify(root_hash.encode('ascii'), sig, key))
 
 
 class TestCheckSeal(unittest.TestCase):

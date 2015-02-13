@@ -12,28 +12,27 @@ from drogulus.net.http import HttpConnector, HttpRequestHandler
 
 
 PRIVATE_KEY = """-----BEGIN RSA PRIVATE KEY-----
-MIICXAIBAAKBgQC+VBkfaJzgR3ajbC6L5VGlErDoxKsIcwVYlEJyYsO6rG4PSHsc
-KeG1JvUdYPGJ+YAmDW4iBe1bpJex1WLhXcwPWmx+SV1OcLM7+7q/MkaUykn83tSv
-z8Fkdl7UEAdpQrr7vXuhNvc7nCf6rHQAhdnrtsIZzxLd7Q9A1fSNVFd+NwIDAQAB
-AoGBAKjerTu08hv8zELLpbDyUrKIFvcwKCBjDYc+ZIZhIxDqFOzyfmjKsDyuyCS8
-8xJckVsx51nAsIzzSLS8g/M56ebdBD1PrxKmKh5kTzV68qjzwx6QrjPSIbEhedRY
-rvuLSGJurwHCRkPcyZ2022AOpdl8sEknu7DKoGJXQD9fLNxhAkEAz8QqEDll4zGJ
-kDnSBbmgncU7R29umwHDkR40qhe98Q6ELdiYnioihaiMqPOYnUG9qYEvlCktHa9A
-CZ9HqcAjEwJBAOqDlXOszNQsUfC8UWJm7wnlg6Ozorrli+zmXLb7QXi3RazmEuSq
-fAa/ahNhmgAzje2nK2NOmFJWUC/NSr2b+M0CQD3uHBev9EXvizC5e3gHZ+//TXcy
-qQZ9VR0Zotscrpp/GDlOOdfTeWzb2+m0isY9RVqUTmlciL0zcuQrXUIlKo8CQG2z
-ifjnj5V8+gO0BBoU7qLhg1fTkz78XB1AkYRjOng+u1Aq/BGNkqERb4yLbp/DfhP6
-zDgTLvvtNmt2DA1wZc0CQEQWWSTbBE9PZAKcXvpX/ns036vm5/vcPIfuvl7r6B6e
-pi2VxsKNY6e+Xbs0CoEPOowy3TU3JGHgpoCDDGa7XgA=
+MIICYAIBAAKBgQC8jS8lvazStqe5l2rWbUgRb+vgxqbB7mAuBd0zSlfEHQdLzhk5
+Wo7JrVVJ4pKK/+uuVEr7KAnnuPH2GJBQOTJGw3Z2ZgkaifMGhKIk+xBHxPDC/BCZ
+JrMyKylJSz7LGwmJHYfJUGTNq9xwZfigcmthA4Vh9g7WWzmOFNdGrbufAQIDAQAB
+AoGAAkUc3TJ0YzEJweU9xwkXxgX37APYPBt3kvZFHHn3pofG77WyfgtGDs2EalhM
+9VlxZ+7h3DY2MFD8sL7I82vYY4Mb3OUVU1C/aWXEO4vk8LdXKn4rlV8xuFVKQn8p
+DIdMIW9h7j7EbLjdbG9tlGz++b3KQ00JD5Xk+MkoN4IpXfECRQDVpKedjsdAjVCS
+WtXSBu9L+QzLndj1d4gCgcO8tOrrdQ7WhwiXvI6FHgkfU5px0UBg9LEeMPTRNpWj
+f/W1MmdHQSlLbQI9AOHvA7mMXLk8QHoKLPi1ZgJo96SpX1bFNBqkUuXGYici4A1T
+ud+V0/wbnRHzZ9DHfDFKjoLlfybHK2UxZQJEPksNSIaKGItb0+DCecPl4EwU7AXx
+bdlVgg2eKhbCbLcsBWdIHR4wnCXe2RCCdu9hiyOtxTTXHW2CAjNcTGIO9RrN1J0C
+PQC2JsIlBQH4oZgGDFAnj/AXP1Nw4NCpn0IbvKHM+H1HujlS5U608RHAbu7aexgW
+3c3F26s74xT5SZg19HUCRGgX01UT/sukk4ALuFCfwuR0hodIbhuJ6eWh/n0VEXJ4
+Zt47JXvqWbVjC6vtSgBM5LiRAxcfee7Bi94OtZik4vI132d4
 -----END RSA PRIVATE KEY-----"""
 
 
-PUBLIC_KEY = """-----BEGIN PUBLIC KEY-----
-MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC+VBkfaJzgR3ajbC6L5VGlErDo
-xKsIcwVYlEJyYsO6rG4PSHscKeG1JvUdYPGJ+YAmDW4iBe1bpJex1WLhXcwPWmx+
-SV1OcLM7+7q/MkaUykn83tSvz8Fkdl7UEAdpQrr7vXuhNvc7nCf6rHQAhdnrtsIZ
-zxLd7Q9A1fSNVFd+NwIDAQAB
------END PUBLIC KEY-----"""
+PUBLIC_KEY = """-----BEGIN RSA PUBLIC KEY-----
+MIGJAoGBALyNLyW9rNK2p7mXatZtSBFv6+DGpsHuYC4F3TNKV8QdB0vOGTlajsmt
+VUnikor/665USvsoCee48fYYkFA5MkbDdnZmCRqJ8waEoiT7EEfE8ML8EJkmszIr
+KUlLPssbCYkdh8lQZM2r3HBl+KBya2EDhWH2DtZbOY4U10atu58BAgMBAAE=
+-----END RSA PUBLIC KEY-----"""
 
 
 def start_node(logfile, port):
@@ -54,7 +53,7 @@ def start_node(logfile, port):
     root.info('Starting node in new process')
     event_loop = asyncio.get_event_loop()
     connector = HttpConnector(event_loop)
-    instance = Drogulus(PUBLIC_KEY, PRIVATE_KEY, event_loop, connector, port)
+    instance = Drogulus(PRIVATE_KEY, PUBLIC_KEY, event_loop, connector, port)
 
     def protocol_factory(connector=connector, node=instance._node):
         """

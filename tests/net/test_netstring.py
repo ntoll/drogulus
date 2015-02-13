@@ -12,8 +12,8 @@ from drogulus.dht.node import Node
 from drogulus.version import get_version
 from ..dht.keys import PUBLIC_KEY, PRIVATE_KEY, BAD_PUBLIC_KEY
 from hashlib import sha512
+from unittest import mock
 import unittest
-import mock
 import uuid
 import json
 import asyncio

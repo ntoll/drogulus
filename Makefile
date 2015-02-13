@@ -35,15 +35,16 @@ test: clean
 
 coverage: clean
 	coverage run -m unittest discover --buffer
-	coverage report -m --include=drogulus/* --omit=drogulus/net/*
+	coverage report -m --include=drogulus/* --omit=drogulus/net/*,drogulus/commands/*,drogulus/contrib/*
 	coverage report -m --include=drogulus/net/*
+	coverage report -m --include=drogulus/commands/*
 
 integration:
 	python integration_tests/run.py
 
 check: clean pep8 pyflakes coverage integration
 
-package: clean
+package: check
 	python setup.py sdist
 
 publish: check

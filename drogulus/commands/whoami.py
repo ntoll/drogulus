@@ -15,6 +15,15 @@ class WhoAmI(Command):
     owner of a public key in the drogulus DHT.
     """
 
+    contact_fields = ['Name', 'Nickname', 'Organizational affiliation',
+                      'Website', 'Contact information (e.g. email)',
+                      'Biography', 'Miscellaneous notes']
+    """
+    This list of contact fields defines the field names used to reference data
+    in the whoami JSON file. They're a bit arbitrary, but vaguely based upon
+    a small basic subset of fields used by vcard (see rfc2426).
+    """
+
     def get_description(self):
         return ' '.join(['Generates a whoami data structure to self-identify',
                         'a user.'])
@@ -25,14 +34,11 @@ class WhoAmI(Command):
         is associated with some sort of contact details.
         """
         whoami = {}
-        fields = ['Name', 'Nickname', 'Organizational affiliation', 'Website',
-                  'Contact information (e.g. email)', 'Biography',
-                  'Miscellaneous notes']
         print('Create a whoami profile.')
         print('(Blank fields will be left out of the profile.)')
         while True:
-            for field in fields:
-                val = input('{}: '.format(field)).strip()
+            for field in self.contact_fields:
+                val = str(input('{}: '.format(field))).strip()
                 if val:
                     whoami[field] = val
             print('\nPlease check:')

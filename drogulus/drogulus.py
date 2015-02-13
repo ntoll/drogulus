@@ -25,6 +25,15 @@ class DrogulusCommand(App):
             command_manager=CommandManager('drogulus.commands'),
         )
 
+    def clean_up(self, cmd, result, err):
+        """
+        If something went wrong, best to feedback to the user. :-(
+        """
+        if err:
+            print('There was a problem:')
+            print(err)
+            sys.exit(1)
+
 
 def main(argv=sys.argv[1:]):
     if not (sys.version_info[0] == 3 and sys.version_info[1] >= 3):

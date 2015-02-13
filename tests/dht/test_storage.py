@@ -5,7 +5,7 @@ Ensures datastore related classes work as expected.
 import unittest
 import time
 from drogulus.dht.storage import DataStore, DictDataStore
-from mock import MagicMock
+from unittest.mock import MagicMock
 from .keys import PUBLIC_KEY
 
 

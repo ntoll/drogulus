@@ -9,12 +9,12 @@ from drogulus.dht.crypto import get_seal
 from drogulus.dht.node import Node
 from drogulus.version import get_version
 from ..dht.keys import PUBLIC_KEY, PRIVATE_KEY
+from unittest import mock
 import json
 import uuid
 import asyncio
 import aiohttp
 import unittest
-import mock
 
 
 class TestHttpConnector(unittest.TestCase):
@@ -211,7 +211,7 @@ class TestHttpRequestHandler(unittest.TestCase):
         A request that is not a POST causes a 405 response.
         """
         mockMessage = mock.MagicMock()
-        mockMessage.method = 'GET'
+        mockMessage.method = 'PUT'
         mockMessage.version = '1.1'
         mockPayload = mock.MagicMock()
         connector = HttpConnector(self.event_loop)

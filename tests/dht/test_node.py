@@ -10,8 +10,7 @@ from drogulus.dht.storage import DictDataStore
 from drogulus.dht.messages import (OK, Store, FindNode, Nodes,
                                    FindValue, Value, from_dict, to_dict)
 from drogulus.dht.crypto import (get_signed_item, get_seal, check_seal,
-                                 construct_key, _get_hash, PKCS1_v1_5, RSA,
-                                 verify_item)
+                                 construct_key, _get_hash, verify_item)
 from drogulus.dht.errors import (BadMessage, ExpiredMessage, OutOfDateMessage,
                                  UnverifiableProvenance, TimedOut,
                                  RoutingTableEmpty)
@@ -20,14 +19,15 @@ from drogulus.dht.constants import (REPLICATE_INTERVAL, REFRESH_INTERVAL,
                                     RESPONSE_TIMEOUT)
 from drogulus.dht.bucket import Bucket
 from .keys import PRIVATE_KEY, PUBLIC_KEY, BAD_PUBLIC_KEY
-from mock import MagicMock, patch
+from unittest.mock import MagicMock, patch
 from hashlib import sha512
+from unittest import mock
+import rsa
+import binascii
 import asyncio
 import uuid
-import base64
 import time
 import unittest
-import mock
 
 
 @asyncio.coroutine
@@ -377,18 +377,17 @@ class TestNode(unittest.TestCase):
             'key': construct_key(BAD_PUBLIC_KEY, 'Incorrect key/hash.'),
             'expires': 0.0,
         }
-        root_hash = _get_hash(signed_item)
-        key = RSA.importKey(PRIVATE_KEY)
-        signer = PKCS1_v1_5.new(key)
-        sig = base64.encodebytes(signer.sign(root_hash)).decode('utf-8')
+        root_hash = _get_hash(signed_item).hexdigest()
+        key = rsa.PrivateKey.load_pkcs1(PRIVATE_KEY.encode('ascii'))
+        sig = binascii.hexlify(rsa.sign(root_hash.encode('ascii'),
+                                        key, 'SHA-512')).decode('ascii')
         signed_item['signature'] = sig
         signed_item['uuid'] = self.uuid
         signed_item['sender'] = self.sender
         signed_item['recipient'] = self.recipient
         signed_item['reply_port'] = self.reply_port
         signed_item['version'] = self.version
-        self.seal = get_seal(signed_item, PRIVATE_KEY)
-        signed_item['seal'] = self.seal
+        signed_item['seal'] = get_seal(signed_item, PRIVATE_KEY)
         signed_item['message'] = 'store'
         message = from_dict(signed_item)
         with self.assertRaises(BadMessage) as ex:

@@ -5,8 +5,7 @@ import uuid
 import tempfile
 import json
 import requests
-from Crypto.PublicKey import RSA
-from Crypto import Random
+import rsa
 from subprocess import Popen
 from uuid import uuid4
 from hashlib import sha512
@@ -53,12 +52,11 @@ def send_message(port, msg):
 
 def get_keypair():
     """
-    Returns a (private, public) key pair as two strings.
+    Returns a (private, public) key pair as two strings encoded as pkcs1.
     """
-    random_generator = Random.new().read
-    key = RSA.generate(1024, random_generator)
-    return (key.exportKey('PEM').decode('ascii'),
-            key.publickey().exportKey('PEM').decode('ascii'))
+    public, private = rsa.newkeys(1024)
+    return (private.save_pkcs1().decode('ascii'),
+            public.save_pkcs1().decode('ascii'))
 
 
 def seal_message(msg_type, msg_dict, private_key):
@@ -207,6 +205,17 @@ def send_find_value_known(port, version, public_key, private_key):
     assert check_seal(from_dict(reply))
 
 
+def send_get(port, version, public_key, private_key):
+    """
+    Ensures that a "findvalue" message for an existing  key is sent to the
+    test node and the reply is checked.
+    """
+    print('Sending GET...')
+    result = requests.get("http://localhost:{}/foo".format(port))
+    print(result)
+    assert result.status_code == 200
+
+
 def run_tests(port, logfile):
     """
     Send each sort of message to the node and check each response is as
@@ -215,7 +224,7 @@ def run_tests(port, logfile):
     private_key, public_key = get_keypair()
     version = get_version()
     checks = [send_store, send_find_node, send_find_value_unknown,
-              send_find_value_known]
+              send_find_value_known, send_get]
     fails = 0
     for test in checks:
         try:

@@ -15,10 +15,10 @@ from drogulus.dht.utils import distance
 from drogulus.version import get_version
 from .keys import PRIVATE_KEY, PUBLIC_KEY
 from hashlib import sha512
+from unittest import mock
 import uuid
 import asyncio
 import unittest
-import mock
 import time
 
 
@@ -60,6 +60,8 @@ class TestLookup(unittest.TestCase):
         """
         Common vars.
         """
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
         self.event_loop = asyncio.get_event_loop()
         self.version = get_version()
         self.sender = mock.MagicMock()

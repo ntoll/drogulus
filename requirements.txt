@@ -1,9 +1,10 @@
-mock
 pep8
-pycrypto
 pyflakes
 sphinx
 coverage
 requests
 asyncio
 aiohttp
+rsa
+cliff
+pyscrypt

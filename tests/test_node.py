@@ -9,7 +9,7 @@ from drogulus.dht.crypto import construct_key
 from drogulus.dht.constants import DUPLICATION_COUNT
 from drogulus.net.netstring import NetstringConnector
 from .dht.keys import PUBLIC_KEY, BAD_PUBLIC_KEY, PRIVATE_KEY
-from mock import MagicMock
+from unittest.mock import MagicMock
 import unittest
 import json
 import asyncio
@@ -41,11 +41,10 @@ class TestDrogulus(unittest.TestCase):
         """
         Ensure the Drogulus instance is created as expected.
         """
-        d = Drogulus(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector)
+        d = Drogulus(PRIVATE_KEY, PUBLIC_KEY, self.event_loop, self.connector)
         self.assertEqual(d.private_key, PRIVATE_KEY)
         self.assertEqual(d.public_key, PUBLIC_KEY)
         self.assertEqual(d.event_loop, self.event_loop)
-        self.assertEqual(d.alias, {})
         self.assertEqual(d.connector, self.connector)
         self.assertIsInstance(d._node, Node)
         self.assertEqual(d._node.reply_port, 1908)
@@ -61,18 +60,6 @@ class TestDrogulus(unittest.TestCase):
                      port=9999)
         self.assertEqual(d._node.reply_port, 9999)
 
-    def test_init_with_alias_dict(self):
-        """
-        Ensure that the passed in alias dictionary is set correctly. The alias
-        dictionary is used to link an alias with a public key.
-        """
-        alias = {
-            'fred': PUBLIC_KEY
-        }
-        d = Drogulus(PRIVATE_KEY, PUBLIC_KEY, self.event_loop, self.connector,
-                     alias=alias)
-        self.assertEqual(d.alias, alias)
-
     def test_init_with_whoami_dict(self):
         """
         Ensure that arbitrary data passed in as the whoami argument ends up
@@ -81,7 +68,7 @@ class TestDrogulus(unittest.TestCase):
         whoami = {
             'name': 'fred'
         }
-        d = Drogulus(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, self.connector,
+        d = Drogulus(PRIVATE_KEY, PUBLIC_KEY, self.event_loop, self.connector,
                      whoami=whoami)
         self.assertEqual(d.whoami['public_key'], PUBLIC_KEY)
         self.assertEqual(d.whoami['version'], get_version())
@@ -181,7 +168,7 @@ class TestDrogulus(unittest.TestCase):
         """
         Ensure a basic set operation works as expected.
         """
-        drog = Drogulus(PUBLIC_KEY, PRIVATE_KEY, self.event_loop,
+        drog = Drogulus(PRIVATE_KEY, PUBLIC_KEY, self.event_loop,
                         self.connector)
         result = []
         for i in range(20):
@@ -205,7 +192,7 @@ class TestDrogulus(unittest.TestCase):
         """
         Ensure the expiry setting is passed into the replicate method.
         """
-        drog = Drogulus(PUBLIC_KEY, PRIVATE_KEY, self.event_loop,
+        drog = Drogulus(PRIVATE_KEY, PUBLIC_KEY, self.event_loop,
                         self.connector)
         result = []
         for i in range(20):
@@ -229,7 +216,7 @@ class TestDrogulus(unittest.TestCase):
         """
         Ensure the duplication count is passed into the replicate method.
         """
-        drog = Drogulus(PUBLIC_KEY, PRIVATE_KEY, self.event_loop,
+        drog = Drogulus(PRIVATE_KEY, PUBLIC_KEY, self.event_loop,
                         self.connector)
         result = []
         for i in range(20):

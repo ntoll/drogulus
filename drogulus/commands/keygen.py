@@ -2,21 +2,20 @@
 """
 Defines the command for generating an RSA keypair for use with the drogulus.
 """
-from Crypto.PublicKey import RSA
-from Crypto import Random
 from cliff.command import Command
-from .utils import data_dir
+import rsa
+from .utils import data_dir, APPNAME, save_keys
 import getpass
 import os
 
 
 class KeyGen(Command):
     """
-    Generates an appropriate .pem file containing the user's public/private
-    key pair for use with the drogulus.
+    Generates appropriate files containing the user's public/private key pair
+    for use with the drogulus.
 
     This command will prompt the user for a passphrase to ensure the resulting
-    .pem file is encrypted.
+    private key file is encrypted.
     """
 
     def get_description(self):
@@ -29,19 +28,19 @@ class KeyGen(Command):
         return parser
 
     def take_action(self, parsed_args):
-        while True:
-            passphrase = getpass.getpass('Passphrase (make it tricky): ')
-            confirm = getpass.getpass('Confirm passphrase: ')
-            if passphrase == confirm:
-                break
-            else:
-                print('Passphrase and confirmation did not match.')
-                print('Please try again...')
+        passphrase = getpass.getpass('Passphrase (make it tricky): ')
+        confirm = getpass.getpass('Confirm passphrase: ')
+        if passphrase != confirm:
+            raise ValueError('Passphrase and confirmation did not match.')
         size = parsed_args.size
-        output_file = os.path.join(data_dir(), 'drogulus.pem')
-        print('Generating key...')
-        random_generator = Random.new().read
-        key = RSA.generate(size, random_generator)
-        with open(output_file, 'w') as f:
-            f.write(key.exportKey('PEM', passphrase).decode('ascii'))
-        print('Key written to {}'.format(output_file))
+        print('Generating keys (this may take some time, go have a coffee).')
+        (pub, priv) = rsa.newkeys(size)
+        output_file_pub = os.path.join(data_dir(), '{}.pub'.format(APPNAME))
+        output_file_priv = os.path.join(data_dir(),
+                                        '{}.scrypt'.format(APPNAME))
+        private_key = priv.save_pkcs1().decode('ascii')
+        public_key = pub.save_pkcs1().decode('ascii')
+        save_keys(private_key, public_key, passphrase, output_file_priv,
+                  output_file_pub)
+        print('Private key written to {}'.format(output_file_priv))
+        print('Public key written to {}'.format(output_file_pub))

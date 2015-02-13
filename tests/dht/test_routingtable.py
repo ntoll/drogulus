@@ -12,7 +12,7 @@ from drogulus.version import get_version
 import unittest
 import time
 import json
-from mock import MagicMock
+from unittest.mock import MagicMock
 from .keys import PUBLIC_KEY, BAD_PUBLIC_KEY
 
 

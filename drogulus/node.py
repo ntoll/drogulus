@@ -15,17 +15,16 @@ class Drogulus:
     drogulus.dht.node.Node).
     """
 
-    def __init__(self, public_key, private_key, event_loop, connector,
-                 port=1908, alias=None, whoami=None):
+    def __init__(self, private_key, public_key, event_loop, connector,
+                 port=1908, whoami=None):
         """
         The private and public keys are required for signing and verifying
         items and peers within the drogulus network. The event loop is an
         asyncio based event loop. The connector argument must be an instance
         of a child class of the Connector class. The optional port argument
         indicates the port to which remote notes should connect. The optional
-        alias argument is a dict of alias -> public key mappings for friends
-        in the network. The optional whoami argument is a dictionary of
-        arbitrary data about the local node.
+        whoami argument is a dictionary of arbitrary data about the local
+        node.
         """
         self.private_key = private_key
         self.public_key = public_key
@@ -33,10 +32,6 @@ class Drogulus:
         self.connector = connector
         self._node = Node(public_key, private_key, event_loop,
                           connector, port)
-        if alias:
-            self.alias = alias
-        else:
-            self.alias = {}
         if whoami:
             self.whoami = whoami
         else:

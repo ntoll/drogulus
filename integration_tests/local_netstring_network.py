@@ -11,8 +11,7 @@ import tempfile
 import uuid
 import logging
 import asyncio
-from Crypto.PublicKey import RSA
-from Crypto import Random
+import rsa
 sys.path.append(os.path.join('..', 'drogulus'))
 from drogulus.node import Drogulus
 from drogulus.dht.contact import PeerNode
@@ -35,10 +34,9 @@ def get_keypair():
     """
     Returns a (private, public) key pair as two strings.
     """
-    random_generator = Random.new().read
-    key = RSA.generate(1024, random_generator)
-    return (key.exportKey('PEM').decode('ascii'),
-            key.publickey().exportKey('PEM').decode('ascii'))
+    (pub, priv) = rsa.newkeys(512)
+    return (priv.save_pkcs1().decode('ascii'),
+            pub.save_pkcs1().decode('ascii'))
 
 
 def start_node(event_loop, port):
@@ -50,7 +48,7 @@ def start_node(event_loop, port):
     """
     connector = NetstringConnector(event_loop)
     private_key, public_key = get_keypair()
-    instance = Drogulus(public_key, private_key, event_loop, connector, port)
+    instance = Drogulus(private_key, public_key, event_loop, connector, port)
 
     def protocol_factory(connector=connector, node=instance._node):
         """
@@ -94,6 +92,7 @@ if __name__ == '__main__':
         url = 'netstring://127.0.0.1:%d' % genesis_node._node.reply_port
         p = PeerNode(genesis_node.public_key, genesis_node.whoami['version'],
                      url)
+        assert False, "Needs new data dump for seeding of nodes"
         peers = [p, ]
         t = node.join(peers)
 

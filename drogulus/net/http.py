@@ -12,6 +12,7 @@ import logging
 import asyncio
 import json
 import traceback
+import re
 
 
 log = logging.getLogger(__name__)
@@ -34,15 +35,17 @@ class HttpConnector(Connector):
                                             data=json.dumps(payload),
                                             headers=headers))
 
-    def receive(self, raw, sender, handler):
+    def receive(self, raw, sender, local_node):
         """
         Called when a message is received from a remote node on the network.
+        The local_node handles the incoming request and returns an appropriate
+        response message (if required).
         """
         try:
             message_dict = json.loads(raw.decode('utf-8'))
             message = from_dict(message_dict)
-            return handler.message_received(message, 'http', sender,
-                                            message.reply_port)
+            return local_node.message_received(message, 'http', sender,
+                                               message.reply_port)
         except Exception as ex:
             # There's not a lot that can be usefully done at this stage except
             # to log the problem in a way that may aid further investigation.
@@ -90,6 +93,21 @@ class HttpRequestHandler(aiohttp.server.ServerHttpProtocol):
                 # We log any errors in the connector / node instances so,
                 # nothing to do here but return an error message to the
                 # client.
+                response_code = 500  # Internal Server Error
+        elif message.method == 'GET':
+            try:
+                # Get the sha512 key from the path.
+                key = message.path[1:].lower()
+                log.info(key)
+                # Check the key is a valid sha512 value.
+                if len(key) == 128 and re.match('^[a-z0-9]+$', key):
+                    data = self.connector.get(key)
+                    response_code = 200  # OK
+                else:
+                    # wrong length or bad value
+                    response_code = 400  # Bad Request
+            except Exception as ex:
+                log.error(ex)
                 response_code = 500  # Internal Server Error
         raw_output = json.dumps(data).encode('utf-8')
         headers['Content-Length'] = str(len(raw_output))
