@@ -8,7 +8,7 @@ from drogulus.dht.node import Node
 from drogulus.dht.crypto import construct_key
 from drogulus.dht.constants import DUPLICATION_COUNT
 from drogulus.net.netstring import NetstringConnector
-from .dht.keys import PUBLIC_KEY, BAD_PUBLIC_KEY, PRIVATE_KEY
+from .keys import PUBLIC_KEY, BAD_PUBLIC_KEY, PRIVATE_KEY
 from unittest.mock import MagicMock
 import unittest
 import json

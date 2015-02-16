@@ -76,6 +76,7 @@ class HttpConnector(Connector):
         """
 
         # TODO: Schedule sweep and clean of cache.
+        # TODO: Force update.
         lookup = None
         if key in self.lookups:
             lookup = self.lookups[key]

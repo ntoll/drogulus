@@ -5,7 +5,7 @@ Ensures the kbucket (used to store contacts in the network) works as expected.
 from drogulus.dht.bucket import Bucket, BucketFull
 from drogulus.dht.contact import PeerNode
 from drogulus.dht.constants import K
-from .keys import PUBLIC_KEY
+from ..keys import PUBLIC_KEY
 import unittest
 
 

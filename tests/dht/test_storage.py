@@ -6,7 +6,7 @@ import unittest
 import time
 from drogulus.dht.storage import DataStore, DictDataStore
 from unittest.mock import MagicMock
-from .keys import PUBLIC_KEY
+from ..keys import PUBLIC_KEY
 
 
 class TestDataStore(unittest.TestCase):

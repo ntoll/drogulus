@@ -15,7 +15,7 @@ from drogulus.dht.messages import (OK, Store, FindNode, Nodes, FindValue,
 from drogulus.dht.crypto import get_signed_item, construct_key
 from drogulus.version import get_version
 from hashlib import sha512
-from .keys import PRIVATE_KEY, PUBLIC_KEY
+from ..keys import PRIVATE_KEY, PUBLIC_KEY
 import unittest
 from uuid import uuid4
 

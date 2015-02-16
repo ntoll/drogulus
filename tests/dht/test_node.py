@@ -18,7 +18,7 @@ from drogulus.dht.contact import PeerNode
 from drogulus.dht.constants import (REPLICATE_INTERVAL, REFRESH_INTERVAL,
                                     RESPONSE_TIMEOUT)
 from drogulus.dht.bucket import Bucket
-from .keys import PRIVATE_KEY, PUBLIC_KEY, BAD_PUBLIC_KEY
+from ..keys import PRIVATE_KEY, PUBLIC_KEY, BAD_PUBLIC_KEY
 from unittest.mock import MagicMock, patch
 from hashlib import sha512
 from unittest import mock

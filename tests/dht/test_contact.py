@@ -6,7 +6,7 @@ correctly.
 from hashlib import sha512
 from drogulus.dht.contact import PeerNode, make_network_id
 from drogulus.version import get_version
-from .keys import PUBLIC_KEY
+from ..keys import PUBLIC_KEY
 import unittest
 
 

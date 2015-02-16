@@ -7,7 +7,7 @@ import os.path
 from drogulus.commands.start import Start
 from drogulus.net.http import HttpConnector, HttpRequestHandler
 from unittest import mock
-from ..dht.keys import PRIVATE_KEY, PUBLIC_KEY
+from ..keys import PRIVATE_KEY, PUBLIC_KEY
 
 
 class TestStart(unittest.TestCase):

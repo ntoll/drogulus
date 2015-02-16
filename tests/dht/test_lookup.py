@@ -13,7 +13,7 @@ from drogulus.dht.utils import sort_peer_nodes
 from drogulus.dht.errors import ValueNotFound
 from drogulus.dht.utils import distance
 from drogulus.version import get_version
-from .keys import PRIVATE_KEY, PUBLIC_KEY
+from ..keys import PRIVATE_KEY, PUBLIC_KEY
 from hashlib import sha512
 from unittest import mock
 import uuid

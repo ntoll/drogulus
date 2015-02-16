@@ -13,7 +13,7 @@ import unittest
 import time
 import json
 from unittest.mock import MagicMock
-from .keys import PUBLIC_KEY, BAD_PUBLIC_KEY
+from ..keys import PUBLIC_KEY, BAD_PUBLIC_KEY
 
 
 class TestRoutingTable(unittest.TestCase):

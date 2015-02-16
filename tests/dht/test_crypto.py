@@ -7,7 +7,7 @@ from drogulus.dht.crypto import (get_seal, check_seal, get_signed_item,
 from drogulus.dht.messages import OK
 from drogulus.version import get_version
 from hashlib import sha512
-from .keys import PRIVATE_KEY, PUBLIC_KEY, BAD_PUBLIC_KEY
+from ..keys import PRIVATE_KEY, PUBLIC_KEY, BAD_PUBLIC_KEY
 import unittest
 import uuid
 import binascii
