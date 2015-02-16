@@ -24,6 +24,11 @@ class HttpConnector(Connector):
     of things and the local node within the DHT network.
     """
 
+    def __init__(self, event_loop):
+        super().__init__(event_loop)
+        self.lookups = {}
+        # TODO: Set call_later to sweep and clean lookups cache.
+
     def send(self, contact, message):
         """
         Sends the message to the referenced contact.
@@ -53,8 +58,38 @@ class HttpConnector(Connector):
             log.exception(ex)
             log.error(traceback.format_exc())
             log.error(raw)
-            # Will cause generic 5** HTTP error response.
+            # Will cause generic 500 HTTP error response.
             raise ex
+
+    def get(self, key, local_node):
+        """
+        An HttpConnector only utility method for conveniently getting values
+        from the drogulus as GET requests.
+
+        Given the key (a sha512 hexdigest) this method will check if there is
+        already an existing lookup for the key. If found it returns the status
+        of the lookup (a future) and, if appropriate, the associated value.
+
+        If no such lookup associated with the referenced key exists then a
+        new lookup is created and a "pending" result if returned on the
+        assumption that the user will poll later.
+        """
+
+        # TODO: Schedule sweep and clean of cache.
+        lookup = None
+        if key in self.lookups:
+            lookup = self.lookups[key]
+        else:
+            lookup = local_node.retrieve(key)
+            self.lookups[key] = lookup
+        result = {'key': key}
+        result['status'] = lookup._state.lower()
+        if lookup.done():
+            try:
+                result['value'] = lookup.result()
+            except:
+                result['error'] = True
+        return result
 
 
 class HttpRequestHandler(aiohttp.server.ServerHttpProtocol):
@@ -101,7 +136,7 @@ class HttpRequestHandler(aiohttp.server.ServerHttpProtocol):
                 log.info(key)
                 # Check the key is a valid sha512 value.
                 if len(key) == 128 and re.match('^[a-z0-9]+$', key):
-                    data = self.connector.get(key)
+                    data = self.connector.get(key, self.node)
                     response_code = 200  # OK
                 else:
                     # wrong length or bad value

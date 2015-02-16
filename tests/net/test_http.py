@@ -10,6 +10,7 @@ from drogulus.dht.node import Node
 from drogulus.version import get_version
 from ..dht.keys import PUBLIC_KEY, PRIVATE_KEY
 from unittest import mock
+import hashlib
 import json
 import uuid
 import asyncio
@@ -37,6 +38,14 @@ class TestHttpConnector(unittest.TestCase):
         Clean up the event loop.
         """
         self.event_loop.close()
+
+    def test_init(self):
+        """
+        Ensure the instance has an empty lookups dict assigned and a sweep and
+        clean of the lookups cache is scheduled after X seconds.
+        """
+        connector = HttpConnector(self.event_loop)
+        self.assertEqual({}, connector.lookups)
 
     def test_send(self):
         """
@@ -125,6 +134,69 @@ class TestHttpConnector(unittest.TestCase):
         self.assertEqual(4, mock_log.call_count)
         patcher.stop()
 
+    def test_get_new_lookup(self):
+        """
+        Getting an unknown key fires a new lookup that is initially produces a
+        'pending' status.
+        """
+        connector = HttpConnector(self.event_loop)
+        self.assertEqual({}, connector.lookups)
+        handler = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, connector,
+                       1908)
+        faux_lookup = asyncio.Future()
+        handler.retrieve = mock.MagicMock(return_value=faux_lookup)
+        test_key = hashlib.sha512().hexdigest()
+        result = connector.get(test_key, handler)
+        handler.retrieve.assert_called_once_with(test_key)
+        self.assertIn(test_key, connector.lookups)
+        self.assertEqual(connector.lookups[test_key], faux_lookup)
+        self.assertEqual(result['key'], test_key)
+        self.assertEqual(result['status'], faux_lookup._state.lower())
+        self.assertEqual(2, len(result))
+
+    def test_get_existing_lookup(self):
+        """
+        Getting an existing key that has completed returns a 'finished' status
+        and associated value.
+        """
+        connector = HttpConnector(self.event_loop)
+        self.assertEqual({}, connector.lookups)
+        handler = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, connector,
+                       1908)
+        faux_lookup = asyncio.Future()
+        faux_lookup.set_result('foo')
+        test_key = hashlib.sha512().hexdigest()
+        connector.lookups[test_key] = faux_lookup
+        result = connector.get(test_key, handler)
+        self.assertIn(test_key, connector.lookups)
+        self.assertEqual(connector.lookups[test_key], faux_lookup)
+        self.assertEqual(result['key'], test_key)
+        self.assertEqual(result['status'], faux_lookup._state.lower())
+        self.assertEqual(result['value'], 'foo')
+        self.assertEqual(3, len(result))
+
+    def test_get_existing_lookup_failed(self):
+        """
+        Getting an existing key that has resulted in an error returns a
+        'finished' status and an 'error' flag.
+        """
+        connector = HttpConnector(self.event_loop)
+        self.assertEqual({}, connector.lookups)
+        handler = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, connector,
+                       1908)
+        faux_lookup = asyncio.Future()
+        ex = Exception('Bang!')
+        faux_lookup.set_exception(ex)
+        test_key = hashlib.sha512().hexdigest()
+        connector.lookups[test_key] = faux_lookup
+        result = connector.get(test_key, handler)
+        self.assertIn(test_key, connector.lookups)
+        self.assertEqual(connector.lookups[test_key], faux_lookup)
+        self.assertEqual(result['key'], test_key)
+        self.assertEqual(result['status'], faux_lookup._state.lower())
+        self.assertEqual(result['error'], True)
+        self.assertEqual(3, len(result))
+
 
 class TestHttpRequestHandler(unittest.TestCase):
     """
@@ -169,7 +241,7 @@ class TestHttpRequestHandler(unittest.TestCase):
         self.assertEqual(node, hrh.node)
         self.assertEqual(True, hrh.debug)
 
-    def test_handle_request(self):
+    def test_handle_POST_request(self):
         """
         A valid POST request causes a 200 response.
 
@@ -206,7 +278,88 @@ class TestHttpRequestHandler(unittest.TestCase):
             response.assert_called_once_with(hrh.writer, 200,
                                              http_version=mockMessage.version)
 
-    def test_handle_request_not_POST(self):
+    def test_handle_GET_request(self):
+        """
+        A valid GET request casues a 200 reponse.
+        """
+        test_key = hashlib.sha512().hexdigest()
+        mockMessage = mock.MagicMock()
+        mockMessage.method = 'GET'
+        mockMessage.version = '1.1'
+        mockMessage.path = ''.join(['/', test_key])
+        connector = HttpConnector(self.event_loop)
+
+        def faux_get(*args, **kwargs):
+            return {
+                'key': test_key,
+                'status': 'pending',
+            }
+
+        connector.get = mock.MagicMock(side_effect=faux_get)
+        node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, connector, 1908)
+        hrh = HttpRequestHandler(connector, node, debug=True)
+        peer = '192.168.0.1'
+        hrh.transport = mock.MagicMock()
+        hrh.transport.get_extra_info = mock.MagicMock(side_effect=peer)
+        hrh.writer = mock.MagicMock()
+        with mock.patch.object(aiohttp, 'Response',
+                               return_value=mock.MagicMock()) as response:
+            self.event_loop.run_until_complete(hrh.handle_request(mockMessage,
+                                                                  None))
+            response.assert_called_once_with(hrh.writer, 200,
+                                             http_version=mockMessage.version)
+
+    def test_handle_GET_bad_request(self):
+        """
+        A GET request without a valid sha512 hexdigest as its path causes a
+        400 (Bad Request) response.
+        """
+        test_key = 'not_a_valid_sha512_hexdigest'
+        mockMessage = mock.MagicMock()
+        mockMessage.method = 'GET'
+        mockMessage.version = '1.1'
+        mockMessage.path = ''.join(['/', test_key])
+        connector = HttpConnector(self.event_loop)
+        node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, connector, 1908)
+        hrh = HttpRequestHandler(connector, node, debug=True)
+        hrh.writer = mock.MagicMock()
+        with mock.patch.object(aiohttp, 'Response',
+                               return_value=mock.MagicMock()) as response:
+            self.event_loop.run_until_complete(hrh.handle_request(mockMessage,
+                                                                  None))
+            response.assert_called_once_with(hrh.writer, 400,
+                                             http_version=mockMessage.version)
+
+    def test_handle_GET_internal_server_error(self):
+        """
+        A GET request that causes an exception simply returns a 500 (Internal
+        Server Error).
+        """
+        test_key = hashlib.sha512().hexdigest()
+        mockMessage = mock.MagicMock()
+        mockMessage.method = 'GET'
+        mockMessage.version = '1.1'
+        mockMessage.path = ''.join(['/', test_key])
+        connector = HttpConnector(self.event_loop)
+
+        def faux_get(*args, **kwargs):
+            raise Exception('Bang!')
+
+        connector.get = mock.MagicMock(side_effect=faux_get)
+        node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, connector, 1908)
+        hrh = HttpRequestHandler(connector, node, debug=True)
+        peer = '192.168.0.1'
+        hrh.transport = mock.MagicMock()
+        hrh.transport.get_extra_info = mock.MagicMock(side_effect=peer)
+        hrh.writer = mock.MagicMock()
+        with mock.patch.object(aiohttp, 'Response',
+                               return_value=mock.MagicMock()) as response:
+            self.event_loop.run_until_complete(hrh.handle_request(mockMessage,
+                                                                  None))
+            response.assert_called_once_with(hrh.writer, 500,
+                                             http_version=mockMessage.version)
+
+    def test_handle_request_not_POST_or_GET(self):
         """
         A request that is not a POST causes a 405 response.
         """
