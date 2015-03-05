@@ -13,6 +13,7 @@ import asyncio
 import json
 import traceback
 import re
+import time
 
 
 log = logging.getLogger(__name__)
@@ -24,14 +25,35 @@ class HttpConnector(Connector):
     of things and the local node within the DHT network.
     """
 
-    def __init__(self, event_loop):
+    def __init__(self, event_loop, clean_interval=None):
         super().__init__(event_loop)
         self.lookups = {}
-        # TODO: Set call_later to sweep and clean lookups cache.
+        if not clean_interval:
+            clean_interval = 60 * 5  # five minutes.
+        event_loop.call_later(clean_interval, self._sweep_and_clean_cache,
+                              event_loop, clean_interval)
 
-    def send(self, contact, message):
+    def _sweep_and_clean_cache(self, event_loop, clean_interval):
         """
-        Sends the message to the referenced contact.
+        Removes items from the lookups cache that have not been requested
+        within the past 'clean_interval' seconds. Once cleaned will reschedule
+        itself to be run in clean_interval seconds time.
+        """
+        now = time.time()
+        stale_if_not_called_after = now - clean_interval
+        stale_items = []
+        for k, v in self.lookups.items():
+            if v['last_access'] < stale_if_not_called_after:
+                stale_items.append(k)
+        for key in stale_items:
+            del(self.lookups[key])
+        event_loop.call_later(clean_interval, self._sweep_and_clean_cache,
+                              event_loop, clean_interval)
+
+    def send(self, contact, message, sender=None):
+        """
+        Sends the message to the referenced contact. The sender argument isn't
+        required for the HTTP implementation.
         """
         payload = to_dict(message)
         headers = {'content-type': 'application/json'}
@@ -61,7 +83,7 @@ class HttpConnector(Connector):
             # Will cause generic 500 HTTP error response.
             raise ex
 
-    def get(self, key, local_node):
+    def get(self, key, local_node, forced=False):
         """
         An HttpConnector only utility method for conveniently getting values
         from the drogulus as GET requests.
@@ -70,19 +92,30 @@ class HttpConnector(Connector):
         already an existing lookup for the key. If found it returns the status
         of the lookup (a future) and, if appropriate, the associated value.
 
+        If the 'forced' flag is set any cached values are ignored and
+        refreshed with a new lookup value.
+
         If no such lookup associated with the referenced key exists then a
-        new lookup is created and a "pending" result if returned on the
+        new lookup is created and a "pending" result is returned on the
         assumption that the user will poll later.
+
+        The lookup itself and an associated 'last_access' value (containing
+        a timestamp indicating when the value was last requested) are stored
+        in the cache. The 'last_access' value is used to check if an item
+        should be removed from the cache during a sweep and clean scheduled
+        every X seconds interval.
         """
 
-        # TODO: Schedule sweep and clean of cache.
-        # TODO: Force update.
         lookup = None
-        if key in self.lookups:
-            lookup = self.lookups[key]
+        if key in self.lookups and not forced:
+            lookup = self.lookups[key]['lookup']
+            self.lookups[key]['last_access'] = time.time()
         else:
             lookup = local_node.retrieve(key)
-            self.lookups[key] = lookup
+            self.lookups[key] = {
+                'last_access': time.time(),
+                'lookup': lookup
+            }
         result = {'key': key}
         result['status'] = lookup._state.lower()
         if lookup.done():
@@ -125,10 +158,12 @@ class HttpRequestHandler(aiohttp.server.ServerHttpProtocol):
                 if result:
                     data = to_dict(result)
                 response_code = 200  # OK
-            except:
+            except Exception as ex:
                 # We log any errors in the connector / node instances so,
-                # nothing to do here but return an error message to the
-                # client.
+                # if there's is an exception then there's something wrong
+                # with the connector (so return an error message to the
+                # client).
+                log.error(ex)
                 response_code = 500  # Internal Server Error
         elif message.method == 'GET':
             try:
@@ -137,7 +172,15 @@ class HttpRequestHandler(aiohttp.server.ServerHttpProtocol):
                 log.info(key)
                 # Check the key is a valid sha512 value.
                 if len(key) == 128 and re.match('^[a-z0-9]+$', key):
-                    data = self.connector.get(key, self.node)
+                    # Expect a single cache-control header with the value
+                    # no-cache in order to force an update.
+                    forced = False
+                    cache_control = [v.lower().strip() for k, v
+                                     in message.headers.items()
+                                     if k.lower() == 'cache-control']
+                    if len(cache_control) == 1:
+                        forced = cache_control[0] == 'no-cache'
+                    data = self.connector.get(key, self.node, forced)
                     response_code = 200  # OK
                 else:
                     # wrong length or bad value

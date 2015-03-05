@@ -10,6 +10,7 @@ from drogulus.dht.node import Node
 from drogulus.version import get_version
 from ..keys import PUBLIC_KEY, PRIVATE_KEY
 from unittest import mock
+import time
 import hashlib
 import json
 import uuid
@@ -44,8 +45,95 @@ class TestHttpConnector(unittest.TestCase):
         Ensure the instance has an empty lookups dict assigned and a sweep and
         clean of the lookups cache is scheduled after X seconds.
         """
-        connector = HttpConnector(self.event_loop)
+        event_loop = mock.MagicMock()
+        event_loop.call_later = mock.MagicMock()
+        connector = HttpConnector(event_loop)
         self.assertEqual({}, connector.lookups)
+        self.assertEqual(event_loop, connector.event_loop)
+        sweep = connector._sweep_and_clean_cache
+        event_loop.call_later.assert_called_once_with(300, sweep, event_loop,
+                                                      300)
+
+    def test_sweep_and_clean_cache_fresh_items_only(self):
+        """
+        If the lookup cache is only full of fresh items then the cache remains
+        the same (nothing to delete).
+        """
+        event_loop = mock.MagicMock()
+        connector = HttpConnector(event_loop)
+        event_loop.call_later = mock.MagicMock()
+        now = time.time()
+        for i in range(10):
+            connector.lookups[str(i)] = {
+                'last_access': now,
+                'lookup': mock.MagicMock()
+            }
+        connector._sweep_and_clean_cache(event_loop, 300)
+        self.assertEqual(len(connector.lookups), 10)
+
+    def test_sweep_and_clean_cache_stale_items_only(self):
+        """
+        If the lookup cache is only full of stale items then the cache should
+        be emtied.
+        """
+        event_loop = mock.MagicMock()
+        connector = HttpConnector(event_loop)
+        event_loop.call_later = mock.MagicMock()
+        now = time.time()
+        for i in range(10):
+            connector.lookups[str(i)] = {
+                'last_access': now - 500,
+                'lookup': mock.MagicMock()
+            }
+        connector._sweep_and_clean_cache(event_loop, 300)
+        self.assertEqual(len(connector.lookups), 0)
+
+    def test_sweep_and_clean_cache_mixed_fresh_and_stale_items(self):
+        """
+        Only the stale items should be removed from the cache.
+        """
+        event_loop = mock.MagicMock()
+        connector = HttpConnector(event_loop)
+        event_loop.call_later = mock.MagicMock()
+        now = time.time()
+        for i in range(10):
+            if i % 2:
+                access = now - 500
+            else:
+                access = now
+            connector.lookups[str(i)] = {
+                'last_access': access,
+                'lookup': mock.MagicMock()
+            }
+        connector._sweep_and_clean_cache(event_loop, 300)
+        self.assertEqual(len(connector.lookups), 5)
+
+    def test_sweep_and_clean_cache_schedules_again(self):
+        """
+        Sweep and clean should schedule a new sweep and clean in
+        clean_interval seconds.
+        """
+        event_loop = mock.MagicMock()
+        connector = HttpConnector(event_loop)
+        event_loop.call_later = mock.MagicMock()
+        connector._sweep_and_clean_cache(event_loop, 300)
+        sweep = connector._sweep_and_clean_cache
+        event_loop.call_later.assert_called_once_with(300, sweep, event_loop,
+                                                      300)
+
+    def test_init_with_bespoke_clean_interval(self):
+        """
+        Ensures that a custom clean_interval value is used when scheduling the
+        _sweep_and_clean_cache method.
+        """
+        event_loop = mock.MagicMock()
+        event_loop.call_later = mock.MagicMock()
+        connector = HttpConnector(event_loop, 900)
+        self.assertEqual({}, connector.lookups)
+        self.assertEqual(event_loop, connector.event_loop)
+        sweep = connector._sweep_and_clean_cache
+        event_loop.call_later.assert_called_once_with(900, sweep, event_loop,
+                                                      900)
 
     def test_send(self):
         """
@@ -149,7 +237,9 @@ class TestHttpConnector(unittest.TestCase):
         result = connector.get(test_key, handler)
         handler.retrieve.assert_called_once_with(test_key)
         self.assertIn(test_key, connector.lookups)
-        self.assertEqual(connector.lookups[test_key], faux_lookup)
+        self.assertIsInstance(connector.lookups[test_key]['last_access'],
+                              float)
+        self.assertEqual(connector.lookups[test_key]['lookup'], faux_lookup)
         self.assertEqual(result['key'], test_key)
         self.assertEqual(result['status'], faux_lookup._state.lower())
         self.assertEqual(2, len(result))
@@ -166,10 +256,15 @@ class TestHttpConnector(unittest.TestCase):
         faux_lookup = asyncio.Future()
         faux_lookup.set_result('foo')
         test_key = hashlib.sha512().hexdigest()
-        connector.lookups[test_key] = faux_lookup
+        connector.lookups[test_key] = {
+            'last_access': 123.45,
+            'lookup': faux_lookup
+        }
         result = connector.get(test_key, handler)
         self.assertIn(test_key, connector.lookups)
-        self.assertEqual(connector.lookups[test_key], faux_lookup)
+        # Check the last_access has been updated
+        self.assertTrue(connector.lookups[test_key]['last_access'] > 123.45)
+        self.assertEqual(connector.lookups[test_key]['lookup'], faux_lookup)
         self.assertEqual(result['key'], test_key)
         self.assertEqual(result['status'], faux_lookup._state.lower())
         self.assertEqual(result['value'], 'foo')
@@ -188,14 +283,64 @@ class TestHttpConnector(unittest.TestCase):
         ex = Exception('Bang!')
         faux_lookup.set_exception(ex)
         test_key = hashlib.sha512().hexdigest()
-        connector.lookups[test_key] = faux_lookup
+        connector.lookups[test_key] = {
+            'last_access': 123.45,
+            'lookup': faux_lookup
+        }
         result = connector.get(test_key, handler)
         self.assertIn(test_key, connector.lookups)
-        self.assertEqual(connector.lookups[test_key], faux_lookup)
+        self.assertTrue(connector.lookups[test_key]['last_access'] > 123.45)
+        self.assertEqual(connector.lookups[test_key]['lookup'], faux_lookup)
         self.assertEqual(result['key'], test_key)
         self.assertEqual(result['status'], faux_lookup._state.lower())
         self.assertEqual(result['error'], True)
         self.assertEqual(3, len(result))
+
+    def test_get_forced_refresh_existing_value(self):
+        """
+        Ensures that an existing result is ignored and a new lookup is executed
+        if the 'forced' flag is True.
+        """
+        connector = HttpConnector(self.event_loop)
+        self.assertEqual({}, connector.lookups)
+        handler = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, connector,
+                       1908)
+        cached_lookup = asyncio.Future()
+        cached_lookup.set_result('foo')
+        test_key = hashlib.sha512().hexdigest()
+        connector.lookups[test_key] = cached_lookup
+        new_lookup = asyncio.Future()
+        handler.retrieve = mock.MagicMock(return_value=new_lookup)
+        result = connector.get(test_key, handler, forced=True)
+        self.assertIn(test_key, connector.lookups)
+        self.assertIsInstance(connector.lookups[test_key]['last_access'],
+                              float)
+        self.assertEqual(connector.lookups[test_key]['lookup'], new_lookup)
+        self.assertEqual(result['key'], test_key)
+        self.assertEqual(result['status'], new_lookup._state.lower())
+        self.assertEqual(2, len(result))
+
+    def test_get_forced_refresh_no_existing_cached_value(self):
+        """
+        Ensures that even if there's no cached value a new lookup is executed
+        if the 'forced' flag is True.
+        """
+        connector = HttpConnector(self.event_loop)
+        self.assertEqual({}, connector.lookups)
+        handler = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, connector,
+                       1908)
+        faux_lookup = asyncio.Future()
+        handler.retrieve = mock.MagicMock(return_value=faux_lookup)
+        test_key = hashlib.sha512().hexdigest()
+        result = connector.get(test_key, handler, forced=True)
+        handler.retrieve.assert_called_once_with(test_key)
+        self.assertIn(test_key, connector.lookups)
+        self.assertIsInstance(connector.lookups[test_key]['last_access'],
+                              float)
+        self.assertEqual(connector.lookups[test_key]['lookup'], faux_lookup)
+        self.assertEqual(result['key'], test_key)
+        self.assertEqual(result['status'], faux_lookup._state.lower())
+        self.assertEqual(2, len(result))
 
 
 class TestHttpRequestHandler(unittest.TestCase):
@@ -308,6 +453,42 @@ class TestHttpRequestHandler(unittest.TestCase):
                                                                   None))
             response.assert_called_once_with(hrh.writer, 200,
                                              http_version=mockMessage.version)
+
+    def test_handle_GET_no_cache(self):
+        """
+        Ensure that if the cache-control header in the request is set to
+        no-cache then the lookup is foreced (i.e. don't use the local cache).
+        """
+        test_key = hashlib.sha512().hexdigest()
+        mockMessage = mock.MagicMock()
+        mockMessage.method = 'GET'
+        mockMessage.version = '1.1'
+        mockMessage.path = ''.join(['/', test_key])
+        mockMessage.headers = {'Cache-Control': 'no-cache', }
+        connector = HttpConnector(self.event_loop)
+
+        def faux_get(*args, **kwargs):
+            return {
+                'key': test_key,
+                'status': 'pending',
+            }
+
+        connector.get = mock.MagicMock(side_effect=faux_get)
+        node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, connector, 1908)
+        hrh = HttpRequestHandler(connector, node, debug=True)
+        peer = '192.168.0.1'
+        hrh.transport = mock.MagicMock()
+        hrh.transport.get_extra_info = mock.MagicMock(side_effect=peer)
+        hrh.writer = mock.MagicMock()
+        with mock.patch.object(aiohttp, 'Response',
+                               return_value=mock.MagicMock()) as response:
+            self.event_loop.run_until_complete(hrh.handle_request(mockMessage,
+                                                                  None))
+            response.assert_called_once_with(hrh.writer, 200,
+                                             http_version=mockMessage.version)
+            # The connector's get method was called with the forced flag set
+            # to True.
+            connector.get.assert_called_once_with(test_key, node, True)
 
     def test_handle_GET_bad_request(self):
         """
