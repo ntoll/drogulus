@@ -50,8 +50,6 @@ class NetstringProtocol(asyncio.Protocol):
     """
 
     MAX_LENGTH = 1024 * 1024 * 12  # 12mb-ish
-    _reader_state = LENGTH
-    _reader_length = 0
 
     def __init__(self, connector, node):
         """
@@ -60,6 +58,8 @@ class NetstringProtocol(asyncio.Protocol):
         """
         self._connector = connector
         self._node = node
+        self._reader_state = LENGTH
+        self._reader_length = 0
 
     def string_received(self, data):
         """
