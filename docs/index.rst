@@ -6,6 +6,8 @@
 Welcome to the drogulus's documentation!
 ========================================
 
+WABI SABI!
+
 Today's internet means walled gardens of data, points of control, censorship and surveillance.
 
 So I asked myself, how would software designed to promote independence, freedom and autonomy work? I tried to imagine the simplest possible solution and the drogulus was born.
