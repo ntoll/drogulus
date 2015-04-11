@@ -17,8 +17,9 @@ read the UNLICENSE file for details.
 Why?
 ++++
 
-The following three blog posts from a couple of years ago explain what I'm up
-to (you should read them in the order they are listed):
+The following three (somewhat out of date) blog posts from a couple of years
+ago explain what I'm up to. You should probably read them in the order they
+are listed:
 
 * **Politics, Programming, Data and the Drogulus** - http://ntoll.org/article/ppdd
 * **Drogulus - Questions and Clarifications** - http://ntoll.org/article/drogulus-questions-and-clarifications
