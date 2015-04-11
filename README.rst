@@ -8,7 +8,8 @@ philosophy.
 
 It'll probably all come to nothing. ;-)
 
-There's not a lot here right now.
+You can't do much with the drogulus at the moment although this should change
+very soon.
 
 This is free and unencumbered software released into the public domain. Please
 read the UNLICENSE file for details.
@@ -16,7 +17,8 @@ read the UNLICENSE file for details.
 Why?
 ++++
 
-The following three blog posts explain what I'm up to:
+The following three blog posts from a couple of years ago explain what I'm up
+to (you should read them in the order they are listed):
 
 * **Politics, Programming, Data and the Drogulus** - http://ntoll.org/article/ppdd
 * **Drogulus - Questions and Clarifications** - http://ntoll.org/article/drogulus-questions-and-clarifications
@@ -39,6 +41,3 @@ Install the requirements::
 The ``make`` command is a useful starting point. If you type ``make check``
 and see a passing test suite followed by a coverage report then you should be
 set up all fine and dandy.
-
-You can't do much with the drogulus at the moment although this should change
-very soon.
