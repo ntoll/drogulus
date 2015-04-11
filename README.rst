@@ -1,7 +1,7 @@
 The Drogulus
 ============
 
-**This is an unfinished work in progress and does not work yet!**
+**This is an unfinished work in progress!**
 
 A small and simple peer-to-peer data store and an exercise in practical
 philosophy.
@@ -12,6 +12,15 @@ There's not a lot here right now.
 
 This is free and unencumbered software released into the public domain. Please
 read the UNLICENSE file for details.
+
+Why?
+++++
+
+The following three blog posts explain what I'm up to:
+
+* **Politics, Programming, Data and the Drogulus** - http://ntoll.org/article/ppdd
+* **Drogulus - Questions and Clarifications** - http://ntoll.org/article/drogulus-questions-and-clarifications
+* **How to Build a Drogulus** - http://ntoll.org/article/build-a-drogulus
 
 Developer Setup
 +++++++++++++++
