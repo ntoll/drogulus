@@ -84,7 +84,7 @@ if __name__ == '__main__':
     event_loop = asyncio.get_event_loop()
     nodes = []
     for i in range(SIZE):
-        node = start_node(event_loop, 8000+i)
+        node = start_node(event_loop, 8000 + i)
         nodes.append(node)
     genesis_node = nodes[0]
 

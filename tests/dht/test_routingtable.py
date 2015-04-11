@@ -498,7 +498,7 @@ class TestRoutingTable(unittest.TestCase):
         Checks if a bucket is full and a new contact within the full bucket's
         range is added then it gets put in the replacement cache.
         """
-        parent_node_id = hex((2 ** 512)+1)[2:]
+        parent_node_id = hex((2 ** 512) + 1)[2:]
         r = RoutingTable(parent_node_id)
         # Fill up the bucket
         for i in range(20):
@@ -522,7 +522,7 @@ class TestRoutingTable(unittest.TestCase):
         oldest contact within the cache is replaced with the new contact that
         was just seen.
         """
-        parent_node_id = hex((2 ** 512)+1)[2:]
+        parent_node_id = hex((2 ** 512) + 1)[2:]
         r = RoutingTable(parent_node_id)
         # Fill up the bucket and replacement cache
         for i in range(40):
@@ -551,7 +551,7 @@ class TestRoutingTable(unittest.TestCase):
         exists in the replacement cache then it is bumped to the most recent
         position.
         """
-        parent_node_id = hex((2 ** 512)+1)[2:]
+        parent_node_id = hex((2 ** 512) + 1)[2:]
         r = RoutingTable(parent_node_id)
         # Fill up the bucket and replacement cache
         for i in range(40):
@@ -771,7 +771,7 @@ class TestRoutingTable(unittest.TestCase):
         Ensures that the removed contact is replaced by the most up-to-date
         contact in the affected k-bucket's cache.
         """
-        parent_node_id = hex((2 ** 512)+1)[2:]
+        parent_node_id = hex((2 ** 512) + 1)[2:]
         r = RoutingTable(parent_node_id)
         cache_key = (r._buckets[0].range_min, r._buckets[0].range_max)
         contact1 = PeerNode(PUBLIC_KEY, self.version,
@@ -782,7 +782,7 @@ class TestRoutingTable(unittest.TestCase):
         r.add_contact(contact2)
         contact2.failed_RPCs = constants.ALLOWED_RPC_FAILS
         # Add something into the cache.
-        contact3 = PeerNode(PUBLIC_KEY+'foo', self.version,
+        contact3 = PeerNode(PUBLIC_KEY + 'foo', self.version,
                             'netstring://192.168.0.1:9999/', 0)
         contact3.network_id = '3'
         r._replacement_cache[cache_key] = [contact3, ]

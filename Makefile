@@ -28,7 +28,7 @@ pyflakes:
 	find . \( -name _build -o -name var -o -path ./drogulus/contrib \) -type d -prune -o -name '*.py' -print0 | $(XARGS) pyflakes
 
 pep8:
-	find . \( -name _build -o -name var \) -type d -prune -o -name '*.py' -print0 | $(XARGS) -n 1 pep8 --repeat --exclude=drogulus/contrib/*,build/*
+	find . \( -name _build -o -name var \) -type d -prune -o -name '*.py' -print0 | $(XARGS) -n 1 pep8 --repeat --exclude=drogulus/contrib/*,build/* --ignore=E731,E402
 
 test: clean
 	python -m unittest discover --buffer
