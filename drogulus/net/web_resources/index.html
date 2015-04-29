@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="description"
+            content="Web interface for Drogulus node {{ node_id }}">
+        <meta name="author" content="Nicholas H.Tollervey">
+        <link rel="icon" type="image/png" href="static/drogulus.png">
+        <title>Drogulus Node {{ node_id|truncate(16, True) }}</title>
+        <!-- Fonts -->
+        <link rel="stylesheet" media="screen"
+            href="http://openfontlibrary.org/face/effects-eighty"
+            rel="stylesheet" type="text/css"/>
+        <!-- CSS -->
+        <link rel="stylesheet" href="static/bootstrap.min.css">
+        <link rel="stylesheet" href="static/navbar-fixed-top.css">
+        <link rel="stylesheet" href="static/drogulus.css">
+    </head>
+    <body>
+        <nav class="navbar navbar-default navbar-fixed-top">
+	        <div class="container">
+		        <div class="navbar-header">
+		            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+                        <span class="sr-only">Toggle navigation</span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                    </button>
+		            <a class="navbar-brand" href="/">
+                        <img src="static/drogulus_medium.png" class="pull-left"
+                            alt="Drogulus logo"/>
+                        Drogulus
+                    </a>
+		        </div>
+                <div id="navbar" class="navbar-collapse collapse">
+                    <ul class="nav navbar-nav">
+                        <li><a href="#get">Get</a></li>
+                        <li><a href="#set">Set</a></li>
+                        <li><a href="#friends">Friends</a></li>
+                        <li><a href="#configure">Configure</a></li>
+                        <li><a href="#about">About</a></li>
+                    </ul>
+                </div><!--/.nav-collapse -->
+	        </div>
+        </nav>
+        <div class="container">
+        </div>
+        <script src="static/jquery.min.js"></script>
+        <script src="static/bootstrap.min.js"></script>
+        <script src="static/ie10-viewport-bug-workaround.js"></script>
+    </body>
+</html>

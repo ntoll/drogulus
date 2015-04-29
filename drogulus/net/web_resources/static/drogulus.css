@@ -1,0 +1,15 @@
+nav .navbar-brand img {
+    margin-top: -14px;
+    margin-right: 8px;
+}
+
+nav .navbar-brand {
+    font-family: 'EffectsEightyBold';
+    font-weight: bold;
+    color: #231f20 !important;
+    font-size: 42px;
+}
+
+.navbar-default {
+    background-color: #FFF;
+}

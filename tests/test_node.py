@@ -47,6 +47,7 @@ class TestDrogulus(unittest.TestCase):
         self.assertEqual(d.event_loop, self.event_loop)
         self.assertEqual(d.connector, self.connector)
         self.assertIsInstance(d._node, Node)
+        self.assertEqual(d.network_id, d._node.network_id)
         self.assertEqual(d._node.reply_port, 1908)
         self.assertEqual(d.whoami['public_key'], PUBLIC_KEY)
         self.assertEqual(d.whoami['version'], get_version())

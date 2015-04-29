@@ -32,6 +32,7 @@ class Drogulus:
         self.connector = connector
         self._node = Node(public_key, private_key, event_loop,
                           connector, port)
+        self.network_id = self._node.network_id
         if whoami:
             self.whoami = whoami
         else:

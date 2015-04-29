@@ -2,7 +2,9 @@
 """
 Ensures that the HTTP Protocol and Connector classes work as expected.
 """
-from drogulus.net.http import HttpConnector, HttpRequestHandler
+from drogulus.net.http import (HttpConnector, accept_request,
+                               ApplicationHandler, make_http_handler,
+                               HttpRequestHandler)
 from drogulus.dht.messages import OK, to_dict, from_dict
 from drogulus.dht.contact import PeerNode
 from drogulus.dht.crypto import get_seal
@@ -10,6 +12,10 @@ from drogulus.dht.node import Node
 from drogulus.version import get_version
 from ..keys import PUBLIC_KEY, PRIVATE_KEY
 from unittest import mock
+from hashlib import sha512
+from uuid import uuid4
+from aiohttp import protocol
+from aiohttp import web
 import time
 import hashlib
 import json
@@ -17,6 +23,87 @@ import uuid
 import asyncio
 import aiohttp
 import unittest
+import rsa
+import binascii
+
+
+(PUBKEY, PRIVKEY) = rsa.newkeys(1024)
+
+
+class TestAcceptRequest(unittest.TestCase):
+    """
+    Ensures that the accept_request function exhibits the correct behaviour
+    for incoming requests.
+    """
+
+    def setUp(self):
+        """
+        Recreate a new incoming request each time..!
+        """
+        # A valid request
+        request = mock.MagicMock()
+        path_hash = sha512(str(uuid4()).encode('ascii')).hexdigest()
+        request.path = '/{}'.format(path_hash)
+        headers = {}
+        pubkey_hash = sha512(PUBKEY.save_pkcs1()).hexdigest()
+        headers['AUTHORIZATION'] = pubkey_hash
+        signature = rsa.sign(request.path.encode('ascii'), PRIVKEY, 'SHA-512')
+        headers['VALIDATION'] = binascii.hexlify(signature).decode('ascii')
+        request.headers = headers
+        request.version = protocol.HttpVersion11
+        self.request = request
+        # An allowed dictionary containing the correct public key.
+        self.allowed = {
+            pubkey_hash: PUBKEY,
+        }
+
+    def test_valid_request_with_matched_key(self):
+        """
+        The incoming request has the correct headers containing an
+        Authorization value that matches with the allowed whitelist and a
+        related Validation value that verifies.
+
+        This is the only case where the function should return True.
+        """
+        self.assertTrue(accept_request(self.request, self.allowed))
+
+    def test_http_version_is_not_1_1(self):
+        """
+        If the HTTP version is not 1.1 return False.
+        """
+        self.request.version = protocol.HttpVersion10
+        self.assertFalse(accept_request(self.request, self.allowed))
+
+    def test_valid_request_with_unmatched_key(self):
+        """
+        The request is correct (it has the right headers) but does not match
+        the allowed whitelist.
+        """
+        self.allowed = {}
+        self.assertFalse(accept_request(self.request, self.allowed))
+
+    def test_valid_request_with_matched_key_invalid_validation(self):
+        """
+        The key is matched but the validation check fails.
+        """
+        self.request.headers['VALIDATION'] = 'foo'
+        self.assertFalse(accept_request(self.request, self.allowed))
+
+    def test_request_missing_authorization_header(self):
+        """
+        The request fails since it does not contain the required Authorization
+        header.
+        """
+        del self.request.headers['AUTHORIZATION']
+        self.assertFalse(accept_request(self.request, self.allowed))
+
+    def test_request_missing_validation_header(self):
+        """
+        The request fails since it does not contain the required Validation
+        header.
+        """
+        del self.request.headers['VALIDATION']
+        self.assertFalse(accept_request(self.request, self.allowed))
 
 
 class TestHttpConnector(unittest.TestCase):
@@ -341,6 +428,195 @@ class TestHttpConnector(unittest.TestCase):
         self.assertEqual(result['key'], test_key)
         self.assertEqual(result['status'], faux_lookup._state.lower())
         self.assertEqual(2, len(result))
+
+
+class TestApplicationHandler(unittest.TestCase):
+    """
+    Ensures that the ApplicationHandler class works as expected.
+
+    The ApplicationHandler defines the methods that handle specific HTTP
+    ACTION/PATH combinations.
+    """
+
+    def setUp(self):
+        """
+        Set up a new throw-away event loop.
+        """
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        pubkey_hash = sha512(PUBKEY.save_pkcs1()).hexdigest()
+        self.event_loop = asyncio.get_event_loop()
+        self.connector = HttpConnector(self.event_loop)
+        self.local_node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop,
+                               self.connector, 1908)
+        self.allowed = {pubkey_hash: PUBKEY}
+
+    def test_init(self):
+        """
+        Check that the passed in arguments really *are* set against the
+        local instance.
+        """
+        ah = ApplicationHandler(self.event_loop, self.connector,
+                                self.local_node, self.allowed)
+        self.assertEqual(ah.event_loop, self.event_loop)
+        self.assertEqual(ah.connector, self.connector)
+        self.assertEqual(ah.local_node, self.local_node)
+        self.assertEqual(ah.allowed, self.allowed)
+
+    def test_dht_traffic(self):
+        """
+        Ensure that all DHT related traffic is handled as expected.
+        """
+        fake_connector = HttpConnector(self.event_loop)
+        fake_result = OK('uuid', 'recipient', 'sender', 9999, 'version',
+                         'seal')
+
+        @asyncio.coroutine
+        def faux_receive(*args, **kwargs):
+            return fake_result
+
+        fake_connector.receive = mock.MagicMock(side_effect=faux_receive)
+        ah = ApplicationHandler(self.event_loop, fake_connector,
+                                self.local_node, self.allowed)
+
+        ah.transport = mock.MagicMock()
+        peer = ('192.168.0.1', 8888)
+        ah.transport.get_extra_info = mock.MagicMock(return_value=peer)
+        mockRequest = mock.MagicMock()
+
+        @asyncio.coroutine
+        def faux_json(*args, **kwargs):
+            return {'some', 'json'}
+
+        mockRequest.json = mock.MagicMock(side_effect=faux_json)
+
+        with mock.patch.object(web, 'Response',
+                               return_value=mock.MagicMock()) as response:
+            self.event_loop.run_until_complete(ah.dht_traffic(mockRequest))
+            expected_body = json.dumps(to_dict(fake_result)).encode('utf-8')
+            response.assert_called_once_with(body=expected_body, status=200,
+                                             content_type='application/json')
+
+    def test_dht_traffic_with_error(self):
+        """
+        Ensure that DHT related traffic that causes an error is handled as
+        expected.
+        """
+        fake_connector = HttpConnector(self.event_loop)
+
+        @asyncio.coroutine
+        def faux_receive(*args, **kwargs):
+            raise Exception('Bang')
+
+        fake_connector.receive = mock.MagicMock(side_effect=faux_receive)
+        ah = ApplicationHandler(self.event_loop, fake_connector,
+                                self.local_node, self.allowed)
+
+        ah.transport = mock.MagicMock()
+        peer = ('192.168.0.1', 8888)
+        ah.transport.get_extra_info = mock.MagicMock(return_value=peer)
+        mockRequest = mock.MagicMock()
+
+        @asyncio.coroutine
+        def faux_json(*args, **kwargs):
+            return {'some', 'json'}
+
+        mockRequest.json = mock.MagicMock(side_effect=faux_json)
+        self.event_loop.set_exception_handler(mock.MagicMock())
+        with self.assertRaises(web.HTTPInternalServerError):
+            self.event_loop.run_until_complete(ah.dht_traffic(mockRequest))
+
+    def test_home(self):
+        """
+        Ensure the HTML for the local node's homepage is returned.
+        """
+        ah = ApplicationHandler(self.event_loop, self.connector,
+                                self.local_node, self.allowed)
+        mockRequest = mock.MagicMock()
+        template = mock.MagicMock()
+        template.render = mock.MagicMock(return_value='<html/>')
+        ah.template_env.get_template = mock.MagicMock(return_value=template)
+        with mock.patch.object(web, 'Response',
+                               return_value=mock.MagicMock()) as response:
+            self.event_loop.run_until_complete(ah.home(mockRequest))
+            network_id = self.local_node.network_id
+            template.render.assert_called_once_with(node_id=network_id)
+            expected_body = template.render().encode('utf-8')
+            response.assert_called_once_with(body=expected_body, status=200)
+
+    def test_set_value(self):
+        """
+        Ensures a POST to /<key> is handled correctly.
+        """
+        assert False
+
+    def test_get_value(self):
+        """
+        Ensures a GET to /<key> is handled correctly.
+        """
+        assert False
+
+    def test_get_static_not_found(self):
+        """
+        Ensures GET requests to an unknown /static/<path> are handled
+        correctly.
+        """
+        ah = ApplicationHandler(self.event_loop, self.connector,
+                                self.local_node, self.allowed)
+        mockRequest = mock.MagicMock()
+        mockRequest.match_info = {
+            'path': 'foo.js',
+        }
+        self.event_loop.set_exception_handler(mock.MagicMock())
+        with self.assertRaises(web.HTTPNotFound):
+            self.event_loop.run_until_complete(ah.get_static(mockRequest))
+
+    def test_get_static(self):
+        """
+        Ensures GET requests to /static/<path> are handled correctly.
+        """
+        ah = ApplicationHandler(self.event_loop, self.connector,
+                                self.local_node, self.allowed)
+        mockRequest = mock.MagicMock()
+        mockRequest.match_info = {
+            'path': 'drogulus.js',
+        }
+        template = mock.MagicMock()
+        template.render = mock.MagicMock(side_effect=lambda: '<html/>')
+        ah.template_env.get_template = mock.MagicMock(return_value=template)
+        with mock.patch.object(web, 'Response',
+                               return_value=mock.MagicMock()) as response:
+            self.event_loop.run_until_complete(ah.get_static(mockRequest))
+            expected_body = template.render().encode('utf-8')
+            response.assert_called_once_with(body=expected_body, status=200)
+
+
+class TestMakeHttpHandler(unittest.TestCase):
+    """
+    Ensures the make_http_handler function works as expected.
+    """
+
+    def setUp(self):
+        """
+        Set up a new throw-away event loop.
+        """
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        pubkey_hash = sha512(PUBKEY.save_pkcs1()).hexdigest()
+        self.event_loop = asyncio.get_event_loop()
+        self.connector = HttpConnector(self.event_loop)
+        self.local_node = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop,
+                               self.connector, 1908)
+        self.allowed = {pubkey_hash: PUBKEY}
+
+    def test_make_http_handler(self):
+        """
+        Test the resulting handler is set up correctly (there should be 6
+        paths to be "handled").
+        """
+        handler = make_http_handler(self.event_loop, self.connector,
+                                    self.local_node, self.allowed)
+        self.assertEqual(6, len(handler._app.router._urls))
 
 
 class TestHttpRequestHandler(unittest.TestCase):

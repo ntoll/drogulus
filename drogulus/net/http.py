@@ -6,6 +6,8 @@ the local node (from its point of view, messages come in and messages go out).
 """
 from ..dht.messages import to_dict, from_dict
 from .connector import Connector
+from aiohttp import web
+from aiohttp import protocol
 import aiohttp
 import aiohttp.server
 import logging
@@ -14,9 +16,56 @@ import json
 import traceback
 import re
 import time
+import rsa
+import binascii
+import jinja2
+import os
 
 
 log = logging.getLogger(__name__)
+
+
+def accept_request(request, allowed):
+    """
+    Returns True if the incoming request is to be accepted, otherwise False.
+
+    Given an incoming HTTP 1.1 request will extract the appropriate
+    'Authorization' and 'Validation' header values and ensure they relate to
+    an entry in the whitelist of allowed clients who may use the node to
+    GET/SET to the drogulus.
+
+    The mechanism is simple:
+
+    * The Authorization value is a SHA512 of the public key of the user who
+    signed the incoming message.
+    * The Validation value is an RSA signature (generated with the user's
+    private key) of the path.
+    * If an Authorization value is matched in the allowed whitelist of public
+    keys then the Validation value is verified with the associated public
+    key.
+    * If the Validation is signed correctly then the return value is True.
+    * In all other cases, the return value is False.
+
+    The allowed argument is a dictionary where the keys are SHA512 hashes of
+    their associated value - a string representation of the related public
+    key used to verify invoming Validation values.
+    """
+    if request.version != protocol.HttpVersion11:
+        return False
+    authorization = request.headers.get('AUTHORIZATION', False)
+    validation = request.headers.get('VALIDATION', False)
+    if authorization and validation:
+        if authorization in allowed:
+            public_key = allowed[authorization]
+            try:
+                signature = binascii.unhexlify(validation.encode('ascii'))
+                return rsa.verify(request.path.encode('ascii'), signature,
+                                  allowed[authorization])
+            except Exception as ex:
+                log.error('Incoming request disallowed.')
+                log.error(request)
+                log.error(ex)
+    return False
 
 
 class HttpConnector(Connector):
@@ -124,6 +173,141 @@ class HttpConnector(Connector):
             except:
                 result['error'] = True
         return result
+
+
+class ApplicationHandler:
+    """
+    A class that defines the methods to handle specific HTTP ACTION/PATH
+    combinations.
+    """
+
+    def __init__(self, event_loop, connector, local_node, allowed):
+        """
+        The event loop, connector, local_node and allowed arguments are all
+        stored as instance attributes to be referenced by the coroutine
+        methods.
+        """
+        self.event_loop = event_loop
+        self.connector = connector
+        self.local_node = local_node
+        self.allowed = allowed
+        self.resource_path = os.path.join(os.path.dirname(__file__),
+                                          'web_resources')
+        loader = jinja2.FileSystemLoader(self.resource_path)
+        self.template_env = jinja2.Environment(loader=loader)
+
+    @asyncio.coroutine
+    def dht_traffic(self, request):
+        """
+        Handle all DHT related traffic (JSON).
+        """
+        data = None
+        try:
+            raw_data = yield from request.json()
+            peer = self.transport.get_extra_info('peername')[0]
+            log.info(peer)
+            log.info(raw_data)
+            result = yield from self.connector.receive(raw_data, peer,
+                                                       self.local_node)
+            data = to_dict(result)
+        except Exception as ex:
+            # We log any errors in the connector / node instances,
+            # so return an appropriate error to the caller.
+            raise web.HTTPInternalServerError
+        raw_output = json.dumps(data).encode('utf-8')
+        return web.Response(body=raw_output, status=200,
+                            content_type='application/json')
+
+    @asyncio.coroutine
+    def home(self, request):
+        """
+        Return the HTML for the local_node's home page.
+        """
+        template = self.template_env.get_template('index.html')
+        result = template.render(node_id=self.local_node.network_id)
+        return web.Response(body=result.encode('utf-8'), status=200)
+
+    @asyncio.coroutine
+    def set_value(self, request, key):
+        """
+        POST to /<key> - sets a value to the referenced sha512 key.
+        """
+        return web.HTTPForbidden()
+        pass
+
+    @asyncio.coroutine
+    def get_value(self, request, key):
+        """
+        GET to /<key> - gets a value from the referenced sha512 key.
+        """
+        pass
+
+    @asyncio.coroutine
+    def get_static(self, request):
+        """
+        GET to /static/<path> returns static assets needed by the local node's
+        web application user interface.
+        """
+        template_extensions = ('html')
+        path = request.match_info['path']
+        if path.endswith(template_extensions):
+            template_name = 'static/{}'.format(path)
+            if template_name in self.template_env.list_templates():
+                template = self.template_env.get_template(template_name)
+                return web.Response(body=template.render().encode('utf-8'),
+                                    status=200)
+            else:
+                raise web.HTTPNotFound()
+        else:
+            # Naively serve a binary file directly from the filesystem.
+            file_path = os.path.join(self.resource_path, 'static', path)
+            if os.path.isfile(file_path):
+                static_file = open(file_path, 'rb').read()
+                return web.Response(body=static_file, status=200)
+            else:
+                raise web.HTTPNotFound()
+
+    @asyncio.coroutine
+    def web_soc(request):
+        """
+        Handles web-socket connections.
+        """
+        ws = web.WebSocketResponse()
+        ws.start(request)
+        while True:
+            msg = yield from ws.receive()
+            if msg.tp == aiohttp.MsgType.text:
+                if msg.data == 'close':
+                    yield from ws.close()
+                else:
+                    # TODO: handle incoming GET/SET calls.
+                    pass
+            elif msg.tp == aiohttpMsgType.close:
+                peer = self.transport.get_extra_info('peername')[0]
+                log.info('Websocket with {} closed'.format(peer))
+            elif msg.tp == aiohttpMsgType.error:
+                log.error('Websocket connection closed with error')
+                log.error(ws.exception())
+        return ws
+
+
+def make_http_handler(event_loop, connector, local_node, allowed):
+    """
+    Returns a handler to be used when creating an asyncio server for the
+    public facing web-application layer of the drogulus.
+
+    The arguments are passed to the ApplicationHandler object.
+    """
+    app = web.Application()
+    handler = ApplicationHandler(event_loop, connector, local_node, allowed)
+    sha512_regex = r'{key:[a-zA-Z0-9]{128}$}'
+    app.router.add_route('POST', '/', handler.dht_traffic)
+    app.router.add_route('GET', '/', handler.home)
+    app.router.add_route('POST', '/{}'.format(sha512_regex), handler.set_value)
+    app.router.add_route('GET', '/{}'.format(sha512_regex), handler.get_value)
+    app.router.add_route('GET', '/static/{path}', handler.get_static)
+    app.router.add_route('GET', '/socket', handler.web_soc)
+    return app.make_handler()
 
 
 class HttpRequestHandler(aiohttp.server.ServerHttpProtocol):
