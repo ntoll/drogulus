@@ -8,7 +8,7 @@ import logging
 import asyncio
 sys.path.append(os.path.join('..', 'drogulus'))
 from drogulus.node import Drogulus
-from drogulus.net.http import HttpConnector, HttpRequestHandler, make_http_handler
+from drogulus.net.http import HttpConnector, make_http_handler
 
 
 PRIVATE_KEY = """-----BEGIN RSA PRIVATE KEY-----
@@ -54,24 +54,13 @@ def start_node(logfile, port):
     event_loop = asyncio.get_event_loop()
     connector = HttpConnector(event_loop)
     instance = Drogulus(PRIVATE_KEY, PUBLIC_KEY, event_loop, connector, port)
-    app = make_http_handler(event_loop, connector, instance, None)
-    f = event_loop.create_server(app, '0.0.0.0', 8080)
-    srv = event_loop.run_until_complete(f)
+    app = make_http_handler(event_loop, connector, instance._node)
+    f = event_loop.create_server(app, '0.0.0.0', port)
+    event_loop.run_until_complete(f)
     try:
         event_loop.run_forever()
-    except KeyboardInterrup:
+    except KeyboardInterrupt:
         pass
-
-    def protocol_factory(connector=connector, node=instance._node):
-        """
-        Returns an appropriately configured NetstringProtocol object for
-        each connection.
-        """
-        return HttpRequestHandler(connector, node)
-
-    setup_server = event_loop.create_server(protocol_factory, port=port)
-    event_loop.run_until_complete(setup_server)
-    event_loop.run_forever()
 
 
 if __name__ == '__main__':

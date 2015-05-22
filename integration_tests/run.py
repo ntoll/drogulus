@@ -8,6 +8,7 @@ import tempfile
 import json
 import requests
 import rsa
+import binascii
 from subprocess import Popen
 from uuid import uuid4
 from hashlib import sha512
@@ -73,6 +74,20 @@ def seal_message(msg_type, msg_dict, private_key):
     msg_dict['seal'] = seal
     msg_dict['message'] = msg_type
     return msg_dict
+
+
+def make_headers(path, pubkey, privkey):
+    """
+    Returns a dict object containing the headers needed to authenticate and
+    validate an incoming HTTP request for the web based API.
+    """
+    headers = {}
+    pubkey_hash = sha512(pubkey.save_pkcs1()).hexdigest()
+    headers['AUTHORIZATION'] = pubkey_hash
+    signature = rsa.sign(path.encode('ascii'), privkey, 'SHA-512')
+    headers['VALIDATION'] = binascii.hexlify(signature).decode('ascii')
+    assert False
+    return headers
 
 
 def test_send_store(port, version, public_key, private_key):
@@ -211,7 +226,7 @@ def test_send_get_bad_sha512(port, version, public_key, private_key):
     If the path isn't a valid sha512 return a 400 response.
     """
     result = requests.get("http://localhost:{}/foo".format(port))
-    assert result.status_code == 400
+    assert result.status_code == 404
 
 
 def test_send_get_pending_lookup(port, version, public_key, private_key):

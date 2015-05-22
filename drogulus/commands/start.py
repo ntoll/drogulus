@@ -3,7 +3,7 @@
 Defines the command for starting a node in the drogulus.
 """
 from ..node import Drogulus
-from ..net.http import HttpConnector, HttpRequestHandler
+from ..net.http import HttpConnector, make_http_handler
 from .utils import data_dir, log_dir, get_keys, get_whoami, APPNAME
 from cliff.command import Command
 from getpass import getpass
@@ -37,7 +37,9 @@ class Start(Command):
         parser.add_argument('--port', nargs='?', default=1908, type=int,
                             help='The incoming port (defaults to 1908).')
         parser.add_argument('--whoami', nargs='?', default='', type=str,
-                            help='The whoami.json file to use.')
+                            help='The whoami.json file to use to identify ' +
+                            'the owner of the local node to the wider ' +
+                            'network.')
         return parser
 
     def take_action(self, parsed_args):
@@ -96,17 +98,9 @@ class Start(Command):
         connector = HttpConnector(event_loop)  # NetstringConnector(event_loop)
         instance = Drogulus(private_key, public_key, event_loop, connector,
                             port, whoami)
-
-        def protocol_factory(connector=connector, node=instance._node):
-            """
-            Returns an appropriately configured Protocol object for
-            each connection.
-            """
-            return HttpRequestHandler(connector, node)
-
-        setup_server = event_loop.create_server(protocol_factory, port=port)
-        server = event_loop.run_until_complete(setup_server)
-        log.info('Serving on {}.'.format(server.sockets[0].getsockname()))
+        app = make_http_handler(event_loop, connector, instance._node)
+        app_task = event_loop.create_server(app, '0.0.0.0', port)
+        server = event_loop.run_until_complete(app_task)
 
         # Join the network
         if peer_file:

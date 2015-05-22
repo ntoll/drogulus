@@ -76,11 +76,12 @@ def get_signed_item(key, value, public_key, private_key, expires=None):
     return signed_item
 
 
-def verify_item(item):
+def verify_item(raw_item):
     """
     Returns a boolean to indicate if the item representing a key/value can be
     verified.
     """
+    item = raw_item.copy()
     try:
         ignore_fields = ['uuid', 'recipient', 'sender', 'reply_port',
                          'version', 'seal', 'message']

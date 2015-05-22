@@ -197,6 +197,15 @@ class TestVerifyItem(unittest.TestCase):
         signed_item['public_key'] = BAD_PUBLIC_KEY
         self.assertFalse(verify_item(signed_item))
 
+    def test_does_not_modify_item(self):
+        """
+        Ensure that the passed in item is itself not modified by the
+        verification process.
+        """
+        signed_item = get_signed_item('key', 'value', PUBLIC_KEY, PRIVATE_KEY)
+        self.assertTrue(verify_item(signed_item))
+        self.assertIn('signature', signed_item)
+
 
 class TestGetHashFunction(unittest.TestCase):
     """

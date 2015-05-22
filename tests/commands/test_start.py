@@ -5,7 +5,7 @@ Ensures the Start class works as expected.
 import unittest
 import os.path
 from drogulus.commands.start import Start
-from drogulus.net.http import HttpConnector, HttpRequestHandler
+from drogulus.net.http import HttpConnector
 from unittest import mock
 from ..keys import PRIVATE_KEY, PUBLIC_KEY
 
@@ -126,7 +126,7 @@ class TestStart(unittest.TestCase):
                                                                 priv_path,
                                                                 pub_path)
                             patched_whoami.assert_called_once_with(whoami)
-                            self.assertEqual(1,
+                            self.assertEqual(2,
                                              patched_asyncio.call_count)
                             self.assertEqual(1,
                                              patched_drogulus.call_count)
@@ -260,10 +260,10 @@ class TestStart(unittest.TestCase):
                             called_with = patched_drogulus.call_args[0]
                             self.assertEqual(called_with[5], None)
 
-    def test_take_action_protocol_factory_returns_request_handler(self):
+    def test_take_action_calls_make_http_handler(self):
         """
-        Ensure that the protocol_factory function defined in this script
-        returns a correctly instantiated HttpRequestHandler object.
+        Ensure that the make_http_handler function is called in order to set up
+        the HTTP based API.
         """
         passphrase = 'passphrase'
         whoami = 'whoami.json'
@@ -311,15 +311,13 @@ class TestStart(unittest.TestCase):
                         drog._node.routing_table.dump.return_value = {}
                         with mock.patch('drogulus.commands.start.Drogulus',
                                         return_value=drog):
-                            start = Start(None, None)
-                            start.take_action(parsed_args)
-                            self.assertEqual(1, loop.create_server.call_count)
-                            called_with = loop.create_server.call_args[0]
-                            protocol_factory = called_with[0]
-                            result = protocol_factory(mock.MagicMock(),
-                                                      mock.MagicMock())
-                            self.assertIsInstance(result,
-                                                  HttpRequestHandler)
+                            with mock.patch('drogulus.commands.start.' +
+                                            'make_http_handler') as fake_mhh:
+                                start = Start(None, None)
+                                start.take_action(parsed_args)
+                                self.assertEqual(1,
+                                                 loop.create_server.call_count)
+                                self.assertEqual(1, fake_mhh.call_count)
 
     def test_take_action_has_peer_file_to_load(self):
         """
