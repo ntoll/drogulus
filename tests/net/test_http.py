@@ -777,4 +777,4 @@ class TestMakeHttpHandler(unittest.TestCase):
         """
         handler = make_http_handler(self.event_loop, self.connector,
                                     self.local_node)
-        self.assertEqual(5, len(handler._app.router._urls))
+        self.assertEqual(6, len(handler._app.router._urls))

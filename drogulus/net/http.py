@@ -290,6 +290,29 @@ class ApplicationHandler:
         else:
             raise web.HTTPNotFound()
 
+    @asyncio.coroutine
+    def web_soc(self, request):
+        """
+        Handles web-socket connections.
+        """
+        ws = web.WebSocketResponse()
+        ws.start(request)
+        while True:
+            msg = yield from ws.receive()
+            if msg.tp == aiohttp.MsgType.text:
+                if msg.data == 'close':
+                    yield from ws.close()
+                else:
+                    # TODO: handle incoming GET/SET calls.
+                    pass
+            elif msg.tp == aiohttp.MsgType.close:
+                peer = request.transport.get_extra_info('peername')[0]
+                log.info('Websocket with {} closed'.format(peer))
+            elif msg.tp == aiohttp.MsgType.error:
+                log.error('Websocket connection closed with error')
+                log.error(ws.exception())
+        return ws
+
 
 def make_http_handler(event_loop, connector, local_node):
     """
@@ -306,4 +329,5 @@ def make_http_handler(event_loop, connector, local_node):
     app.router.add_route('POST', '/{}'.format(sha512_regex), handler.set_value)
     app.router.add_route('GET', '/{}'.format(sha512_regex), handler.get_value)
     app.router.add_route('GET', '/static/{path}', handler.get_static)
+    app.router.add_route('GET', '/socket', handler.web_soc)
     return app.make_handler()
