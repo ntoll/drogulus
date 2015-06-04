@@ -1156,6 +1156,103 @@ class TestApplicationHandler(unittest.TestCase):
             self.event_loop.run_until_complete(ah.web_soc(self.request))
             self.assertEqual(1, ah.websoc_handle_set.call_count)
 
+    def test_websoc_handle_set(self):
+        """
+        Ensure the function to handle incoming DHT SET requests works as
+        expected in the good case.
+        """
+        ws = mock.MagicMock()
+        ws.send_str = mock.MagicMock()
+
+        get_task = asyncio.Future()
+        self.connector.async_set = mock.MagicMock(return_value=get_task)
+
+        ah = ApplicationHandler(self.event_loop, self.connector,
+                                self.local_node)
+        message = {'type': 'set', 'key': self.path}
+
+        @asyncio.coroutine
+        def run_test():
+            ah.websoc_handle_set(ws, message)
+            expected_result = [asyncio.Future() for i in range(20)]
+            get_task.set_result(expected_result)
+            for task in expected_result:
+                task.set_result('ok')
+            yield from asyncio.sleep(0.1)
+
+        self.event_loop.run_until_complete(run_test())
+        self.connector.async_set.assert_called_once_with(self.local_node,
+                                                         message)
+        self.assertEqual(21, ws.send_str.call_count)
+        self.assertEqual(json.dumps({'key': self.path,
+                         'duplication_count': 20}),
+                         ws.send_str.call_args_list[0][0][0])
+        for call in ws.send_str.call_args_list[1:]:
+            self.assertEqual(json.dumps({'key': self.path, 'status': 'ok'}),
+                             call[0][0])
+
+    def test_websoc_handle_set_lookup_error(self):
+        """
+        Ensure the function to handle incoming DHT SET requests recovers
+        appropriately in the case of a lookup error.
+        """
+        ws = mock.MagicMock()
+        ws.send_str = mock.MagicMock()
+
+        get_task = asyncio.Future()
+        self.connector.async_set = mock.MagicMock(return_value=get_task)
+
+        ah = ApplicationHandler(self.event_loop, self.connector,
+                                self.local_node)
+        message = {'type': 'set', 'key': self.path}
+
+        @asyncio.coroutine
+        def run_test():
+            ah.websoc_handle_set(ws, message)
+            get_task.set_exception(ValueError('Bang'))
+            yield from asyncio.sleep(0.1)
+
+        self.event_loop.run_until_complete(run_test())
+        self.connector.async_set.assert_called_once_with(self.local_node,
+                                                         message)
+        self.assertEqual(1, ws.send_str.call_count)
+
+    def test_websoc_handle_set_rpc_error(self):
+        """
+        Ensure the function to handle incoming DHT SET requests recovers
+        appropriately in the case of an RPC to a node that needs to store
+        an item.
+        """
+        ws = mock.MagicMock()
+        ws.send_str = mock.MagicMock()
+
+        get_task = asyncio.Future()
+        self.connector.async_set = mock.MagicMock(return_value=get_task)
+
+        ah = ApplicationHandler(self.event_loop, self.connector,
+                                self.local_node)
+        message = {'type': 'set', 'key': self.path}
+
+        @asyncio.coroutine
+        def run_test():
+            ah.websoc_handle_set(ws, message)
+            expected_result = [asyncio.Future() for i in range(20)]
+            get_task.set_result(expected_result)
+            for task in expected_result:
+                task.set_exception(ValueError('BANG'))
+            yield from asyncio.sleep(0.1)
+
+        self.event_loop.run_until_complete(run_test())
+        self.connector.async_set.assert_called_once_with(self.local_node,
+                                                         message)
+        self.assertEqual(21, ws.send_str.call_count)
+        self.assertEqual(json.dumps({'key': self.path,
+                         'duplication_count': 20}),
+                         ws.send_str.call_args_list[0][0][0])
+        for call in ws.send_str.call_args_list[1:]:
+            self.assertEqual(json.dumps({'key': self.path,
+                                        'status': 'failed'}), call[0][0])
+
 
 class TestMakeHttpHandler(unittest.TestCase):
     """

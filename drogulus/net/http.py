@@ -359,19 +359,13 @@ class ApplicationHandler:
 
         def handle_getter(getter, ws=web_socket, message=message):
             """
-            Return the result to the client when it becomes
-            known.
-
-            If there are any errors, these will be logged
-            by the local_node.
+            Return the result to the client when it becomes known. If there
+            are any errors, these will be logged by the local_node.
             """
             try:
                 result = getter.result()
             except Exception:
-                result = {
-                    'key': message['key'],
-                    'error': True
-                }
+                result = {'key': message['key'], 'error': True}
             finally:
                 msg = json.dumps(result)
                 ws.send_str(msg)
@@ -381,9 +375,7 @@ class ApplicationHandler:
         log.info('Websocket GET lookup for {}'.format(key))
         # Forced will ignore a locally cached item.
         forced = message.get('forced', False)
-        getter = self.connector.async_get(key,
-                                          self.local_node,
-                                          forced)
+        getter = self.connector.async_get(key, self.local_node, forced)
         getter.add_done_callback(handle_getter)
 
     def websoc_handle_set(self, web_socket, message):
@@ -393,54 +385,51 @@ class ApplicationHandler:
 
         def handle_setter(setter, ws=web_socket, message=message):
             """
-            Return confirmation messages to indicate the
-            progress of setting a value in the DHT.
+            Return confirmation messages to indicate the progress of setting a
+            value in the DHT.
 
-            If the setter has a result it will be a list
-            of Future object representing N number of
-            calls to peers in the DHT to store the item.
+            If the setter has a result it will be a list of Future object
+            representing N number of calls to peers in the DHT to store the
+            item.
 
-            If there are errors these will be logged by
-            the local node.
+            If there are errors these will be logged by the local node.
             """
             try:
                 rpcs = setter.result()
-                if type(rpcs) is list:
-                    # Result indicates number of pending
-                    # RPC for this put operation.
-                    result = {
-                        'key': message['key'],
-                        'duplication_count': len(rpcs)
-                    }
+                # Result indicates number of pending RPC for this put
+                # operation.
+                result = {
+                    'key': message['key'],
+                    'duplication_count': len(rpcs)
+                }
 
-                    # Ensure each completed RPC causes a
-                    # pingback to the client.
-                    def handle_rpc(rpc_task):
-                        """
-                        Return a status indication for an
-                        RPC that is part of a put
-                        operation.
-                        """
-                        msg = {
-                            'key': message['key'],
-                        }
+                # Ensure each completed RPC causes a pingback to the client.
+
+                def handle_rpc(rpc_task, ws=ws):
+                    """
+                    Return a status indication for an RPC that is part of
+                    a put operation.
+                    """
+                    msg = {
+                        'key': message['key'],
+                    }
+                    try:
+                        rpc_task.result()
+                        msg['status'] = 'ok'
+                    except:
+                        msg['status'] = 'failed'
+                    finally:
                         ws.send_str(json.dumps(msg))
 
-                    for task in rpcs:
-                        task.add_done_callback(handle_rpc)
-                else:
-                    log.error('Expected a list on websoc' +
-                              ' put operation.')
-                    log.error(rpcs)
-                    raise ValueError()
+                for task in rpcs:
+                    task.add_done_callback(handle_rpc)
             except Exception:
                 result = {'error': True}
             finally:
                 msg = json.dumps(result)
                 ws.send_str(msg)
 
-        setter = self.connector.async_set(self.local_node,
-                                          message)
+        setter = self.connector.async_set(self.local_node, message)
         setter.add_done_callback(handle_setter)
 
 
