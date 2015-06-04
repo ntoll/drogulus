@@ -239,6 +239,68 @@ class TestHttpConnector(unittest.TestCase):
         self.assertEqual(4, mock_log.call_count)
         patcher.stop()
 
+    def test_async_get(self):
+        """
+        Ensure that an unknown key results in an appropriate looking to the
+        DHT and returns a lookup object.
+        """
+        connector = HttpConnector(self.event_loop)
+        self.assertEqual({}, connector.lookups)
+        handler = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, connector,
+                       1908)
+        faux_lookup = asyncio.Future()
+        handler.retrieve = mock.MagicMock(return_value=faux_lookup)
+        test_key = hashlib.sha512().hexdigest()
+        connector.async_get(test_key, handler)
+        handler.retrieve.assert_called_once_with(test_key)
+        self.assertIn(test_key, connector.lookups)
+        self.assertIsInstance(connector.lookups[test_key]['last_access'],
+                              float)
+        self.assertEqual(connector.lookups[test_key]['lookup'], faux_lookup)
+
+    def test_async_get_cached(self):
+        """
+        Ensure that if the key/value pair is already cached or "in flight" then
+        return the cahced lookup object.
+        """
+        connector = HttpConnector(self.event_loop)
+        self.assertEqual({}, connector.lookups)
+        handler = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, connector,
+                       1908)
+        faux_lookup = asyncio.Future()
+        faux_lookup.set_result('foo')
+        test_key = hashlib.sha512().hexdigest()
+        connector.lookups[test_key] = {
+            'last_access': 123.45,
+            'lookup': faux_lookup
+        }
+        connector.async_get(test_key, handler)
+        self.assertIn(test_key, connector.lookups)
+        # Check the last_access has been updated
+        self.assertTrue(connector.lookups[test_key]['last_access'] > 123.45)
+        self.assertEqual(connector.lookups[test_key]['lookup'], faux_lookup)
+
+    def test_async_get_forced(self):
+        """
+        Ensure that the forced flag ensures a new lookup is triggered no matter
+        that there may already be a cached lookup for the specified key.
+        """
+        connector = HttpConnector(self.event_loop)
+        self.assertEqual({}, connector.lookups)
+        handler = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, connector,
+                       1908)
+        cached_lookup = asyncio.Future()
+        cached_lookup.set_result('foo')
+        test_key = hashlib.sha512().hexdigest()
+        connector.lookups[test_key] = cached_lookup
+        new_lookup = asyncio.Future()
+        handler.retrieve = mock.MagicMock(return_value=new_lookup)
+        connector.async_get(test_key, handler, forced=True)
+        self.assertIn(test_key, connector.lookups)
+        self.assertIsInstance(connector.lookups[test_key]['last_access'],
+                              float)
+        self.assertEqual(connector.lookups[test_key]['lookup'], new_lookup)
+
     def test_get_new_lookup(self):
         """
         Getting an unknown key fires a new lookup that is initially produces a
@@ -358,6 +420,44 @@ class TestHttpConnector(unittest.TestCase):
         self.assertEqual(result['key'], test_key)
         self.assertEqual(result['status'], faux_lookup._state.lower())
         self.assertEqual(2, len(result))
+
+    def test_async_set(self):
+        """
+        Ensures that a valid item passes verification and results in a Future
+        to be resolved with a list of Futures indicating the progress in
+        PUTting the item to DUPLICATION_COUNT number of peers in the DHT (one
+        peer per Future in the resulting list).
+        """
+        connector = HttpConnector(self.event_loop)
+        handler = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, connector,
+                       1908)
+        faux_setter = asyncio.Future()
+        handler.replicate = mock.MagicMock(return_value=faux_setter)
+        item = self.signed_item
+        result = connector.async_set(handler, self.signed_item)
+        handler.replicate.assert_called_once_with(DUPLICATION_COUNT,
+                                                  item['key'], item['value'],
+                                                  item['timestamp'],
+                                                  item['expires'],
+                                                  item['created_with'],
+                                                  item['public_key'],
+                                                  item['name'],
+                                                  item['signature'])
+        self.assertEqual(result, faux_setter)
+
+    def test_async_set_fails(self):
+        """
+        Ensures that an invalid item raises a ValueError.
+        """
+        connector = HttpConnector(self.event_loop)
+        handler = Node(PUBLIC_KEY, PRIVATE_KEY, self.event_loop, connector,
+                       1908)
+        faux_setter = asyncio.Future()
+        handler.replicate = mock.MagicMock(return_value=faux_setter)
+        item = self.signed_item
+        item['signature'] = 'INCORRECT'
+        with self.assertRaises(ValueError):
+            connector.async_set(handler, item)
 
     def test_set(self):
         """
@@ -752,6 +852,319 @@ class TestApplicationHandler(unittest.TestCase):
                                return_value=mock.MagicMock()) as response:
             self.event_loop.run_until_complete(ah.get_static(mockRequest))
             response.assert_called_once_with(status=200, body=b'')
+
+    def test_websoc_close(self):
+        """
+        Ensure closing the websocket works as expected.
+
+        Here be (mock) dragons!!!!
+        """
+        ah = ApplicationHandler(self.event_loop, self.connector,
+                                self.local_node)
+
+        patcher = mock.patch('drogulus.net.http.log.info')
+
+        @asyncio.coroutine
+        def faux_read(*args, **kwargs):
+            incoming = mock.MagicMock()
+            incoming.tp = aiohttp.MsgType.close
+            return incoming
+
+        class FauxWebSocketResponse(web.WebSocketResponse):
+            def start(self, request):
+                self._reader = faux_reader
+
+            @asyncio.coroutine
+            def close(self, *args, **kwargs):
+                self._closed = True
+                return True
+
+        faux_reader = mock.MagicMock()
+        faux_reader.read = mock.MagicMock(side_effect=faux_read)
+
+        self.request.transport = mock.MagicMock()
+        p = ('192.168.0.1', 8888)  # Peer
+        self.request.transport.get_extra_info = mock.MagicMock(return_value=p)
+        mock_log = patcher.start()
+        with mock.patch.object(web, 'WebSocketResponse',
+                               side_effect=FauxWebSocketResponse):
+            self.event_loop.run_until_complete(ah.web_soc(self.request))
+            expected = 'Websocket with {} closed'.format(p[0])
+            mock_log.assert_called_once_with(expected)
+        patcher.stop()
+
+    def test_websoc_close_text(self):
+        """
+        Ensure closing the socket via the "close" message works as expected.
+        """
+        ah = ApplicationHandler(self.event_loop, self.connector,
+                                self.local_node)
+
+        @asyncio.coroutine
+        def faux_read(*args, **kwargs):
+            incoming = mock.MagicMock()
+            incoming.tp = aiohttp.MsgType.text
+            incoming.data = 'close'
+            return incoming
+
+        mock_close_counter = mock.MagicMock()
+
+        class FauxWebSocketResponse(web.WebSocketResponse):
+            def start(self, request):
+                self._reader = faux_reader
+
+            @asyncio.coroutine
+            def close(self, *args, **kwargs):
+                mock_close_counter()
+                self._closed = True
+                return True
+
+        faux_reader = mock.MagicMock()
+        faux_reader.read = mock.MagicMock(side_effect=faux_read)
+
+        self.request.transport = mock.MagicMock()
+        p = ('192.168.0.1', 8888)  # Peer
+        self.request.transport.get_extra_info = mock.MagicMock(return_value=p)
+        with mock.patch.object(web, 'WebSocketResponse',
+                               side_effect=FauxWebSocketResponse):
+            self.event_loop.run_until_complete(ah.web_soc(self.request))
+            self.assertEqual(1, mock_close_counter.call_count)
+
+    def test_websoc_error(self):
+        """
+        Ensure any websocket related errors are logged correctly.
+        """
+        ah = ApplicationHandler(self.event_loop, self.connector,
+                                self.local_node)
+
+        patcher = mock.patch('drogulus.net.http.log.error')
+
+        @asyncio.coroutine
+        def faux_read(*args, **kwargs):
+            raise ValueError('Bang')
+
+        class FauxWebSocketResponse(web.WebSocketResponse):
+            def start(self, request):
+                self._reader = faux_reader
+
+            @asyncio.coroutine
+            def close(self, *args, **kwargs):
+                self._closed = True
+                return True
+
+        faux_reader = mock.MagicMock()
+        faux_reader.read = mock.MagicMock(side_effect=faux_read)
+
+        self.request.transport = mock.MagicMock()
+        p = ('192.168.0.1', 8888)  # Peer
+        self.request.transport.get_extra_info = mock.MagicMock(return_value=p)
+        mock_log = patcher.start()
+        with mock.patch.object(web, 'WebSocketResponse',
+                               side_effect=FauxWebSocketResponse):
+            self.event_loop.run_until_complete(ah.web_soc(self.request))
+            self.assertEqual(2, mock_log.call_count)
+        patcher.stop()
+
+    def test_websoc_bad_data(self):
+        """
+        Ensure that the data down the wire is handled appropriately if it turns
+        out to be junk (i.e. not the expected JSON object).
+        """
+        ah = ApplicationHandler(self.event_loop, self.connector,
+                                self.local_node)
+        patcher = mock.patch('drogulus.net.http.log.error')
+
+        @asyncio.coroutine
+        def faux_read(*args, **kwargs):
+            incoming = mock.MagicMock()
+            incoming.tp = aiohttp.MsgType.text
+            incoming.data = 'foo bar baz'
+            return incoming
+
+        mock_send_str_counter = mock.MagicMock()
+        faux_reader = mock.MagicMock()
+        faux_reader.read = mock.MagicMock(side_effect=faux_read)
+
+        class FauxWebSocketResponse(web.WebSocketResponse):
+            def start(self, request):
+                self._reader = faux_reader
+
+            @asyncio.coroutine
+            def send_str(self, msg):
+                mock_send_str_counter(msg)
+                raise ValueError()
+
+        self.request.transport = mock.MagicMock()
+        p = ('192.168.0.1', 8888)  # Peer
+        self.request.transport.get_extra_info = mock.MagicMock(return_value=p)
+        mock_log = patcher.start()
+        with mock.patch.object(web, 'WebSocketResponse',
+                               side_effect=FauxWebSocketResponse):
+            try:
+                self.event_loop.run_until_complete(ah.web_soc(self.request))
+            except ValueError:
+                # Ignore the ValueError exception used to break out of the
+                # event loop. This is a dirty hack!
+                pass
+            self.assertEqual(1, mock_send_str_counter.call_count)
+            self.assertEqual(3, mock_log.call_count)
+        patcher.stop()
+
+    def test_websoc_get(self):
+        """
+        Make sure an incoming request to get an item from the DHT is
+        processed correctly.
+
+        HERE BE DRAGONS!!!! This is a shameful attempt at 100% test coverage
+        and contains a number of hacks used to fake the tests way around
+        asyncio and aiohttp so the correct mock is called with the appropriate
+        args and then the endless loop in the websocket code is closed cleanly.
+        """
+        get_task = asyncio.Future()
+        expected_result = json.dumps({'foo': 'bar'})
+        self.connector.async_get = mock.MagicMock(return_value=get_task)
+
+        ah = ApplicationHandler(self.event_loop, self.connector,
+                                self.local_node)
+
+        faux_read_counter = mock.MagicMock()
+
+        @asyncio.coroutine
+        def faux_read(*args, **kwargs):
+            incoming = mock.MagicMock()
+            incoming.tp = aiohttp.MsgType.text
+            if faux_read_counter.call_count == 0:
+                incoming.data = json.dumps({
+                    'type': 'get',
+                    'key': self.path,
+                    'forced': True
+                })
+            elif faux_read_counter.call_count == 1:
+                get_task.set_result(expected_result)
+                incoming.data = json.dumps({
+                    'type': 'ignore_this',
+                })
+            else:
+                yield from asyncio.sleep(0.1)
+                incoming.data = 'close'
+            faux_read_counter()
+            return incoming
+
+        faux_reader = mock.MagicMock()
+        faux_reader.read = mock.MagicMock(side_effect=faux_read)
+        mock_send_str_counter = mock.MagicMock()
+
+        class FauxWebSocketResponse(web.WebSocketResponse):
+            def start(self, request):
+                self._reader = faux_reader
+
+            @asyncio.coroutine
+            def close(self, *args, **kwargs):
+                self._closed = True
+                return True
+
+            def send_str(self, msg):
+                mock_send_str_counter(msg)
+                return True
+
+        self.request.transport = mock.MagicMock()
+        p = ('192.168.0.1', 8888)  # Peer
+        self.request.transport.get_extra_info = mock.MagicMock(return_value=p)
+        with mock.patch.object(web, 'WebSocketResponse',
+                               side_effect=FauxWebSocketResponse):
+
+            @asyncio.coroutine
+            def run_test(get_task):
+                yield from ah.web_soc(self.request)
+
+            self.event_loop.run_until_complete(run_test(get_task))
+            self.connector.async_get.assert_called_once_with(self.path,
+                                                             self.local_node,
+                                                             True)
+            self.assertEqual(1, mock_send_str_counter.call_count)
+
+    def test_websoc_get_error(self):
+        """
+        Make sure an incoming request to get an item from the DHT that results
+        in some sort of error is processed correctly.
+
+        HERE BE DRAGONS!!!! This is a shameful attempt at 100% test coverage
+        and contains a number of hacks used to fake the tests way around
+        asyncio and aiohttp so the correct mock is called with the appropriate
+        args and then the endless loop in the websocket code is closed cleanly.
+        """
+        get_task = asyncio.Future()
+        self.connector.async_get = mock.MagicMock(return_value=get_task)
+
+        ah = ApplicationHandler(self.event_loop, self.connector,
+                                self.local_node)
+
+        faux_read_counter = mock.MagicMock()
+
+        @asyncio.coroutine
+        def faux_read(*args, **kwargs):
+            incoming = mock.MagicMock()
+            incoming.tp = aiohttp.MsgType.text
+            if faux_read_counter.call_count == 0:
+                incoming.data = json.dumps({
+                    'type': 'get',
+                    'key': self.path,
+                    'forced': True
+                })
+            elif faux_read_counter.call_count == 1:
+                get_task.set_exception(ValueError('Bang'))
+                incoming.data = json.dumps({
+                    'type': 'ignore_this',
+                })
+            else:
+                yield from asyncio.sleep(0.1)
+                incoming.data = 'close'
+            faux_read_counter()
+            return incoming
+
+        faux_reader = mock.MagicMock()
+        faux_reader.read = mock.MagicMock(side_effect=faux_read)
+        mock_send_str_counter = mock.MagicMock()
+
+        class FauxWebSocketResponse(web.WebSocketResponse):
+            def start(self, request):
+                self._reader = faux_reader
+
+            @asyncio.coroutine
+            def close(self, *args, **kwargs):
+                self._closed = True
+                return True
+
+            def send_str(self, msg):
+                mock_send_str_counter(msg)
+                return True
+
+        self.request.transport = mock.MagicMock()
+        p = ('192.168.0.1', 8888)  # Peer
+        self.request.transport.get_extra_info = mock.MagicMock(return_value=p)
+        with mock.patch.object(web, 'WebSocketResponse',
+                               side_effect=FauxWebSocketResponse):
+
+            @asyncio.coroutine
+            def run_test(get_task):
+                yield from ah.web_soc(self.request)
+
+            self.event_loop.run_until_complete(run_test(get_task))
+            self.connector.async_get.assert_called_once_with(self.path,
+                                                             self.local_node,
+                                                             True)
+            expected_result = json.dumps({
+                'key': self.path,
+                'error': True
+            })
+            mock_send_str_counter.assert_called_once_with(expected_result)
+
+    def test_websoc_set(self):
+        """
+        Make sure an incoming request to set an item in the DHT is processed
+        correctly.
+        """
+        assert False
 
 
 class TestMakeHttpHandler(unittest.TestCase):

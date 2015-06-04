@@ -89,10 +89,27 @@ class HttpConnector(Connector):
             # Will cause generic 500 HTTP error response.
             raise ex
 
+    def async_get(self, key, local_node, forced=False):
+        """
+        Returns a lookup Future that will resolve when the GET request for the
+        value stored at the specified key is found.
+        """
+        lookup = None
+        if key in self.lookups and not forced:
+            lookup = self.lookups[key]['lookup']
+            self.lookups[key]['last_access'] = time.time()
+        else:
+            lookup = local_node.retrieve(key)
+            self.lookups[key] = {
+                'last_access': time.time(),
+                'lookup': lookup
+            }
+        return lookup
+
     def get(self, key, local_node, forced=False):
         """
-        An ApplicationHandler only utility method for conveniently getting
-        values from the drogulus as GET requests.
+        A method for conveniently getting values from the drogulus as GET
+        requests.
 
         Given the key (a sha512 hexdigest) this method will check if there is
         already an existing lookup for the key. If found it returns the status
@@ -111,17 +128,7 @@ class HttpConnector(Connector):
         should be removed from the cache during a sweep and clean scheduled
         every X seconds interval.
         """
-
-        lookup = None
-        if key in self.lookups and not forced:
-            lookup = self.lookups[key]['lookup']
-            self.lookups[key]['last_access'] = time.time()
-        else:
-            lookup = local_node.retrieve(key)
-            self.lookups[key] = {
-                'last_access': time.time(),
-                'lookup': lookup
-            }
+        lookup = self.async_get(key, local_node, forced)
         result = {'key': key}
         result['status'] = lookup._state.lower()
         if lookup.done():
@@ -130,6 +137,25 @@ class HttpConnector(Connector):
             except:
                 result['error'] = True
         return result
+
+    def async_set(self, local_node, item):
+        """
+        Returns a Future indicating the progress of the setting of an item
+        in the DHT.
+
+        The item is first checked for validity.
+        """
+        if verify_item(item):
+            return local_node.replicate(DUPLICATION_COUNT, item['key'],
+                                        item['value'], item['timestamp'],
+                                        item['expires'], item['created_with'],
+                                        item['public_key'], item['name'],
+                                        item['signature'])
+        else:
+            error = 'Unable to validate item.'
+            log.error(error)
+            log.error(item)
+            raise ValueError(error)
 
     def set(self, local_node, key, value, timestamp, expires, created_with,
             public_key, name, signature):
@@ -150,21 +176,10 @@ class HttpConnector(Connector):
             'name': name,
             'signature': signature,
         }
-        if verify_item(item):
-            setter = local_node.replicate(DUPLICATION_COUNT, item['key'],
-                                          item['value'], item['timestamp'],
-                                          item['expires'],
-                                          item['created_with'],
-                                          item['public_key'], item['name'],
-                                          item['signature'])
-            result = item.copy()
-            result['status'] = setter._state.lower()
-            return result
-        else:
-            error = 'Unable to validate item.'
-            log.error(error)
-            log.error(item)
-            raise ValueError(error)
+        setter = self.async_set(local_node, item)
+        result = item.copy()
+        result['status'] = setter._state.lower()
+        return result
 
 
 class ApplicationHandler:
@@ -293,25 +308,140 @@ class ApplicationHandler:
     @asyncio.coroutine
     def web_soc(self, request):
         """
-        Handles web-socket connections.
+        Handles web-socket connections in a totally non-obvious way. Based upon
+        the example in the aiohttp docs here:
+
+        https://aiohttp.readthedocs.org/en/v0.16.2/web.html#websockets
+
+        Put simply, this co-routine never returns. It yields from the
+        receive method to process incoming messages. If / when the connection
+        is closed then yielding from receive will raise an exception and the
+        co-routine will complete.
         """
         ws = web.WebSocketResponse()
         ws.start(request)
+        peer = request.transport.get_extra_info('peername')[0]
         while True:
-            msg = yield from ws.receive()
-            if msg.tp == aiohttp.MsgType.text:
-                if msg.data == 'close':
+            incoming = yield from ws.receive()
+            if incoming.tp == aiohttp.MsgType.text:
+                log.info('Incoming request from {}'.format(peer))
+                log.info(incoming)
+                if incoming.data == 'close':
                     yield from ws.close()
                 else:
-                    # TODO: handle incoming GET/SET calls.
-                    pass
-            elif msg.tp == aiohttp.MsgType.close:
-                peer = request.transport.get_extra_info('peername')[0]
+                    try:
+                        message = json.loads(incoming.data)
+                        msg_type = message.get('type', None)
+                        if msg_type == 'get':
+                            self.web_socket_handle_get(ws, message)
+                        elif msg_type == 'set':
+                            self.web_socket_handle_set(ws, message)
+                        # Ignore all other types of message over the websocket.
+                        # Whereof one cannot speak, thereof one must be silent.
+                    except Exception as ex:
+                        error_msg = 'WEBSOCKET bad data from {}'.format(peer)
+                        log.error(error_msg)
+                        log.error(incoming.data)
+                        log.error(ex)
+                        yield from ws.send_str(json.dumps({'error': True}))
+            elif incoming.tp == aiohttp.MsgType.close:
                 log.info('Websocket with {} closed'.format(peer))
-            elif msg.tp == aiohttp.MsgType.error:
+            elif incoming.tp == aiohttp.MsgType.closed:
+                break
+            elif incoming.tp == aiohttp.MsgType.error:
                 log.error('Websocket connection closed with error')
                 log.error(ws.exception())
-        return ws
+
+    def web_socket_handle_get(self, web_socket, message):
+        """
+        Handles incoming DHT GET messages on the specified web_socket.
+        """
+
+        def handle_getter(get_task, ws=web_socket, message=message):
+            """
+            Return the result to the client when it becomes
+            known.
+
+            If there are any errors, these will be logged
+            by the local_node.
+            """
+            try:
+                result = get_task.result()
+            except Exception:
+                result = {
+                    'key': message['key'],
+                    'error': True
+                }
+            finally:
+                msg = json.dumps(result)
+                ws.send_str(msg)
+
+        # Get the sha512 key from the message.
+        key = message['key']
+        log.info('Websocket GET lookup for {}'.format(key))
+        # Forced will ignore a locally cached item.
+        forced = message.get('forced', False)
+        getter = self.connector.async_get(key,
+                                          self.local_node,
+                                          forced)
+        getter.add_done_callback(handle_getter)
+
+    def web_socket_handle_set(self, web_socket, message):
+        """
+        Handles incoming DHT SET messages on the referenced web_socket.
+        """
+
+        def handle_setter(setter):
+            """
+            Return confirmation messages to indicate the
+            progress of setting a value in the DHT.
+
+            If the setter has a result it will be a list
+            of Future object representing N number of
+            calls to peers in the DHT to store the item.
+
+            If there are errors these will be logged by
+            the local node.
+            """
+            try:
+                rpcs = get_task.result()
+                if type(rpcs) is list:
+                    # Result indicates number of pending
+                    # RPC for this put operation.
+                    result = {
+                        'key': message['key'],
+                        'duplication_count': len(rpcs)
+                    }
+
+                    # Ensure each completed RPC causes a
+                    # pingback to the client.
+                    def handle_rpc(rpc_task):
+                        """
+                        Return a status indication for an
+                        RPC that is part of a put
+                        operation.
+                        """
+                        msg = {
+                            'key': message['key'],
+                        }
+                        ws.send_str(json.dumps(msg))
+
+                    for task in rpcs:
+                        task.add_done_callback(handle_rpc)
+                else:
+                    log.error('Expected a list on websoc' +
+                              ' put operation.')
+                    log.error(rpcs)
+                    raise ValueError()
+            except Exception:
+                result = {'error': True}
+            finally:
+                msg = json.dumps(result)
+                ws.send_str(msg)
+
+        setter = self.connector.async_set(self.local_node,
+                                          message)
+        setter.add_done_callback(handle_setter)
 
 
 def make_http_handler(event_loop, connector, local_node):
