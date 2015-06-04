@@ -333,9 +333,9 @@ class ApplicationHandler:
                         message = json.loads(incoming.data)
                         msg_type = message.get('type', None)
                         if msg_type == 'get':
-                            self.web_socket_handle_get(ws, message)
+                            self.websoc_handle_get(ws, message)
                         elif msg_type == 'set':
-                            self.web_socket_handle_set(ws, message)
+                            self.websoc_handle_set(ws, message)
                         # Ignore all other types of message over the websocket.
                         # Whereof one cannot speak, thereof one must be silent.
                     except Exception as ex:
@@ -352,12 +352,12 @@ class ApplicationHandler:
                 log.error('Websocket connection closed with error')
                 log.error(ws.exception())
 
-    def web_socket_handle_get(self, web_socket, message):
+    def websoc_handle_get(self, web_socket, message):
         """
         Handles incoming DHT GET messages on the specified web_socket.
         """
 
-        def handle_getter(get_task, ws=web_socket, message=message):
+        def handle_getter(getter, ws=web_socket, message=message):
             """
             Return the result to the client when it becomes
             known.
@@ -366,7 +366,7 @@ class ApplicationHandler:
             by the local_node.
             """
             try:
-                result = get_task.result()
+                result = getter.result()
             except Exception:
                 result = {
                     'key': message['key'],
@@ -386,12 +386,12 @@ class ApplicationHandler:
                                           forced)
         getter.add_done_callback(handle_getter)
 
-    def web_socket_handle_set(self, web_socket, message):
+    def websoc_handle_set(self, web_socket, message):
         """
         Handles incoming DHT SET messages on the referenced web_socket.
         """
 
-        def handle_setter(setter):
+        def handle_setter(setter, ws=web_socket, message=message):
             """
             Return confirmation messages to indicate the
             progress of setting a value in the DHT.
@@ -404,7 +404,7 @@ class ApplicationHandler:
             the local node.
             """
             try:
-                rpcs = get_task.result()
+                rpcs = setter.result()
                 if type(rpcs) is list:
                     # Result indicates number of pending
                     # RPC for this put operation.
