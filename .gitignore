@@ -2,6 +2,7 @@
 *.pyc
 *.bak
 *.tgz
+.idea/*
 dist/*
 docs/_build/*
 build/*
