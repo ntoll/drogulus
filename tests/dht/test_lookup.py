@@ -190,10 +190,12 @@ class TestLookup(unittest.TestCase):
         uuid = [uuid for uuid in lookup.pending_requests.keys()][0]
         pending_task = lookup.pending_requests[uuid]
         contact = lookup.shortlist[0]
+        lookup.event_loop.call_soon = mock.MagicMock()
         lookup._handle_error(uuid, contact, Exception('Foo'))
         self.assertNotIn(contact, lookup.shortlist)
         self.assertNotIn(uuid, lookup.pending_requests)
-        self.assertTrue(pending_task.cancelled())
+        lookup.event_loop.call_soon.assert_called_once_with(
+            pending_task.cancel)
         # Log the error and associated exception (2 calls)
         self.assertEqual(mock_info.call_count, 2)
         self.assertEqual(lookup._lookup.call_count, 1)

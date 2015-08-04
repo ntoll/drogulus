@@ -180,7 +180,7 @@ class Lookup(asyncio.Future):
         if contact in self.shortlist:
             self.shortlist.remove(contact)
         if uuid in self.pending_requests:
-            self.pending_requests[uuid].cancel()
+            self.event_loop.call_soon(self.pending_requests[uuid].cancel)
             del self.pending_requests[uuid]
         log.info('Problem during interaction with {}'.format(contact))
         log.info(error)
